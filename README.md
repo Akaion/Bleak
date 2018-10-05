@@ -26,4 +26,4 @@ injector.CreateRemoteThread("pathToDll", "processName");
 ## Contributing
 Pull requests are welcome. 
 
-For major changes, such as new injection methods please open an issue first to discuss what you would like to add.
+For major changes, such as new injection methods, please open an issue first to discuss what you would like to add.
