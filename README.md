@@ -5,7 +5,7 @@ A DLL injection library written in C# that supports several methods of process i
 ## Supported Methods
 
 * CreateRemoteThread
-* SetThreadContext (Thread Hijacking)
+* SetThreadContext (Thread Hijack)
 
 ## Installation
 
