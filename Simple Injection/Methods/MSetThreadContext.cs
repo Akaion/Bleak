@@ -56,7 +56,7 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-            // Get the handle of the main thread of the specified process
+            // Get the handle of the first thread of the specified process
             
             var threadId = Process.GetProcessesByName(processName)[0].Threads[0].Id;
 
@@ -66,7 +66,7 @@ namespace Simple_Injection.Methods
 
             SuspendThread(threadHandle);
             
-            // Get the main threads context
+            // Get the threads context
 
             var context = new Context {ContextFlags = (uint) Flags.ContextControl};
 
@@ -92,14 +92,14 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-            // Set the main threads context
+            // Set the threads context
 
             if (!SetThreadContext(threadHandle, ref context))
             {
                 return false;
             }
             
-            // Resume the main thread
+            // Resume the thread
 
             ResumeThread(threadHandle);
 
