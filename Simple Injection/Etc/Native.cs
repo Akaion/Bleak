@@ -34,8 +34,18 @@ namespace Simple_Injection.Etc
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool GetThreadContext(IntPtr hThread, ref Context lpContext);
         
+        // x64 Override for GetThreadContext
+        
+        [DllImport("kernel32.dll", SetLastError = true)] 
+        public static extern bool GetThreadContext(IntPtr hThread, ref Context64 lpContext);
+        
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool SetThreadContext(IntPtr hThread, ref Context lpContext);
+        
+        // x64 Override for SetThreadContext
+        
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool SetThreadContext(IntPtr hThread, ref Context64 lpContext);
         
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern void ResumeThread(IntPtr hThread);
@@ -151,6 +161,105 @@ namespace Simple_Injection.Etc
             
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 512)]
             private readonly byte[] ExtendedRegisters;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        private struct M128A
+        {
+            private readonly ulong High;
+            private readonly long Low;
+        }
+        
+        [StructLayout(LayoutKind.Sequential, Pack = 16)]
+        private struct SaveFormat
+        {
+            private readonly ushort ControlWord;
+            private readonly ushort StatusWord;
+            private readonly byte TagWord;
+            
+            private readonly byte Reserved1;
+            
+            private readonly ushort ErrorOpcode;
+            private readonly uint ErrorOffset;
+            private readonly ushort ErrorSelector;
+            
+            private readonly ushort Reserved2;
+            
+            private readonly uint DataOffset;
+            private readonly ushort DataSelector;
+            
+            private readonly ushort Reserved3;
+            
+            private readonly uint MxCsr;
+            private readonly uint MxCsr_Mask;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
+            private readonly M128A[] FloatRegisters;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+            private readonly M128A[] XmmRegisters;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 96)]
+            private readonly byte[] Reserved4;
+        }
+        
+        [StructLayout(LayoutKind.Sequential, Pack = 16)]
+        public struct Context64
+        {
+            private readonly ulong P1Home;
+            private readonly ulong P2Home;
+            private readonly ulong P3Home;
+            private readonly ulong P4Home;
+            private readonly ulong P5Home;
+            private readonly ulong P6Home;
+
+            public Flags ContextFlags;
+            private readonly uint MxCsr;
+
+            private readonly ushort SegCs;
+            private readonly ushort SegDs;
+            private readonly ushort SegEs;
+            private readonly ushort SegFs;
+            private readonly ushort SegGs;
+            private readonly ushort SegSs;
+            private readonly uint EFlags;
+
+            private readonly ulong Dr0;
+            private readonly ulong Dr1;
+            private readonly ulong Dr2;
+            private readonly ulong Dr3;
+            private readonly ulong Dr6;
+            private readonly ulong Dr7;
+
+            private readonly ulong Rax;
+            private readonly ulong Rcx;
+            private readonly ulong Rdx;
+            private readonly ulong Rbx;
+            private readonly ulong Rsp;
+            private readonly ulong Rbp;
+            private readonly ulong Rsi;
+            private readonly ulong Rdi;
+            private readonly ulong R8;
+            private readonly ulong R9;
+            private readonly ulong R10;
+            private readonly ulong R11;
+            private readonly ulong R12;
+            private readonly ulong R13;
+            private readonly ulong R14;
+            private readonly ulong R15;
+            public ulong Rip;
+
+            private readonly SaveFormat DummyUnionName;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 26)]
+            private readonly M128A[] VectorRegister;
+            private readonly ulong VectorControl;
+
+            private readonly ulong DebugControl;
+            private readonly ulong LastBranchToRip;
+            private readonly ulong LastBranchFromRip;
+            private readonly ulong LastExceptionToRip;
+            private readonly ulong LastExceptionFromRip;
         }
         
         #endregion
