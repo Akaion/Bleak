@@ -5,7 +5,7 @@ namespace Simple_Injection.Etc
 {
     public static class Native
     {
-        #region Api Imports
+        #region pinvoke
         
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern IntPtr OpenProcess(ProcessPrivileges dwDesiredAccess, bool bInheritHandle, int dwProcessId);
@@ -49,6 +49,9 @@ namespace Simple_Injection.Etc
         
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern void ResumeThread(IntPtr hThread);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
         
         [DllImport("kernel32.dll", SetLastError=true)]
         public static extern void WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);

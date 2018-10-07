@@ -43,7 +43,6 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-
             return true;
         }
         
@@ -82,7 +81,6 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-
             return true;
         }
         
@@ -180,6 +178,5 @@ namespace Simple_Injection.Methods
             
             return true;
         }
-
     }
 }

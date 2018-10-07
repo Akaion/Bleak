@@ -12,6 +12,9 @@
     <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>bin\x64\Release\</OutputPath>
@@ -46,6 +49,7 @@
     <Compile Include="Etc\Shellcode.cs" />
     <Compile Include="Injector.cs" />
     <Compile Include="Methods\MCreateRemoteThread.cs" />
+    <Compile Include="Methods\MQueueUserAPC.cs" />
     <Compile Include="Methods\MSetThreadContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

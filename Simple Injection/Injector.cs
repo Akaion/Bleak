@@ -9,6 +9,11 @@ namespace Simple_Injection
             return MCreateRemoteThread.Inject(dllPath, processName);
         }
 
+        public bool QueueUserAPC(string dllPath, string processName)
+        {
+            return MQueueUserAPC.Inject(dllPath, processName);
+        }
+        
         public bool SetThreadContext(string dllPath, string processName)
         {
             return MSetThreadContext.Inject(dllPath, processName);

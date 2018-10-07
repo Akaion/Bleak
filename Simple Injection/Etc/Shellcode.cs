@@ -20,7 +20,7 @@ namespace Simple_Injection.Etc
             };
 
             // Get the byte representation of each pointer
-
+            
             var instructionPointerBytes = BitConverter.GetBytes(instructionPointer);
 
             var memoryPointerBytes = BitConverter.GetBytes((uint) dllMemoryPointer);
