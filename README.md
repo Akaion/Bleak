@@ -1,4 +1,4 @@
-# Simple Injection
+# Simple-Injection
 
 A DLL injection library written in C# that supports several methods of process injection.
 
