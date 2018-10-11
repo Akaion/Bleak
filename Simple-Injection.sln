@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28010.2026
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Simple-Injection", "Simple Injection\Simple-Injection.csproj", "{B36DC2B7-99A2-47E6-A7E0-AB0B2CBE510E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Simple-Injection", "Simple-Injection\Simple-Injection.csproj", "{B36DC2B7-99A2-47E6-A7E0-AB0B2CBE510E}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
@@ -15,8 +15,8 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{B36DC2B7-99A2-47E6-A7E0-AB0B2CBE510E}.Release|x64.ActiveCfg = Release|x86
-		{B36DC2B7-99A2-47E6-A7E0-AB0B2CBE510E}.Release|x64.Build.0 = Release|x86
+		{B36DC2B7-99A2-47E6-A7E0-AB0B2CBE510E}.Release|x64.ActiveCfg = Release|x64
+		{B36DC2B7-99A2-47E6-A7E0-AB0B2CBE510E}.Release|x64.Build.0 = Release|x64
 		{B36DC2B7-99A2-47E6-A7E0-AB0B2CBE510E}.Release|x86.ActiveCfg = Release|x86
 		{B36DC2B7-99A2-47E6-A7E0-AB0B2CBE510E}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection

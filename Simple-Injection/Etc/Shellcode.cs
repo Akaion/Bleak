@@ -57,7 +57,7 @@ namespace Simple_Injection.Etc
                 0x41, 0x55,                                                 // push r13
                 0x41, 0x56,                                                 // push r14
                 0x41, 0x57,                                                 // push r15
-                0x68, 0xEF, 0xBE, 0xAD, 0xDE,                               // fastcall convention
+                0x68, 0x00, 0x00, 0x00, 0x00,                               // fastcall convention
                 0x48, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rcx, 0x0000000000000000 
                 0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rax, 0x0000000000000000 
                 0xFF, 0xD0,                                                 // call rax
