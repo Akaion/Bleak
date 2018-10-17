@@ -11,7 +11,7 @@ A DLL injection library written in C# that supports several methods of process i
 ## Installation
 
 * Clone this repository
-* Compile as x86 or x64
+* Compile the project as AnyCPU
 * Add a reference to Simple-Injection.dll to your project
 
 ## Usage
