@@ -56,7 +56,7 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-            // Wait for the remote thread to finish
+            // Wait for the user thread to finish
             
             WaitForSingleObject(userThreadHandle, 0xFFFFFFFF);
             
