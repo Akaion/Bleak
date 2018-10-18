@@ -36,6 +36,8 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release\</OutputPath>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -53,6 +55,7 @@
     <Compile Include="Injector.cs" />
     <Compile Include="Methods\MCreateRemoteThread.cs" />
     <Compile Include="Methods\MQueueUserAPC.cs" />
+    <Compile Include="Methods\MRtlCreateUserThread.cs" />
     <Compile Include="Methods\MSetThreadContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

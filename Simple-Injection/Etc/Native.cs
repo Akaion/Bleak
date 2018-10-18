@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace Simple_Injection.Etc
 {
@@ -52,6 +53,9 @@ namespace Simple_Injection.Etc
 
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
+        
+        [DllImport("ntdll.dll")]
+        public static extern IntPtr RtlCreateUserThread(IntPtr hProcess, IntPtr lpThreadSecurity, bool createSuspended, int stackZeroBits, IntPtr stackReserved, IntPtr stackCommit, IntPtr startAddress, IntPtr parameter, IntPtr threadId, IntPtr clientId);
         
         [DllImport("kernel32.dll", SetLastError=true)]
         public static extern void WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
