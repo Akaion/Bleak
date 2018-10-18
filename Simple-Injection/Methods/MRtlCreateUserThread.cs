@@ -49,6 +49,8 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
+            // Create a user thread to call load library in the specified process
+            
             var userThreadHandle = RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryPointer ,dllMemoryPointer, IntPtr.Zero, IntPtr.Zero);
             
             if (userThreadHandle == IntPtr.Zero)

@@ -1,6 +1,5 @@
 using System;
 using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
 
 namespace Simple_Injection.Etc
 {
