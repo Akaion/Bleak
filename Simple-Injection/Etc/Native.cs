@@ -7,78 +7,70 @@ namespace Simple_Injection.Etc
     {
         #region pinvoke
         
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern IntPtr OpenProcess(ProcessPrivileges dwDesiredAccess, bool bInheritHandle, int dwProcessId);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern IntPtr GetModuleHandle(string lpModuleName);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
-        public static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, MemoryAllocation flAllocationType, MemoryProtection flProtect);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, int lpNumberOfBytesWritten);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
         
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
         
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern uint SuspendThread(IntPtr hThread);
         
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern bool GetThreadContext(IntPtr hThread, ref Context lpContext);
         
         // x64 Override for GetThreadContext
         
-        [DllImport("kernel32.dll", SetLastError = true)] 
+        [DllImport("kernel32.dll")] 
         public static extern bool GetThreadContext(IntPtr hThread, ref Context64 lpContext);
         
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern bool SetThreadContext(IntPtr hThread, ref Context lpContext);
         
         // x64 Override for SetThreadContext
         
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern bool SetThreadContext(IntPtr hThread, ref Context64 lpContext);
         
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern void ResumeThread(IntPtr hThread);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern bool QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
         
         [DllImport("ntdll.dll")]
         public static extern IntPtr RtlCreateUserThread(IntPtr hProcess, IntPtr lpThreadSecurity, bool createSuspended, int stackZeroBits, IntPtr stackReserved, IntPtr stackCommit, IntPtr startAddress, IntPtr parameter, IntPtr threadId, IntPtr clientId);
         
-        [DllImport("kernel32.dll", SetLastError=true)]
+        [DllImport("kernel32.dll")] 
+        public static extern bool VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MemoryInformation lpBuffer, uint dwLength);
+        
+        [DllImport("kernel32.dll", EntryPoint="RtlZeroMemory")]
+        public static extern void ZeroMemory(IntPtr dest, uint dwSize);
+        
+        [DllImport("kernel32.dll")]
         public static extern void WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
         
-        [DllImport("kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll")]
         public static extern void CloseHandle(IntPtr handle);
         
-        [DllImport("kernel32.dll", SetLastError=true)]
+        [DllImport("kernel32.dll")]
         public static extern void VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation dwFreeType);
 
         #endregion
         
         #region Permissions
-
-        public enum ProcessPrivileges
-        {
-            CreateThread = 0x02,
-            QueryInformation = 0x0400,
-            VmOperation = 0x08,
-            VmWrite = 0x20,
-            VmRead = 0x10,
-            AllAccess = CreateThread | QueryInformation | VmOperation | VmWrite | VmRead
-            
-        }
         
         public enum MemoryAllocation
         {
@@ -266,6 +258,18 @@ namespace Simple_Injection.Etc
             private readonly ulong LastBranchFromRip;
             private readonly ulong LastExceptionToRip;
             private readonly ulong LastExceptionFromRip;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)] 
+        public struct MemoryInformation 
+        {
+            private readonly IntPtr BaseAddress;
+            private readonly IntPtr AllocationBase;
+            private readonly uint AllocationProtect; 
+            public IntPtr RegionSize;
+            private readonly uint State;
+            private readonly uint Protect;
+            private readonly uint Type; 
         }
         
         #endregion

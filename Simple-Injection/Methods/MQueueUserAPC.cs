@@ -18,18 +18,16 @@ namespace Simple_Injection.Methods
             {
                 return false;
             }
-              
+
             // Get the handle of the specified process
-            
-            var processId = Process.GetProcessesByName(processName)[0].Id;
-            
-            var processHandle = OpenProcess(ProcessPrivileges.AllAccess, false, processId);
-            
+
+            var processHandle = Process.GetProcessesByName(processName)[0].Handle;
+
             if (processHandle == IntPtr.Zero)
             {
                 return false;
             }
-            
+
             // Allocate memory for the dll name
 
             var dllNameSize = dllPath.Length + 1;
@@ -68,10 +66,6 @@ namespace Simple_Injection.Methods
                 
                 CloseHandle(threadHandle);
             }
-            
-            // Close the previously opened handle
-            
-            CloseHandle(processHandle);
             
             // Free the previously allocated memory
             
