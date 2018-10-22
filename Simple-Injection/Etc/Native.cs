@@ -254,18 +254,6 @@ namespace Simple_Injection.Etc
             private readonly ulong LastExceptionFromRip;
         }
         
-        [StructLayout(LayoutKind.Sequential)] 
-        public struct MemoryInformation 
-        {
-            private readonly IntPtr BaseAddress;
-            private readonly IntPtr AllocationBase;
-            private readonly uint AllocationProtect; 
-            public IntPtr RegionSize;
-            private readonly uint State;
-            private readonly uint Protect;
-            private readonly uint Type; 
-        }
-        
         #endregion
     }
 }
