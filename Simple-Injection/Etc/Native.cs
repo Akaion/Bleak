@@ -53,12 +53,6 @@ namespace Simple_Injection.Etc
         [DllImport("ntdll.dll")]
         public static extern IntPtr RtlCreateUserThread(IntPtr hProcess, IntPtr lpThreadSecurity, bool createSuspended, int stackZeroBits, IntPtr stackReserved, IntPtr stackCommit, IntPtr startAddress, IntPtr parameter, IntPtr threadId, IntPtr clientId);
         
-        [DllImport("kernel32.dll")] 
-        public static extern bool VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MemoryInformation lpBuffer, uint dwLength);
-        
-        [DllImport("kernel32.dll", EntryPoint="RtlZeroMemory")]
-        public static extern void ZeroMemory(IntPtr dest, uint dwSize);
-        
         [DllImport("kernel32.dll")]
         public static extern void WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
         

@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Net.NetworkInformation;
 using System.Text;
 using Simple_Injection.Etc;
 using static Simple_Injection.Etc.Native;
