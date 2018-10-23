@@ -9,6 +9,11 @@ A DLL injection library written in C# that supports several methods of process i
 * RtlCreateUserThread
 * SetThreadContext (Thread Hijack)
 
+## Features
+
+* Erase PE Headers
+* Randomise PE Headers
+
 ## Installation
 
 * Clone this repository
