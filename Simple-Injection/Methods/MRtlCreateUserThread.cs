@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
+using Simple_Injection.Extensions;
 using static Simple_Injection.Etc.Native;
 
 namespace Simple_Injection.Methods
@@ -9,6 +11,22 @@ namespace Simple_Injection.Methods
     {
         public static bool Inject(string dllPath, string processName)
         {
+            // Ensure both arguments passed in are valid
+            
+            if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
+            {
+                return false;
+            }
+            
+            // Cache an instance of the specified process
+
+            var process = Process.GetProcessesByName(processName)[0];
+
+            if (process == null)
+            {
+                return false;
+            }
+            
             // Get the pointer to load library
 
             var loadLibraryPointer = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
@@ -20,7 +38,7 @@ namespace Simple_Injection.Methods
 
             // Get the handle of the specified process
 
-            var processHandle = Process.GetProcessesByName(processName)[0].Handle;
+            var processHandle = process.Handle;
 
             if (processHandle == IntPtr.Zero)
             {
@@ -49,7 +67,7 @@ namespace Simple_Injection.Methods
             
             // Create a user thread to call load library in the specified process
             
-            var userThreadHandle = RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryPointer ,dllMemoryPointer, IntPtr.Zero, IntPtr.Zero);
+            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryPointer , dllMemoryPointer, out var userThreadHandle, IntPtr.Zero);
             
             if (userThreadHandle == IntPtr.Zero)
             {
@@ -62,8 +80,8 @@ namespace Simple_Injection.Methods
             
             // Free the previously allocated memory
             
-            VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
-            
+            VirtualFreeEx(processHandle, dllMemoryPointer, (uint) dllNameSize, MemoryAllocation.Release);
+                    
             // Close the previously opened handle
 
             CloseHandle(userThreadHandle);

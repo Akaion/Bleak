@@ -86,6 +86,13 @@ namespace Simple_Injection.Methods
         
         public static bool Inject(string dllPath, string processName)
         {
+            // Ensure both arguments passed in are valid
+            
+            if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
+            {
+                return false;
+            }
+            
             // Determine whether compiled as x86 or x64
             
             var compiledAsx64 = Environment.Is64BitProcess;
@@ -93,6 +100,11 @@ namespace Simple_Injection.Methods
             // Cache an instance of the specified process
 
             var process = Process.GetProcessesByName(processName)[0];
+            
+            if (process == null)
+            {
+                return false;
+            }
             
             // Get the pointer to load library
 
@@ -175,8 +187,8 @@ namespace Simple_Injection.Methods
 
             // Free the previously allocated memory
             
-            VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
-            VirtualFreeEx(processHandle, shellcodeMemoryPointer, shellcodeSize, MemoryAllocation.Release);
+            VirtualFreeEx(processHandle, dllMemoryPointer, (uint) dllNameSize, MemoryAllocation.Release);
+            VirtualFreeEx(processHandle, shellcodeMemoryPointer, (uint) shellcodeSize, MemoryAllocation.Release);
             
             // Close the previously opened handle
             

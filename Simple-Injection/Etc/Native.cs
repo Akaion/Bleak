@@ -17,7 +17,7 @@ namespace Simple_Injection.Etc
         public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, MemoryAllocation flAllocationType, MemoryProtection flProtect);
 
         [DllImport("kernel32.dll")]
-        public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, int lpNumberOfBytesWritten);
+        public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, uint lpNumberOfBytesWritten);
 
         [DllImport("kernel32.dll")]
         public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
@@ -51,7 +51,13 @@ namespace Simple_Injection.Etc
         public static extern bool QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
         
         [DllImport("ntdll.dll")]
-        public static extern IntPtr RtlCreateUserThread(IntPtr hProcess, IntPtr lpThreadSecurity, bool createSuspended, int stackZeroBits, IntPtr stackReserved, IntPtr stackCommit, IntPtr startAddress, IntPtr parameter, IntPtr threadId, IntPtr clientId);
+        public static extern void RtlCreateUserThread(IntPtr hProcess, IntPtr lpThreadSecurity, bool bCreateSuspended, uint dwStackZeroBits, IntPtr pStackReserved, IntPtr pStackCommit, IntPtr pStartAddress, IntPtr pStartParameter, out IntPtr hThread, IntPtr pClientId);
+        
+        [DllImport("kernel32.dll")]
+        public static extern bool VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MemoryInformation lpBuffer, uint dwLength);
+        
+        [DllImport("kernel32.dll")]
+        public static extern bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flNewProtect, out uint lpflOldProtect);
         
         [DllImport("kernel32.dll")]
         public static extern void WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
@@ -60,7 +66,7 @@ namespace Simple_Injection.Etc
         public static extern void CloseHandle(IntPtr handle);
         
         [DllImport("kernel32.dll")]
-        public static extern void VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation dwFreeType);
+        public static extern void VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, MemoryAllocation dwFreeType);
 
         #endregion
         
@@ -252,6 +258,18 @@ namespace Simple_Injection.Etc
             private readonly ulong LastBranchFromRip;
             private readonly ulong LastExceptionToRip;
             private readonly ulong LastExceptionFromRip;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)] 
+        public struct MemoryInformation 
+        {
+            private readonly IntPtr BaseAddress;
+            private readonly IntPtr AllocationBase;
+            private readonly uint AllocationProtect; 
+            public IntPtr RegionSize;
+            private readonly uint State;
+            private readonly uint Protect;
+            private readonly uint Type; 
         }
         
         #endregion

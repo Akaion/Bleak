@@ -10,6 +10,22 @@ namespace Simple_Injection.Methods
     {
         public static bool Inject(string dllPath, string processName)
         {
+            // Ensure both arguments passed in are valid
+            
+            if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
+            {
+                return false;
+            }
+            
+            // Cache an instance of the specified process
+
+            var process = Process.GetProcessesByName(processName)[0];
+
+            if (process == null)
+            {
+                return false;
+            }
+            
             // Get the pointer to load library
 
             var loadLibraryPointer = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
@@ -21,7 +37,7 @@ namespace Simple_Injection.Methods
 
             // Get the handle of the specified process
 
-            var processHandle = Process.GetProcessesByName(processName)[0].Handle;
+            var processHandle = process.Handle;
 
             if (processHandle == IntPtr.Zero)
             {
@@ -69,7 +85,7 @@ namespace Simple_Injection.Methods
             
             // Free the previously allocated memory
             
-            VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
+            VirtualFreeEx(processHandle, dllMemoryPointer, (uint) dllNameSize, MemoryAllocation.Release);
             
             return true;
         }  
