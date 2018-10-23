@@ -28,6 +28,8 @@ using Simple_Injection;
 var injector = new Injector();
 
 injector.CreateRemoteThread("pathToDll", "processName");
+
+injector.EraseHeaders("pathToDll", "processName")
 ```
 
 ## Contributing
