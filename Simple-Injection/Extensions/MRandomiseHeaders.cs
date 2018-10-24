@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using static Simple_Injection.Etc.Native;
 
 namespace Simple_Injection.Extensions
@@ -54,7 +55,9 @@ namespace Simple_Injection.Extensions
             
             // Get the information about the header region of the module
 
-            if (!VirtualQueryEx(processHandle, moduleBaseAddress, out var memoryInformation, 28))
+            var memoryInformationSize = Marshal.SizeOf(typeof(MemoryInformation));
+            
+            if (!VirtualQueryEx(processHandle, moduleBaseAddress, out var memoryInformation, (uint) memoryInformationSize))
             {
                 return false;
             }
