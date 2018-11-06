@@ -151,7 +151,7 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-            // Get the handle of a usable thread in the specified process
+            // Get the handle of the first thread in the specified process
             
             var threadId = process.Threads[0].Id;
             
