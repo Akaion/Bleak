@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
 using Simple_Injection.Etc;
 using static Simple_Injection.Etc.Native;
@@ -150,10 +151,10 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-            // Get the handle of the first thread of the specified process
+            // Get the handle of a usable thread in the specified process
             
             var threadId = process.Threads[0].Id;
-
+            
             var threadHandle = OpenThread(ThreadAccess.AllAccess, false, (uint) threadId);
 
             if (threadHandle == IntPtr.Zero)
@@ -185,6 +186,10 @@ namespace Simple_Injection.Methods
 
             ResumeThread(threadHandle);
 
+            // Simulate a keypress to execute the dll
+            
+            PostMessage(process.MainWindowHandle, WindowsMessage.WmKeydown, (IntPtr) 0x01, IntPtr.Zero);
+            
             // Free the previously allocated memory
             
             VirtualFreeEx(processHandle, dllMemoryPointer, (uint) dllNameSize, MemoryAllocation.Release);

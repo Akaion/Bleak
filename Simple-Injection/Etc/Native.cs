@@ -26,7 +26,7 @@ namespace Simple_Injection.Etc
         public static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
         
         [DllImport("kernel32.dll")]
-        public static extern uint SuspendThread(IntPtr hThread);
+        public static extern void SuspendThread(IntPtr hThread);
         
         [DllImport("kernel32.dll")]
         public static extern bool GetThreadContext(IntPtr hThread, ref Context lpContext);
@@ -63,10 +63,13 @@ namespace Simple_Injection.Etc
         public static extern void WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
         
         [DllImport("kernel32.dll")]
-        public static extern void CloseHandle(IntPtr handle);
+        public static extern void CloseHandle(IntPtr hHandle);
         
         [DllImport("kernel32.dll")]
         public static extern void VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, MemoryAllocation dwFreeType);
+        
+        [DllImport("user32.dll")]
+        public static extern void PostMessage(IntPtr hWnd, WindowsMessage dwMsg, IntPtr wParam, IntPtr lParam);
 
         #endregion
         
@@ -98,6 +101,11 @@ namespace Simple_Injection.Etc
         {
             Contexti386 = 0x10000,
             ContextControl = Contexti386 | 0x01
+        }
+
+        public enum WindowsMessage
+        {
+            WmKeydown = 0x100
         }
 
         #endregion
@@ -271,7 +279,7 @@ namespace Simple_Injection.Etc
             private readonly uint Protect;
             private readonly uint Type; 
         }
-        
+         
         #endregion
     }
 }
