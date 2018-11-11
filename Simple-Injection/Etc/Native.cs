@@ -15,13 +15,13 @@ namespace Simple_Injection.Etc
         public static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
 
         [DllImport("kernel32.dll")]
-        public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation flAllocationType, MemoryProtection flProtect);
+        public static extern IntPtr VirtualAllocEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation flAllocationType, MemoryProtection flProtect);
         
         [DllImport("kernel32.dll")]
-        public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int nSize, uint lpNumberOfBytesWritten);
+        public static extern bool WriteProcessMemory(SafeHandle hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int nSize, uint lpNumberOfBytesWritten);
         
         [DllImport("kernel32.dll")]
-        public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
+        public static extern IntPtr CreateRemoteThread(SafeHandle hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
         
         [DllImport("kernel32.dll")]
         public static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, int dwThreadId);
@@ -52,13 +52,13 @@ namespace Simple_Injection.Etc
         public static extern bool QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
         
         [DllImport("ntdll.dll")]
-        public static extern void RtlCreateUserThread(IntPtr hProcess, IntPtr lpThreadSecurity, bool bCreateSuspended, uint dwStackZeroBits, IntPtr pStackReserved, IntPtr pStackCommit, IntPtr pStartAddress, IntPtr pStartParameter, out IntPtr hThread, IntPtr pClientId);
+        public static extern void RtlCreateUserThread(SafeHandle hProcess, IntPtr lpThreadSecurity, bool bCreateSuspended, uint dwStackZeroBits, IntPtr pStackReserved, IntPtr pStackCommit, IntPtr pStartAddress, IntPtr pStartParameter, out IntPtr hThread, IntPtr pClientId);
         
         [DllImport("kernel32.dll")]
-        public static extern bool VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MemoryInformation lpBuffer, int dwLength);
+        public static extern bool VirtualQueryEx(SafeHandle hProcess, IntPtr lpAddress, out MemoryInformation lpBuffer, int dwLength);
         
         [DllImport("kernel32.dll")]
-        public static extern bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, uint flNewProtect, out uint lpflOldProtect);
+        public static extern bool VirtualProtectEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, uint flNewProtect, out uint lpflOldProtect);
         
         [DllImport("kernel32.dll")]
         public static extern void WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
@@ -67,7 +67,7 @@ namespace Simple_Injection.Etc
         public static extern void CloseHandle(IntPtr hHandle);
         
         [DllImport("kernel32.dll")]
-        public static extern void VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation dwFreeType);
+        public static extern void VirtualFreeEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation dwFreeType);
         
         [DllImport("user32.dll")]
         public static extern void PostMessage(IntPtr hWnd, WindowsMessage dwMsg, IntPtr wParam, IntPtr lParam);

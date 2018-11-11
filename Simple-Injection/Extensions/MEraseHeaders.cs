@@ -22,18 +22,23 @@ namespace Simple_Injection.Extensions
             
             // Cache an instance of the specified process
 
-            var process = Process.GetProcessesByName(processName)[0];
+            Process process;
             
-            if (process == null)
+            try
+            {
+                process = Process.GetProcessesByName(processName)[0];
+            }
+
+            catch (IndexOutOfRangeException)
             {
                 return false;
             }
-            
+
             // Get the handle of the specified process
 
-            var processHandle = process.Handle;
+            var processHandle = process.SafeHandle;
 
-            if (processHandle == IntPtr.Zero)
+            if (processHandle == null)
             {
                 return false;
             }

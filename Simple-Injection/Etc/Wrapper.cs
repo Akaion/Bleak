@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using static Simple_Injection.Etc.Native;
 
 namespace Simple_Injection.Etc
@@ -12,14 +13,14 @@ namespace Simple_Injection.Etc
             return GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
         } 
         
-        public static IntPtr AllocateMemory(IntPtr processHandle, int size)
+        public static IntPtr AllocateMemory(SafeHandle processHandle, int size)
         {
             // Allocate memory in specified process
             
             return VirtualAllocEx(processHandle, IntPtr.Zero, size, MemoryAllocation.AllAccess, MemoryProtection.PageExecuteReadWrite);
         }
         
-        public static bool WriteMemory(IntPtr processHandle, IntPtr memoryPointer, byte[] buffer)
+        public static bool WriteMemory(SafeHandle processHandle, IntPtr memoryPointer, byte[] buffer)
         {
             // Change the protection of the memory region
 
@@ -45,14 +46,14 @@ namespace Simple_Injection.Etc
             return true;
         }
 
-        public static void FreeMemory(IntPtr processHandle, IntPtr memoryPointer, int size)
+        public static void FreeMemory(SafeHandle processHandle, IntPtr memoryPointer, int size)
         {
             // Free memory at specified address
             
             VirtualFreeEx(processHandle, memoryPointer, size, MemoryAllocation.Release);
         }
         
-        public static bool SetThreadContextx86(IntPtr threadHandle, IntPtr processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer)
+        public static bool SetThreadContextx86(IntPtr threadHandle, SafeHandle processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer)
         {
             // Get the threads context
 
@@ -90,7 +91,7 @@ namespace Simple_Injection.Etc
             return true;
         }
         
-        public static bool SetThreadContextx64(IntPtr threadHandle, IntPtr processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer)
+        public static bool SetThreadContextx64(IntPtr threadHandle, SafeHandle processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer)
         {
             // Get the threads context
 

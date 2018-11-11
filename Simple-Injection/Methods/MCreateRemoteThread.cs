@@ -19,9 +19,14 @@ namespace Simple_Injection.Methods
             
             // Cache an instance of the specified process
 
-            var process = Process.GetProcessesByName(processName)[0];
+            Process process;
+            
+            try
+            {
+                process = Process.GetProcessesByName(processName)[0];
+            }
 
-            if (process == null)
+            catch (IndexOutOfRangeException)
             {
                 return false;
             }
@@ -37,9 +42,9 @@ namespace Simple_Injection.Methods
 
             // Get the handle of the specified process
 
-            var processHandle = process.Handle;
+            var processHandle = process.SafeHandle;
 
-            if (processHandle == IntPtr.Zero)
+            if (processHandle == null)
             {
                 return false;
             }
