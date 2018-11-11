@@ -33,6 +33,6 @@ namespace Simple_Injection
         public bool RandomiseHeaders(string dllPath, string processName)
         {
             return MRandomiseHeaders.Randomise(dllPath, processName);
-        }     
+        }
     }
 }

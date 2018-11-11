@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace Simple_Injection.Etc
@@ -14,16 +15,16 @@ namespace Simple_Injection.Etc
         public static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
 
         [DllImport("kernel32.dll")]
-        public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, MemoryAllocation flAllocationType, MemoryProtection flProtect);
-
+        public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation flAllocationType, MemoryProtection flProtect);
+        
         [DllImport("kernel32.dll")]
-        public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, uint lpNumberOfBytesWritten);
-
+        public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int nSize, uint lpNumberOfBytesWritten);
+        
         [DllImport("kernel32.dll")]
         public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
         
         [DllImport("kernel32.dll")]
-        public static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
+        public static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, int dwThreadId);
         
         [DllImport("kernel32.dll")]
         public static extern void SuspendThread(IntPtr hThread);
@@ -31,7 +32,7 @@ namespace Simple_Injection.Etc
         [DllImport("kernel32.dll")]
         public static extern bool GetThreadContext(IntPtr hThread, ref Context lpContext);
         
-        // x64 Override for GetThreadContext
+        // x64 Overload for GetThreadContext
         
         [DllImport("kernel32.dll")] 
         public static extern bool GetThreadContext(IntPtr hThread, ref Context64 lpContext);
@@ -39,7 +40,7 @@ namespace Simple_Injection.Etc
         [DllImport("kernel32.dll")]
         public static extern bool SetThreadContext(IntPtr hThread, ref Context lpContext);
         
-        // x64 Override for SetThreadContext
+        // x64 Overload for SetThreadContext
         
         [DllImport("kernel32.dll")]
         public static extern bool SetThreadContext(IntPtr hThread, ref Context64 lpContext);
@@ -54,10 +55,10 @@ namespace Simple_Injection.Etc
         public static extern void RtlCreateUserThread(IntPtr hProcess, IntPtr lpThreadSecurity, bool bCreateSuspended, uint dwStackZeroBits, IntPtr pStackReserved, IntPtr pStackCommit, IntPtr pStartAddress, IntPtr pStartParameter, out IntPtr hThread, IntPtr pClientId);
         
         [DllImport("kernel32.dll")]
-        public static extern bool VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MemoryInformation lpBuffer, uint dwLength);
+        public static extern bool VirtualQueryEx(IntPtr hProcess, IntPtr lpAddress, out MemoryInformation lpBuffer, int dwLength);
         
         [DllImport("kernel32.dll")]
-        public static extern bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flNewProtect, out uint lpflOldProtect);
+        public static extern bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, uint flNewProtect, out uint lpflOldProtect);
         
         [DllImport("kernel32.dll")]
         public static extern void WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
@@ -66,7 +67,7 @@ namespace Simple_Injection.Etc
         public static extern void CloseHandle(IntPtr hHandle);
         
         [DllImport("kernel32.dll")]
-        public static extern void VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, MemoryAllocation dwFreeType);
+        public static extern void VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation dwFreeType);
         
         [DllImport("user32.dll")]
         public static extern void PostMessage(IntPtr hWnd, WindowsMessage dwMsg, IntPtr wParam, IntPtr lParam);
@@ -77,37 +78,30 @@ namespace Simple_Injection.Etc
         
         public enum MemoryAllocation
         {
-            Commit = 0x1000,
-            Reserve = 0x2000,
-            Release = 0x8000,
-            AllAccess = Commit | Reserve
+            AllAccess = 0x3000,
+            Release = 0x8000
         }
 
         public enum MemoryProtection
         {
-            PageReadWrite = 0x04,
             PageExecuteReadWrite = 0x40
         }
 
         public enum ThreadAccess
         {
-            SuspendResume = 0x02,
-            GetContext = 0x08,
-            SetContext = 0x010,
-            AllAccess = SuspendResume | GetContext | SetContext
+            AllAccess = 0x1A
         }
 
         public enum Flags
         {
-            Contexti386 = 0x10000,
-            ContextControl = Contexti386 | 0x01
+            ContextControl = 0x10001
         }
 
         public enum WindowsMessage
         {
             WmKeydown = 0x100
         }
-
+        
         #endregion
         
         #region Structures
@@ -272,14 +266,17 @@ namespace Simple_Injection.Etc
         public struct MemoryInformation 
         {
             private readonly IntPtr BaseAddress;
+            
             private readonly IntPtr AllocationBase;
             private readonly uint AllocationProtect; 
-            public IntPtr RegionSize;
+            
+            public readonly uint RegionSize;
+            
             private readonly uint State;
             private readonly uint Protect;
             private readonly uint Type; 
         }
-         
+        
         #endregion
     }
 }

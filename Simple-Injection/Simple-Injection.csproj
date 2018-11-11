@@ -52,6 +52,7 @@
   <ItemGroup>
     <Compile Include="Etc\Native.cs" />
     <Compile Include="Etc\Shellcode.cs" />
+    <Compile Include="Etc\Wrapper.cs" />
     <Compile Include="Extensions\MEraseHeaders.cs" />
     <Compile Include="Extensions\MRandomiseHeaders.cs" />
     <Compile Include="Injector.cs" />

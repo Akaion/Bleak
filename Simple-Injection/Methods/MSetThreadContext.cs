@@ -1,90 +1,14 @@
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
 using Simple_Injection.Etc;
 using static Simple_Injection.Etc.Native;
+using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Methods
 {
     public static class MSetThreadContext
     {
-        private static bool SetThreadContextx86(IntPtr threadHandle, IntPtr processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer, int shellcodeSize)
-        {
-            // Get the threads context
-
-            var context = new Context {ContextFlags = (uint) Flags.ContextControl};
-
-            if (!GetThreadContext(threadHandle, ref context))
-            {
-                return false;
-            }
-            
-            // Save the instruction pointer
-
-            var instructionPointer = context.Eip;
-            
-            // Change the instruction pointer to the shellcode pointer
-
-            context.Eip = (uint) shellcodeMemoryPointer;
-            
-            // Write the shellcode into memory
-
-            var shellcode = Shellcode.CallLoadLibraryx86(instructionPointer, dllMemoryPointer, loadLibraryPointer);
-
-            if (!WriteProcessMemory(processHandle, shellcodeMemoryPointer, shellcode, (uint) shellcodeSize, 0))
-            {
-                return false;
-            }
-            
-            // Set the threads context
-
-            if (!SetThreadContext(threadHandle, ref context))
-            {
-                return false;
-            }
-            
-            return true;
-        }
-        
-        private static bool SetThreadContextx64(IntPtr threadHandle, IntPtr processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer, int shellcodeSize)
-        {
-            // Get the threads context
-
-            var context = new Context64 {ContextFlags = Flags.ContextControl};
-
-            if (!GetThreadContext(threadHandle, ref context))
-            {
-                return false;
-            }
-            
-            // Save the instruction pointer
-
-            var instructionPointer = context.Rip;
-            
-            // Change the instruction pointer to the shellcode pointer
-
-            context.Rip = (ulong) shellcodeMemoryPointer;
-            
-            // Write the shellcode into memory
-
-            var shellcode = Shellcode.CallLoadLibraryx64(instructionPointer, dllMemoryPointer, loadLibraryPointer);
-
-            if (!WriteProcessMemory(processHandle, shellcodeMemoryPointer, shellcode, (uint) shellcodeSize, 0))
-            {
-                return false;
-            }
-            
-            // Set the threads context
-
-            if (!SetThreadContext(threadHandle, ref context))
-            {
-                return false;
-            }
-            
-            return true;
-        }
-        
         public static bool Inject(string dllPath, string processName)
         {
             // Ensure both arguments passed in are valid
@@ -109,7 +33,7 @@ namespace Simple_Injection.Methods
             
             // Get the pointer to load library
 
-            var loadLibraryPointer = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
+            var loadLibraryPointer = GetLoadLibraryAddress();
 
             if (loadLibraryPointer == IntPtr.Zero)
             {
@@ -129,7 +53,7 @@ namespace Simple_Injection.Methods
 
             var dllNameSize = dllPath.Length + 1;
 
-            var dllMemoryPointer = VirtualAllocEx(processHandle, IntPtr.Zero, (uint) dllNameSize, MemoryAllocation.AllAccess, MemoryProtection.PageReadWrite);
+            var dllMemoryPointer = AllocateMemory(processHandle, dllNameSize);
 
             if (dllMemoryPointer == IntPtr.Zero)
             {
@@ -139,14 +63,14 @@ namespace Simple_Injection.Methods
             // Allocate memory for the shellcode
 
             var shellcodeSize = compiledAsx64 ? 87 : 22;
-            
-            var shellcodeMemoryPointer = VirtualAllocEx(processHandle, IntPtr.Zero, (uint) shellcodeSize, MemoryAllocation.Commit, MemoryProtection.PageExecuteReadWrite);
+
+            var shellcodeMemoryPointer = AllocateMemory(processHandle, shellcodeSize);
             
             // Write the dll name into memory
 
             var dllBytes = Encoding.Default.GetBytes(dllPath);
 
-            if (!WriteProcessMemory(processHandle, dllMemoryPointer, dllBytes, (uint) dllNameSize, 0))
+            if (!WriteMemory(processHandle, dllMemoryPointer, dllBytes))
             {
                 return false;
             }
@@ -155,7 +79,7 @@ namespace Simple_Injection.Methods
             
             var threadId = process.Threads[0].Id;
             
-            var threadHandle = OpenThread(ThreadAccess.AllAccess, false, (uint) threadId);
+            var threadHandle = OpenThread(ThreadAccess.AllAccess, false, threadId);
 
             if (threadHandle == IntPtr.Zero)
             {
@@ -168,7 +92,7 @@ namespace Simple_Injection.Methods
              
             if (compiledAsx64)
             {
-                if (!SetThreadContextx64(threadHandle, processHandle, dllMemoryPointer, loadLibraryPointer, shellcodeMemoryPointer, shellcodeSize))
+                if (!SetThreadContextx64(threadHandle, processHandle, dllMemoryPointer, loadLibraryPointer, shellcodeMemoryPointer))
                 {
                     return false;
                 }
@@ -176,7 +100,7 @@ namespace Simple_Injection.Methods
 
             else
             {
-                if (!SetThreadContextx86(threadHandle, processHandle, dllMemoryPointer, loadLibraryPointer, shellcodeMemoryPointer, shellcodeSize))
+                if (!SetThreadContextx86(threadHandle, processHandle, dllMemoryPointer, loadLibraryPointer, shellcodeMemoryPointer))
                 {
                     return false;
                 }
@@ -191,9 +115,9 @@ namespace Simple_Injection.Methods
             PostMessage(process.MainWindowHandle, WindowsMessage.WmKeydown, (IntPtr) 0x01, IntPtr.Zero);
             
             // Free the previously allocated memory
-            
-            VirtualFreeEx(processHandle, dllMemoryPointer, (uint) dllNameSize, MemoryAllocation.Release);
-            VirtualFreeEx(processHandle, shellcodeMemoryPointer, (uint) shellcodeSize, MemoryAllocation.Release);
+
+            FreeMemory(processHandle, dllMemoryPointer, dllNameSize);
+            FreeMemory(processHandle, shellcodeMemoryPointer, shellcodeSize);
             
             // Close the previously opened handle
             

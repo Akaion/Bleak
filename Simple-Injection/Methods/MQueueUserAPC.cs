@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using static Simple_Injection.Etc.Native;
+using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Methods
 {
@@ -28,7 +29,7 @@ namespace Simple_Injection.Methods
             
             // Get the pointer to load library
 
-            var loadLibraryPointer = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
+            var loadLibraryPointer = GetLoadLibraryAddress();
 
             if (loadLibraryPointer == IntPtr.Zero)
             {
@@ -48,7 +49,7 @@ namespace Simple_Injection.Methods
 
             var dllNameSize = dllPath.Length + 1;
 
-            var dllMemoryPointer = VirtualAllocEx(processHandle, IntPtr.Zero, (uint) dllNameSize, MemoryAllocation.AllAccess, MemoryProtection.PageReadWrite);
+            var dllMemoryPointer = AllocateMemory(processHandle, dllNameSize);
 
             if (dllMemoryPointer == IntPtr.Zero)
             {
@@ -59,7 +60,7 @@ namespace Simple_Injection.Methods
 
             var dllBytes = Encoding.Default.GetBytes(dllPath);
 
-            if (!WriteProcessMemory(processHandle, dllMemoryPointer, dllBytes, (uint) dllNameSize, 0))
+            if (!WriteMemory(processHandle, dllMemoryPointer, dllBytes))
             {
                 return false;
             }
@@ -72,7 +73,7 @@ namespace Simple_Injection.Methods
                 
                 // Get the threads handle
                 
-                var threadHandle = OpenThread(ThreadAccess.SetContext, false, (uint) threadId);
+                var threadHandle = OpenThread(ThreadAccess.AllAccess, false, threadId);
 
                 // Add a user-mode APC to the APC queue of the thread
                 
@@ -85,7 +86,7 @@ namespace Simple_Injection.Methods
             
             // Free the previously allocated memory
             
-            VirtualFreeEx(processHandle, dllMemoryPointer, (uint) dllNameSize, MemoryAllocation.Release);
+            FreeMemory(processHandle, dllMemoryPointer, dllNameSize);
             
             return true;
         }  

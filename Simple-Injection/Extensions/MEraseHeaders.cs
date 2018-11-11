@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using static Simple_Injection.Etc.Native;
+using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Extensions
 {
@@ -58,35 +59,18 @@ namespace Simple_Injection.Extensions
 
             var memoryInformationSize = Marshal.SizeOf(typeof(MemoryInformation));
 
-            if (!VirtualQueryEx(processHandle, moduleBaseAddress, out var memoryInformation, (uint) memoryInformationSize))
+            if (!VirtualQueryEx(processHandle, moduleBaseAddress, out var memoryInformation, memoryInformationSize))
             {
                 return false;
             }
 
             // Generate a buffer to write over the header region with
             
-            var buffer = new byte[(uint) memoryInformation.RegionSize];
+            var buffer = new byte[memoryInformation.RegionSize];
 
-            // Change the protection of the header region
-
-            if (!VirtualProtectEx(processHandle, moduleBaseAddress, (uint) buffer.Length, 0x40, out var oldProtection))
-            {
-                return false;
-            }
-            
             // Write over the header region
-
-            if (!WriteProcessMemory(processHandle, moduleBaseAddress, buffer, (uint) buffer.Length, 0))
-            {
-                return false;
-            }
             
-            // Restore the protection of the header region
-
-            if (!VirtualProtectEx(processHandle, moduleBaseAddress, (uint) buffer.Length, oldProtection, out oldProtection))
-            {
-                return false;
-            }
+            WriteMemory(processHandle, moduleBaseAddress, buffer);
 
             return true;
         }
