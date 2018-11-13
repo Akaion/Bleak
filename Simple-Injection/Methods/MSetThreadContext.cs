@@ -73,7 +73,7 @@ namespace Simple_Injection.Methods
             
             // Write the dll name into memory
 
-            var dllBytes = Encoding.Default.GetBytes(dllPath);
+            var dllBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
 
             if (!WriteMemory(processHandle, dllMemoryPointer, dllBytes))
             {

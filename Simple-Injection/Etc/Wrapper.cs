@@ -10,7 +10,7 @@ namespace Simple_Injection.Etc
         {
             // Get the pointer to load library
             
-            return GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
+            return GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
         } 
         
         public static IntPtr AllocateMemory(SafeHandle processHandle, int size)
