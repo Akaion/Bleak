@@ -270,7 +270,7 @@ namespace Simple_Injection.Etc
             private readonly IntPtr AllocationBase;
             private readonly uint AllocationProtect; 
             
-            internal readonly uint RegionSize;
+            internal readonly IntPtr RegionSize;
             
             private readonly uint State;
             private readonly uint Protect;

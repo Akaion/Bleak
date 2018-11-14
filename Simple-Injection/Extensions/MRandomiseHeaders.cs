@@ -51,6 +51,8 @@ namespace Simple_Injection.Extensions
                 if (module.ModuleName == Path.GetFileName(dllPath))
                 {
                     moduleBaseAddress = module.BaseAddress;
+
+                    break;
                 }
             }
             
@@ -70,15 +72,18 @@ namespace Simple_Injection.Extensions
 
             // Generate a buffer to write over the header region with
             
-            var buffer = new byte[memoryInformation.RegionSize];
+            var buffer = new byte[(uint) memoryInformation.RegionSize];
 
             // Fill the buffer with random bytes
             
             new Random().NextBytes(buffer);
             
             // Write over the header region
-            
-            WriteMemory(processHandle, moduleBaseAddress, buffer);
+
+            if (!WriteMemory(processHandle, moduleBaseAddress, buffer))
+            {
+                return false;
+            }
 
             return true;
         }

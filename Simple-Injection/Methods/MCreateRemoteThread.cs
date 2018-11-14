@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using static Simple_Injection.Etc.Native;
 using static Simple_Injection.Etc.Wrapper;
@@ -13,6 +14,13 @@ namespace Simple_Injection.Methods
             // Ensure both arguments passed in are valid
             
             if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
+            {
+                return false;
+            }
+            
+            // Ensure the dll exists
+
+            if (!File.Exists(dllPath))
             {
                 return false;
             }
