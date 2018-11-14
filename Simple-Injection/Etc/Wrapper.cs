@@ -4,23 +4,9 @@ using static Simple_Injection.Etc.Native;
 
 namespace Simple_Injection.Etc
 {
-    public static class Wrapper
-    {
-        public static IntPtr GetLoadLibraryAddress()
-        {
-            // Get the pointer to load library
-            
-            return GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
-        } 
-        
-        public static IntPtr AllocateMemory(SafeHandle processHandle, int size)
-        {
-            // Allocate memory in specified process
-            
-            return VirtualAllocEx(processHandle, IntPtr.Zero, size, MemoryAllocation.AllAccess, MemoryProtection.PageExecuteReadWrite);
-        }
-        
-        public static bool WriteMemory(SafeHandle processHandle, IntPtr memoryPointer, byte[] buffer)
+    internal static class Wrapper
+    {             
+        internal static bool WriteMemory(SafeHandle processHandle, IntPtr memoryPointer, byte[] buffer)
         {
             // Change the protection of the memory region
 
@@ -45,15 +31,8 @@ namespace Simple_Injection.Etc
 
             return true;
         }
-
-        public static void FreeMemory(SafeHandle processHandle, IntPtr memoryPointer, int size)
-        {
-            // Free memory at specified address
-            
-            VirtualFreeEx(processHandle, memoryPointer, size, MemoryAllocation.Release);
-        }
         
-        public static bool SetThreadContextx86(IntPtr threadHandle, SafeHandle processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer)
+        internal static bool SetThreadContextx86(IntPtr threadHandle, SafeHandle processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer)
         {
             // Get the threads context
 
@@ -70,7 +49,7 @@ namespace Simple_Injection.Etc
             
             // Change the instruction pointer to the shellcode pointer
 
-            context.Eip = (uint) shellcodeMemoryPointer;
+            context.Eip = shellcodeMemoryPointer;
             
             // Write the shellcode into memory
 
@@ -91,7 +70,7 @@ namespace Simple_Injection.Etc
             return true;
         }
         
-        public static bool SetThreadContextx64(IntPtr threadHandle, SafeHandle processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer)
+        internal static bool SetThreadContextx64(IntPtr threadHandle, SafeHandle processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer)
         {
             // Get the threads context
 
@@ -108,7 +87,7 @@ namespace Simple_Injection.Etc
             
             // Change the instruction pointer to the shellcode pointer
 
-            context.Rip = (ulong) shellcodeMemoryPointer;
+            context.Rip = shellcodeMemoryPointer;
             
             // Write the shellcode into memory
 

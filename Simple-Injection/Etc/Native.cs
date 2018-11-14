@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace Simple_Injection.Etc
 {
-    public static class Native
+    internal static class Native
     {
         #region pinvoke
         
@@ -15,89 +15,89 @@ namespace Simple_Injection.Etc
         public static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
 
         [DllImport("kernel32.dll")]
-        public static extern IntPtr VirtualAllocEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation flAllocationType, MemoryProtection flProtect);
+        internal static extern IntPtr VirtualAllocEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation flAllocationType, MemoryProtection flProtect);
         
         [DllImport("kernel32.dll")]
-        public static extern bool WriteProcessMemory(SafeHandle hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int nSize, uint lpNumberOfBytesWritten);
+        internal static extern bool WriteProcessMemory(SafeHandle hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int nSize, uint lpNumberOfBytesWritten);
         
         [DllImport("kernel32.dll")]
-        public static extern IntPtr CreateRemoteThread(SafeHandle hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
+        internal static extern IntPtr CreateRemoteThread(SafeHandle hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);
         
         [DllImport("kernel32.dll")]
-        public static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, int dwThreadId);
+        internal static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, int dwThreadId);
         
         [DllImport("kernel32.dll")]
-        public static extern void SuspendThread(IntPtr hThread);
+        internal static extern void SuspendThread(IntPtr hThread);
         
         [DllImport("kernel32.dll")]
-        public static extern bool GetThreadContext(IntPtr hThread, ref Context lpContext);
+        internal static extern bool GetThreadContext(IntPtr hThread, ref Context lpContext);
         
         // x64 Overload for GetThreadContext
         
         [DllImport("kernel32.dll")] 
-        public static extern bool GetThreadContext(IntPtr hThread, ref Context64 lpContext);
+        internal static extern bool GetThreadContext(IntPtr hThread, ref Context64 lpContext);
         
         [DllImport("kernel32.dll")]
-        public static extern bool SetThreadContext(IntPtr hThread, ref Context lpContext);
+        internal static extern bool SetThreadContext(IntPtr hThread, ref Context lpContext);
         
         // x64 Overload for SetThreadContext
         
         [DllImport("kernel32.dll")]
-        public static extern bool SetThreadContext(IntPtr hThread, ref Context64 lpContext);
+        internal static extern bool SetThreadContext(IntPtr hThread, ref Context64 lpContext);
         
         [DllImport("kernel32.dll")]
-        public static extern void ResumeThread(IntPtr hThread);
+        internal static extern void ResumeThread(IntPtr hThread);
 
         [DllImport("kernel32.dll")]
-        public static extern bool QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
+        internal static extern bool QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
         
         [DllImport("ntdll.dll")]
-        public static extern void RtlCreateUserThread(SafeHandle hProcess, IntPtr lpThreadSecurity, bool bCreateSuspended, uint dwStackZeroBits, IntPtr pStackReserved, IntPtr pStackCommit, IntPtr pStartAddress, IntPtr pStartParameter, out IntPtr hThread, IntPtr pClientId);
+        internal static extern void RtlCreateUserThread(SafeHandle hProcess, IntPtr lpThreadSecurity, bool bCreateSuspended, uint dwStackZeroBits, IntPtr pStackReserved, IntPtr pStackCommit, IntPtr pStartAddress, IntPtr pStartParameter, out IntPtr hThread, IntPtr pClientId);
         
         [DllImport("kernel32.dll")]
-        public static extern bool VirtualQueryEx(SafeHandle hProcess, IntPtr lpAddress, out MemoryInformation lpBuffer, int dwLength);
+        internal static extern bool VirtualQueryEx(SafeHandle hProcess, IntPtr lpAddress, out MemoryInformation lpBuffer, int dwLength);
         
         [DllImport("kernel32.dll")]
-        public static extern bool VirtualProtectEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, uint flNewProtect, out uint lpflOldProtect);
+        internal static extern bool VirtualProtectEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, uint flNewProtect, out uint lpflOldProtect);
         
         [DllImport("kernel32.dll")]
-        public static extern void WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
+        internal static extern void WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
         
         [DllImport("kernel32.dll")]
-        public static extern void CloseHandle(IntPtr hHandle);
+        internal static extern void CloseHandle(IntPtr hHandle);
         
         [DllImport("kernel32.dll")]
-        public static extern void VirtualFreeEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation dwFreeType);
+        internal static extern void VirtualFreeEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation dwFreeType);
         
         [DllImport("user32.dll")]
-        public static extern void PostMessage(IntPtr hWnd, WindowsMessage dwMsg, IntPtr wParam, IntPtr lParam);
+        internal static extern void PostMessage(IntPtr hWnd, WindowsMessage dwMsg, IntPtr wParam, IntPtr lParam);
 
         #endregion
         
         #region Permissions
         
-        public enum MemoryAllocation
+        internal enum MemoryAllocation
         {
             AllAccess = 0x3000,
             Release = 0x8000
         }
 
-        public enum MemoryProtection
+        internal enum MemoryProtection
         {
             PageExecuteReadWrite = 0x40
         }
 
-        public enum ThreadAccess
+        internal enum ThreadAccess
         {
             AllAccess = 0x1A
         }
 
-        public enum Flags
+        internal enum Flags
         {
             ContextControl = 0x10001
         }
 
-        public enum WindowsMessage
+        internal enum WindowsMessage
         {
             WmKeydown = 0x100
         }
@@ -127,37 +127,37 @@ namespace Simple_Injection.Etc
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        public struct Context
+        internal struct Context
         {
-            public uint ContextFlags;
+            internal uint ContextFlags;
             
-            private readonly uint Dr0;
-            private readonly uint Dr1;
-            private readonly uint Dr2;
-            private readonly uint Dr3;
-            private readonly uint Dr6;
-            private readonly uint Dr7;
+            private readonly IntPtr Dr0;
+            private readonly IntPtr Dr1;
+            private readonly IntPtr Dr2;
+            private readonly IntPtr Dr3;
+            private readonly IntPtr Dr6;
+            private readonly IntPtr Dr7;
             
             private readonly FloatingSaveArea FloatingSave;
             
-            private readonly uint SegGs;
-            private readonly uint SegFs;
-            private readonly uint SegEs;
-            private readonly uint SegDs;
+            private readonly IntPtr SegGs;
+            private readonly IntPtr SegFs;
+            private readonly IntPtr SegEs;
+            private readonly IntPtr SegDs;
             
-            private readonly uint Edi;
-            private readonly uint Esi;
-            private readonly uint Ebx;
-            private readonly uint Edx;
-            private readonly uint Ecx;
-            private readonly uint Eax;
+            private readonly IntPtr Edi;
+            private readonly IntPtr Esi;
+            private readonly IntPtr Ebx;
+            private readonly IntPtr Edx;
+            private readonly IntPtr Ecx;
+            private readonly IntPtr Eax;
             
-            private readonly uint Ebp;
-            public uint Eip;
-            private readonly uint SegCs;
-            private readonly uint EFlags;
-            private readonly uint Esp;
-            private readonly uint SegSs;
+            private readonly IntPtr Ebp;
+            internal IntPtr Eip;
+            private readonly IntPtr SegCs;
+            private readonly IntPtr EFlags;
+            private readonly IntPtr Esp;
+            private readonly IntPtr SegSs;
             
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 512)]
             private readonly byte[] ExtendedRegisters;
@@ -166,8 +166,8 @@ namespace Simple_Injection.Etc
         [StructLayout(LayoutKind.Sequential)]
         private struct M128A
         {
-            private readonly ulong High;
-            private readonly long Low;
+            private readonly IntPtr High;
+            private readonly IntPtr Low;
         }
         
         [StructLayout(LayoutKind.Sequential, Pack = 16)]
@@ -204,16 +204,16 @@ namespace Simple_Injection.Etc
         }
         
         [StructLayout(LayoutKind.Sequential, Pack = 16)]
-        public struct Context64
+        internal struct Context64
         {
-            private readonly ulong P1Home;
-            private readonly ulong P2Home;
-            private readonly ulong P3Home;
-            private readonly ulong P4Home;
-            private readonly ulong P5Home;
-            private readonly ulong P6Home;
+            private readonly IntPtr P1Home;
+            private readonly IntPtr P2Home;
+            private readonly IntPtr P3Home;
+            private readonly IntPtr P4Home;
+            private readonly IntPtr P5Home;
+            private readonly IntPtr P6Home;
 
-            public Flags ContextFlags;
+            internal Flags ContextFlags;
             private readonly uint MxCsr;
 
             private readonly ushort SegCs;
@@ -224,53 +224,53 @@ namespace Simple_Injection.Etc
             private readonly ushort SegSs;
             private readonly uint EFlags;
 
-            private readonly ulong Dr0;
-            private readonly ulong Dr1;
-            private readonly ulong Dr2;
-            private readonly ulong Dr3;
-            private readonly ulong Dr6;
-            private readonly ulong Dr7;
+            private readonly IntPtr Dr0;
+            private readonly IntPtr Dr1;
+            private readonly IntPtr Dr2;
+            private readonly IntPtr Dr3;
+            private readonly IntPtr Dr6;
+            private readonly IntPtr Dr7;
 
-            private readonly ulong Rax;
-            private readonly ulong Rcx;
-            private readonly ulong Rdx;
-            private readonly ulong Rbx;
-            private readonly ulong Rsp;
-            private readonly ulong Rbp;
-            private readonly ulong Rsi;
-            private readonly ulong Rdi;
-            private readonly ulong R8;
-            private readonly ulong R9;
-            private readonly ulong R10;
-            private readonly ulong R11;
-            private readonly ulong R12;
-            private readonly ulong R13;
-            private readonly ulong R14;
-            private readonly ulong R15;
-            public ulong Rip;
+            private readonly IntPtr Rax;
+            private readonly IntPtr Rcx;
+            private readonly IntPtr Rdx;
+            private readonly IntPtr Rbx;
+            private readonly IntPtr Rsp;
+            private readonly IntPtr Rbp;
+            private readonly IntPtr Rsi;
+            private readonly IntPtr Rdi;
+            private readonly IntPtr R8;
+            private readonly IntPtr R9;
+            private readonly IntPtr R10;
+            private readonly IntPtr R11;
+            private readonly IntPtr R12;
+            private readonly IntPtr R13;
+            private readonly IntPtr R14;
+            private readonly IntPtr R15;
+            internal IntPtr Rip;
 
             private readonly SaveFormat DummyUnionName;
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 26)]
             private readonly M128A[] VectorRegister;
-            private readonly ulong VectorControl;
+            private readonly IntPtr VectorControl;
 
-            private readonly ulong DebugControl;
-            private readonly ulong LastBranchToRip;
-            private readonly ulong LastBranchFromRip;
-            private readonly ulong LastExceptionToRip;
-            private readonly ulong LastExceptionFromRip;
+            private readonly IntPtr DebugControl;
+            private readonly IntPtr LastBranchToRip;
+            private readonly IntPtr LastBranchFromRip;
+            private readonly IntPtr LastExceptionToRip;
+            private readonly IntPtr LastExceptionFromRip;
         }
         
         [StructLayout(LayoutKind.Sequential)] 
-        public struct MemoryInformation 
+        internal struct MemoryInformation 
         {
             private readonly IntPtr BaseAddress;
             
             private readonly IntPtr AllocationBase;
             private readonly uint AllocationProtect; 
             
-            public readonly uint RegionSize;
+            internal readonly uint RegionSize;
             
             private readonly uint State;
             private readonly uint Protect;

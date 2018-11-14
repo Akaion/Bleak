@@ -8,9 +8,9 @@ using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Extensions
 {
-    public static class MRandomiseHeaders
+    internal static class MRandomiseHeaders
     {
-        public static bool Randomise(string dllPath, string processName)
+        internal static bool Randomise(string dllPath, string processName)
         {
             // Ensure both arguments passed in are valid
             

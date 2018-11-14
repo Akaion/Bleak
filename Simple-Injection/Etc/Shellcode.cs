@@ -2,9 +2,9 @@ using System;
 
 namespace Simple_Injection.Etc
 {
-    public static class Shellcode
+    internal static class Shellcode
     {
-        public static byte[] CallLoadLibraryx86(uint instructionPointer, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer)
+        internal static byte[] CallLoadLibraryx86(IntPtr instructionPointer, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer)
         {
             var shellcode = new byte[]
             {
@@ -21,7 +21,7 @@ namespace Simple_Injection.Etc
 
             // Get the byte representation of each pointer
             
-            var instructionPointerBytes = BitConverter.GetBytes(instructionPointer);
+            var instructionPointerBytes = BitConverter.GetBytes((uint) instructionPointer);
 
             var memoryPointerBytes = BitConverter.GetBytes((uint) dllMemoryPointer);
 
@@ -36,7 +36,7 @@ namespace Simple_Injection.Etc
             return shellcode;
         }
 
-        public static byte[] CallLoadLibraryx64(ulong instructionPointer, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer)
+        internal static byte[] CallLoadLibraryx64(IntPtr instructionPointer, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer)
         {
             var shellcode = new byte[]
             {
@@ -84,7 +84,7 @@ namespace Simple_Injection.Etc
 
             // Get the byte representation of each pointer
 
-            var instructionPointerBytes = BitConverter.GetBytes(instructionPointer);
+            var instructionPointerBytes = BitConverter.GetBytes((ulong) instructionPointer);
 
             var memoryPointerBytes = BitConverter.GetBytes((ulong) dllMemoryPointer);
 
@@ -97,7 +97,6 @@ namespace Simple_Injection.Etc
             Buffer.BlockCopy(loadLibraryPointerBytes, 0, shellcode, 51, 8);
 
             return shellcode;
-        }
-        
+        }    
     }
 }

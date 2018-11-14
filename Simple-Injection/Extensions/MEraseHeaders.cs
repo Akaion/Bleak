@@ -8,11 +8,10 @@ using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Extensions
 {
-    public static class MEraseHeaders
+    internal static class MEraseHeaders
     {
-        public static bool Erase(string dllPath, string processName)
+        internal static bool Erase(string dllPath, string processName)
         {
-            
             // Ensure both arguments passed in are valid
             
             if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))

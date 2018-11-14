@@ -7,9 +7,9 @@ using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Methods
 {
-    public static class MQueueUserAPC
+    internal static class MQueueUserAPC
     {
-        public static bool Inject(string dllPath, string processName)
+        internal static bool Inject(string dllPath, string processName)
         {
             // Ensure both arguments passed in are valid
             
@@ -34,7 +34,7 @@ namespace Simple_Injection.Methods
             
             // Get the pointer to load library
 
-            var loadLibraryPointer = GetLoadLibraryAddress();
+            var loadLibraryPointer = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
 
             if (loadLibraryPointer == IntPtr.Zero)
             {
@@ -54,7 +54,7 @@ namespace Simple_Injection.Methods
 
             var dllNameSize = dllPath.Length + 1;
 
-            var dllMemoryPointer = AllocateMemory(processHandle, dllNameSize);
+            var dllMemoryPointer = VirtualAllocEx(processHandle, IntPtr.Zero, dllNameSize, MemoryAllocation.AllAccess, MemoryProtection.PageExecuteReadWrite);
 
             if (dllMemoryPointer == IntPtr.Zero)
             {
@@ -91,7 +91,7 @@ namespace Simple_Injection.Methods
             
             // Free the previously allocated memory
             
-            FreeMemory(processHandle, dllMemoryPointer, dllNameSize);
+            VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
             
             return true;
         }  
