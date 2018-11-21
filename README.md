@@ -5,6 +5,7 @@ A DLL injection library written in C# that supports several methods of process i
 ## Supported Methods
 
 * CreateRemoteThread
+* ManualMap (x86 only at the moment)
 * QueueUserAPC
 * RtlCreateUserThread
 * SetThreadContext (Thread Hijack)
@@ -30,6 +31,10 @@ var injector = new Injector();
 // Inject using the CreateRemoteThread method
 
 injector.CreateRemoteThread("pathToDll", "processName");
+
+// Inject with process Id
+
+injector.CreateRemoteThread("pathToDll", processId);
 
 // Erase the PE Headers
 
