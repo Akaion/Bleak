@@ -21,16 +21,16 @@ namespace Simple_Injection.Etc
 
             // Get the byte representation of each pointer
             
-            var instructionPointerBytes = BitConverter.GetBytes((uint) instructionPointer);
+            var instructionPointerBytes = BitConverter.GetBytes((int) instructionPointer);
 
-            var memoryPointerBytes = BitConverter.GetBytes((uint) dllMemoryPointer);
+            var dllMemoryPointerBytes = BitConverter.GetBytes((int) dllMemoryPointer);
 
-            var loadLibraryPointerBytes = BitConverter.GetBytes((uint) loadLibraryPointer);
+            var loadLibraryPointerBytes = BitConverter.GetBytes((int) loadLibraryPointer);
             
             // Write the pointers into the shellcode
             
             Buffer.BlockCopy(instructionPointerBytes, 0, shellcode, 1, 4);
-            Buffer.BlockCopy(memoryPointerBytes, 0, shellcode, 8, 4);
+            Buffer.BlockCopy(dllMemoryPointerBytes, 0, shellcode, 8, 4);
             Buffer.BlockCopy(loadLibraryPointerBytes, 0, shellcode, 13, 4);
             
             return shellcode;
@@ -84,19 +84,70 @@ namespace Simple_Injection.Etc
 
             // Get the byte representation of each pointer
 
-            var instructionPointerBytes = BitConverter.GetBytes((ulong) instructionPointer);
+            var instructionPointerBytes = BitConverter.GetBytes((long) instructionPointer);
 
-            var memoryPointerBytes = BitConverter.GetBytes((ulong) dllMemoryPointer);
+            var dllMemoryPointerBytes = BitConverter.GetBytes((long) dllMemoryPointer);
 
-            var loadLibraryPointerBytes = BitConverter.GetBytes((ulong) loadLibraryPointer);
+            var loadLibraryPointerBytes = BitConverter.GetBytes((long) loadLibraryPointer);
             
             // Write the pointers into the shellcode
             
             Buffer.BlockCopy(instructionPointerBytes, 0, shellcode, 3, 8);
-            Buffer.BlockCopy(memoryPointerBytes, 0, shellcode, 41, 8);
+            Buffer.BlockCopy(dllMemoryPointerBytes, 0, shellcode, 41, 8);
             Buffer.BlockCopy(loadLibraryPointerBytes, 0, shellcode, 51, 8);
 
             return shellcode;
-        }    
+        }
+
+        internal static byte[] CallDllMainx86(IntPtr baseAddress, IntPtr entryPointPointer)
+        {
+            var shellcode = new byte[]
+            {
+                0x68, 0x00, 0x00, 0x00, 0x00, // push 0x00000000
+                0x68, 0x01, 0x00, 0x00, 0x00, // push 0x00000001
+                0x68, 0x00, 0x00, 0x00, 0x00, // push 0x00000000
+                0xB8, 0x00, 0x00, 0x00, 0x00, // mov eax, 0x00000000
+                0xFF, 0xD0,                   // call eax
+                0x33, 0xC0,                   // xor eax, eax
+                0xC3                          // ret
+            };
+            
+            var dllMemoryPointerBytes = BitConverter.GetBytes((int) baseAddress);
+            
+            var entryPointPointerBytes = BitConverter.GetBytes((int) entryPointPointer);
+            
+            // Write the pointers into the shellcode
+            
+            Buffer.BlockCopy(dllMemoryPointerBytes, 0, shellcode, 1, 4);
+            Buffer.BlockCopy(entryPointPointerBytes, 0, shellcode, 16, 4);
+            
+            return shellcode;
+        }
+
+        internal static byte[] CallDllMainx64(IntPtr baseAddress, IntPtr entryPointPointer)
+        {
+            var shellcode = new byte[]
+            {
+                0x48, 0x83, 0xEC, 0x28,                                     // sub rsp, 0x28
+                0x48, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rcx, 0x0000000000000000
+                0x48, 0xC7, 0xC2, 0x01, 0x00, 0x00, 0x00,                   // mov rdx, 0x1
+                0x4D, 0x31, 0xC0,                                           // xor r8, r8
+                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rax, 0x0000000000000000
+                0xFF, 0xD0,                                                 // call rax
+                0x48, 0x83, 0xC4, 0x28,                                     // add rsp, 0x28
+                0xC3                                                        // ret
+            };
+            
+            var dllMemoryPointerBytes = BitConverter.GetBytes((long) baseAddress);
+            
+            var entryPointPointerBytes = BitConverter.GetBytes((long) entryPointPointer);
+            
+            // Write the pointers into the shellcode
+            
+            Buffer.BlockCopy(dllMemoryPointerBytes, 0, shellcode, 6, 4);
+            Buffer.BlockCopy(entryPointPointerBytes, 0, shellcode, 26, 4);
+            
+            return shellcode;
+        }
     }
 }

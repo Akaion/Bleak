@@ -1,11 +1,56 @@
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using static Simple_Injection.Etc.Native;
 
 namespace Simple_Injection.Etc
 {
     internal static class Wrapper
-    {             
+    {
+        internal static byte[] ReadMemory(SafeHandle processHandle, IntPtr memoryPointer, int size)
+        {
+            var buffer = new byte[size];
+            
+            // Change the protection of the memory region
+
+            VirtualProtectEx(processHandle, memoryPointer, buffer.Length, 0x40, out var oldProtection);
+            
+            // Read from the memory region into the buffer
+
+            ReadProcessMemory(processHandle, memoryPointer, buffer, buffer.Length, 0);
+            
+            // Restore the protection of the memory region
+
+            VirtualProtectEx(processHandle, memoryPointer, buffer.Length, oldProtection, out _);
+
+            return buffer;
+        }
+
+        internal static TStructure ReadMemory<TStructure>(SafeHandle processHandle, IntPtr memoryPointer)
+        {
+            // Get the size of the structure
+            
+            var size = Marshal.SizeOf(typeof(TStructure));
+
+            // Read the bytes from the memory region
+            
+            var buffer = ReadMemory(processHandle, memoryPointer, size);
+
+            // Pin the buffer
+            
+            var handle = GCHandle.Alloc(buffer, GCHandleType.Pinned);
+
+            // Convert the bytes into a structure
+            
+            var structure = (TStructure) Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(TStructure));
+            
+            // Unpin the buffer
+            
+            handle.Free();
+
+            return structure;
+        }
+        
         internal static bool WriteMemory(SafeHandle processHandle, IntPtr memoryPointer, byte[] buffer)
         {
             // Change the protection of the memory region
@@ -32,79 +77,29 @@ namespace Simple_Injection.Etc
             return true;
         }
         
-        internal static bool SetThreadContextx86(IntPtr threadHandle, SafeHandle processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer)
+        internal static bool WriteMemory(SafeHandle processHandle, IntPtr memoryPointer, byte[] buffer, int newProtection)
         {
-            // Get the threads context
+            // Change the protection of the memory region
 
-            var context = new Context {ContextFlags = (uint) Flags.ContextControl};
-
-            if (!GetThreadContext(threadHandle, ref context))
+            if (!VirtualProtectEx(processHandle, memoryPointer, buffer.Length, 0x40, out _))
             {
                 return false;
             }
-            
-            // Save the instruction pointer
 
-            var instructionPointer = context.Eip;
-            
-            // Change the instruction pointer to the shellcode pointer
+            // Write the buffer into the memory region
 
-            context.Eip = shellcodeMemoryPointer;
-            
-            // Write the shellcode into memory
-
-            var shellcode = Shellcode.CallLoadLibraryx86(instructionPointer, dllMemoryPointer, loadLibraryPointer);
-
-            if (!WriteMemory(processHandle, shellcodeMemoryPointer, shellcode))
+            if (!WriteProcessMemory(processHandle, memoryPointer, buffer, buffer.Length, 0))
             {
                 return false;
             }
-            
-            // Set the threads context
 
-            if (!SetThreadContext(threadHandle, ref context))
+            // Restore the protection of the memory region to the new protection
+
+            if (!VirtualProtectEx(processHandle, memoryPointer, buffer.Length, newProtection, out _))
             {
                 return false;
             }
-            
-            return true;
-        }
-        
-        internal static bool SetThreadContextx64(IntPtr threadHandle, SafeHandle processHandle, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer, IntPtr shellcodeMemoryPointer)
-        {
-            // Get the threads context
 
-            var context = new Context64 {ContextFlags = Flags.ContextControl};
-
-            if (!GetThreadContext(threadHandle, ref context))
-            {
-                return false;
-            }
-            
-            // Save the instruction pointer
-
-            var instructionPointer = context.Rip;
-            
-            // Change the instruction pointer to the shellcode pointer
-
-            context.Rip = shellcodeMemoryPointer;
-            
-            // Write the shellcode into memory
-
-            var shellcode = Shellcode.CallLoadLibraryx64(instructionPointer, dllMemoryPointer, loadLibraryPointer);
-
-            if (!WriteMemory(processHandle, shellcodeMemoryPointer, shellcode))
-            {
-                return false;
-            }
-            
-            // Set the threads context
-
-            if (!SetThreadContext(threadHandle, ref context))
-            {
-                return false;
-            }
-            
             return true;
         }
     }

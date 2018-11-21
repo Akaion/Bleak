@@ -37,9 +37,17 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release\</OutputPath>
     <Optimize>false</Optimize>
-    <DebugType>pdbonly</DebugType>
+    <DebugType>none</DebugType>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="PeNet, Version=0.8.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\PeNet.0.8.0\lib\net461\PeNet.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="PeNet.Asn1, Version=1.3.1.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\PeNet.Asn1.1.3.1\lib\net461\PeNet.Asn1.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -52,15 +60,20 @@
   <ItemGroup>
     <Compile Include="Etc\Native.cs" />
     <Compile Include="Etc\Shellcode.cs" />
+    <Compile Include="Etc\Tools.cs" />
     <Compile Include="Etc\Wrapper.cs" />
     <Compile Include="Extensions\MEraseHeaders.cs" />
     <Compile Include="Extensions\MRandomiseHeaders.cs" />
     <Compile Include="Injector.cs" />
     <Compile Include="Methods\MCreateRemoteThread.cs" />
+    <Compile Include="Methods\MManualMap.cs" />
     <Compile Include="Methods\MQueueUserAPC.cs" />
     <Compile Include="Methods\MRtlCreateUserThread.cs" />
     <Compile Include="Methods\MSetThreadContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
