@@ -62,14 +62,14 @@
     <Compile Include="Etc\Shellcode.cs" />
     <Compile Include="Etc\Tools.cs" />
     <Compile Include="Etc\Wrapper.cs" />
-    <Compile Include="Extensions\MEraseHeaders.cs" />
-    <Compile Include="Extensions\MRandomiseHeaders.cs" />
+    <Compile Include="Extensions\EraseHeaders.cs" />
+    <Compile Include="Extensions\RandomiseHeaders.cs" />
     <Compile Include="Injector.cs" />
-    <Compile Include="Methods\MCreateRemoteThread.cs" />
-    <Compile Include="Methods\MManualMap.cs" />
-    <Compile Include="Methods\MQueueUserAPC.cs" />
-    <Compile Include="Methods\MRtlCreateUserThread.cs" />
-    <Compile Include="Methods\MSetThreadContext.cs" />
+    <Compile Include="Methods\CreateRemoteThread.cs" />
+    <Compile Include="Methods\ManualMap.cs" />
+    <Compile Include="Methods\QueueUserAPC.cs" />
+    <Compile Include="Methods\RtlCreateUserThread.cs" />
+    <Compile Include="Methods\SetThreadContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

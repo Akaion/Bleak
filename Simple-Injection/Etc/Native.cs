@@ -71,9 +71,6 @@ namespace Simple_Injection.Etc
         [DllImport("user32.dll")]
         internal static extern void PostMessage(IntPtr hWnd, WindowsMessage dwMsg, IntPtr wParam, IntPtr lParam);
 
-        [DllImport("kernel32.dll")]
-        public static extern bool ReadProcessMemory(SafeHandle hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int dwSize, int lpNumberOfBytesRead);
-        
         [DllImport("dbghelp.dll")]
         public static extern IntPtr ImageRvaToVa(IntPtr ntHeaders, IntPtr Base, IntPtr rva, IntPtr lastRvaSection);
         

@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using Simple_Injection.Etc;
@@ -9,7 +10,7 @@ using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Methods
 {
-    internal static class MSetThreadContext
+    internal static class SetThreadContext
     { 
         internal static bool Inject(string dllPath, string processName)
         {
@@ -37,7 +38,7 @@ namespace Simple_Injection.Methods
             
             try
             {
-                process = Process.GetProcessesByName(processName)[0];
+                process = Process.GetProcessesByName(processName).FirstOrDefault();
             }
 
             catch (IndexOutOfRangeException)

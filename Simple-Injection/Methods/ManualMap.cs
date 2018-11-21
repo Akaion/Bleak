@@ -11,7 +11,7 @@ using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Methods
 {
-    public static class MManualMap
+    public static class ManualMap
     {   
         internal static bool Inject(string dllPath, string processName)
         {
@@ -35,7 +35,7 @@ namespace Simple_Injection.Methods
             
             try
             {
-                process = Process.GetProcessesByName(processName)[0];
+                process = Process.GetProcessesByName(processName).FirstOrDefault();
             }
 
             catch (IndexOutOfRangeException)
@@ -225,11 +225,11 @@ namespace Simple_Injection.Methods
         {
             // Create the dll path
             
-            var dllPath = @"C:\Windows\System32\" + dllName.ToLower();
+            var dllPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), dllName.ToLower());
 
             // Load the dll into the host process
             
-            MRtlCreateUserThread.Inject(dllPath, Process.GetCurrentProcess().Id);
+            RtlCreateUserThread.Inject(dllPath, Process.GetCurrentProcess().Id);
         }
         
         private static IntPtr RvaToVa(IntPtr baseAddress, int eLfanew, IntPtr rva)

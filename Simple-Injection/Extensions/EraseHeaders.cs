@@ -8,9 +8,9 @@ using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Extensions
 {
-    internal static class MRandomiseHeaders
+    internal static class EraseHeaders
     {
-        internal static bool Randomise(string dllPath, string processName)
+        internal static bool Erase(string dllPath, string processName)
         {
             // Ensure both arguments passed in are valid
             
@@ -25,7 +25,7 @@ namespace Simple_Injection.Extensions
             
             try
             {
-                process = Process.GetProcessesByName(processName)[0];
+                process = Process.GetProcessesByName(processName).FirstOrDefault();
             }
 
             catch (IndexOutOfRangeException)
@@ -41,9 +41,9 @@ namespace Simple_Injection.Extensions
             {
                 return false;
             }
-            
+                   
             var moduleBaseAddress = IntPtr.Zero;
-            
+
             // Find the injected dll base address
             
             foreach (var module in process.Modules.Cast<ProcessModule>())
@@ -64,7 +64,7 @@ namespace Simple_Injection.Extensions
             // Get the information about the header region of the module
 
             var memoryInformationSize = Marshal.SizeOf(typeof(MemoryBasicInformation));
-            
+
             if (!VirtualQueryEx(processHandle, moduleBaseAddress, out var memoryInformation, memoryInformationSize))
             {
                 return false;
@@ -74,10 +74,6 @@ namespace Simple_Injection.Extensions
             
             var buffer = new byte[(int) memoryInformation.RegionSize];
 
-            // Fill the buffer with random bytes
-            
-            new Random().NextBytes(buffer);
-            
             // Write over the header region
 
             if (!WriteMemory(processHandle, moduleBaseAddress, buffer))
@@ -88,7 +84,7 @@ namespace Simple_Injection.Extensions
             return true;
         }
         
-        internal static bool Randomise(string dllPath, int processId)
+        internal static bool Erase(string dllPath, int processId)
         {
             // Ensure both arguments passed in are valid
             
@@ -119,9 +115,9 @@ namespace Simple_Injection.Extensions
             {
                 return false;
             }
-            
+                   
             var moduleBaseAddress = IntPtr.Zero;
-            
+
             // Find the injected dll base address
             
             foreach (var module in process.Modules.Cast<ProcessModule>())
@@ -142,7 +138,7 @@ namespace Simple_Injection.Extensions
             // Get the information about the header region of the module
 
             var memoryInformationSize = Marshal.SizeOf(typeof(MemoryBasicInformation));
-            
+
             if (!VirtualQueryEx(processHandle, moduleBaseAddress, out var memoryInformation, memoryInformationSize))
             {
                 return false;
@@ -152,10 +148,6 @@ namespace Simple_Injection.Extensions
             
             var buffer = new byte[(int) memoryInformation.RegionSize];
 
-            // Fill the buffer with random bytes
-            
-            new Random().NextBytes(buffer);
-            
             // Write over the header region
 
             if (!WriteMemory(processHandle, moduleBaseAddress, buffer))

@@ -1,13 +1,14 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using static Simple_Injection.Etc.Native;
 using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Methods
 {
-    internal static class MRtlCreateUserThread
+    internal static class RtlCreateUserThread
     {
         internal static bool Inject(string dllPath, string processName)
         {
@@ -31,7 +32,7 @@ namespace Simple_Injection.Methods
             
             try
             {
-                process = Process.GetProcessesByName(processName)[0];
+                process = Process.GetProcessesByName(processName).FirstOrDefault();
             }
 
             catch (IndexOutOfRangeException)

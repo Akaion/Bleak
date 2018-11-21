@@ -8,7 +8,7 @@ using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Methods
 {
-    internal static class MQueueUserAPC
+    internal static class CreateRemoteThread
     {
         internal static bool Inject(string dllPath, string processName)
         {
@@ -32,7 +32,7 @@ namespace Simple_Injection.Methods
             
             try
             {
-                process = Process.GetProcessesByName(processName)[0];
+                process = Process.GetProcessesByName(processName).FirstOrDefault();
             }
 
             catch (IndexOutOfRangeException)
@@ -77,32 +77,30 @@ namespace Simple_Injection.Methods
             {
                 return false;
             }
-
-            // Call QueueUserAPC on each thread
             
-            foreach (var thread in Process.GetProcessesByName(processName)[0].Threads.Cast<ProcessThread>())
-            {
-                var threadId = thread.Id;
-                
-                // Get the threads handle
-                
-                var threadHandle = OpenThread(ThreadAccess.AllAccess, false, threadId);
+            // Create a remote thread to call load library in the specified process
 
-                // Add a user-mode APC to the APC queue of the thread
-                
-                QueueUserAPC(loadLibraryPointer, threadHandle, dllMemoryPointer);
-                
-                // Close the handle to the thread
-                
-                CloseHandle(threadHandle);
+            var remoteThreadHandle = CreateRemoteThread(processHandle, IntPtr.Zero, 0, loadLibraryPointer, dllMemoryPointer, 0, IntPtr.Zero);
+
+            if (remoteThreadHandle == IntPtr.Zero)
+            {
+                return false;
             }
+            
+            // Wait for the remote thread to finish
+            
+            WaitForSingleObject(remoteThreadHandle, int.MaxValue);
             
             // Free the previously allocated memory
             
             VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
             
+            // Close the previously opened handle
+            
+            CloseHandle(remoteThreadHandle);
+            
             return true;
-        }  
+        }
         
         internal static bool Inject(string dllPath, int processId)
         {
@@ -171,31 +169,29 @@ namespace Simple_Injection.Methods
             {
                 return false;
             }
-
-            // Call QueueUserAPC on each thread
             
-            foreach (var thread in Process.GetProcessById(processId).Threads.Cast<ProcessThread>())
-            {
-                var threadId = thread.Id;
-                
-                // Get the threads handle
-                
-                var threadHandle = OpenThread(ThreadAccess.AllAccess, false, threadId);
+            // Create a remote thread to call load library in the specified process
 
-                // Add a user-mode APC to the APC queue of the thread
-                
-                QueueUserAPC(loadLibraryPointer, threadHandle, dllMemoryPointer);
-                
-                // Close the handle to the thread
-                
-                CloseHandle(threadHandle);
+            var remoteThreadHandle = CreateRemoteThread(processHandle, IntPtr.Zero, 0, loadLibraryPointer, dllMemoryPointer, 0, IntPtr.Zero);
+
+            if (remoteThreadHandle == IntPtr.Zero)
+            {
+                return false;
             }
+            
+            // Wait for the remote thread to finish
+            
+            WaitForSingleObject(remoteThreadHandle, int.MaxValue);
             
             // Free the previously allocated memory
             
             VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
             
+            // Close the previously opened handle
+            
+            CloseHandle(remoteThreadHandle);
+            
             return true;
-        } 
+        }
     }
 }

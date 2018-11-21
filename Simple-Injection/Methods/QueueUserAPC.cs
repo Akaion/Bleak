@@ -1,13 +1,14 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using static Simple_Injection.Etc.Native;
 using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Methods
 {
-    internal static class MCreateRemoteThread
+    internal static class QueueUserAPC
     {
         internal static bool Inject(string dllPath, string processName)
         {
@@ -31,7 +32,7 @@ namespace Simple_Injection.Methods
             
             try
             {
-                process = Process.GetProcessesByName(processName)[0];
+                process = Process.GetProcessesByName(processName).FirstOrDefault();
             }
 
             catch (IndexOutOfRangeException)
@@ -76,30 +77,32 @@ namespace Simple_Injection.Methods
             {
                 return false;
             }
+
+            // Call QueueUserAPC on each thread
             
-            // Create a remote thread to call load library in the specified process
-
-            var remoteThreadHandle = CreateRemoteThread(processHandle, IntPtr.Zero, 0, loadLibraryPointer, dllMemoryPointer, 0, IntPtr.Zero);
-
-            if (remoteThreadHandle == IntPtr.Zero)
+            foreach (var thread in Process.GetProcessesByName(processName)[0].Threads.Cast<ProcessThread>())
             {
-                return false;
+                var threadId = thread.Id;
+                
+                // Get the threads handle
+                
+                var threadHandle = OpenThread(ThreadAccess.AllAccess, false, threadId);
+
+                // Add a user-mode APC to the APC queue of the thread
+                
+                QueueUserAPC(loadLibraryPointer, threadHandle, dllMemoryPointer);
+                
+                // Close the handle to the thread
+                
+                CloseHandle(threadHandle);
             }
-            
-            // Wait for the remote thread to finish
-            
-            WaitForSingleObject(remoteThreadHandle, int.MaxValue);
             
             // Free the previously allocated memory
             
             VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
             
-            // Close the previously opened handle
-            
-            CloseHandle(remoteThreadHandle);
-            
             return true;
-        }
+        }  
         
         internal static bool Inject(string dllPath, int processId)
         {
@@ -168,29 +171,31 @@ namespace Simple_Injection.Methods
             {
                 return false;
             }
+
+            // Call QueueUserAPC on each thread
             
-            // Create a remote thread to call load library in the specified process
-
-            var remoteThreadHandle = CreateRemoteThread(processHandle, IntPtr.Zero, 0, loadLibraryPointer, dllMemoryPointer, 0, IntPtr.Zero);
-
-            if (remoteThreadHandle == IntPtr.Zero)
+            foreach (var thread in Process.GetProcessById(processId).Threads.Cast<ProcessThread>())
             {
-                return false;
+                var threadId = thread.Id;
+                
+                // Get the threads handle
+                
+                var threadHandle = OpenThread(ThreadAccess.AllAccess, false, threadId);
+
+                // Add a user-mode APC to the APC queue of the thread
+                
+                QueueUserAPC(loadLibraryPointer, threadHandle, dllMemoryPointer);
+                
+                // Close the handle to the thread
+                
+                CloseHandle(threadHandle);
             }
-            
-            // Wait for the remote thread to finish
-            
-            WaitForSingleObject(remoteThreadHandle, int.MaxValue);
             
             // Free the previously allocated memory
             
             VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
             
-            // Close the previously opened handle
-            
-            CloseHandle(remoteThreadHandle);
-            
             return true;
-        }
+        } 
     }
 }

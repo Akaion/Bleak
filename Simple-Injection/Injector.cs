@@ -7,86 +7,86 @@ namespace Simple_Injection
     {
         public bool CreateRemoteThread(string dllPath, string processName)
         {
-            return MCreateRemoteThread.Inject(dllPath, processName);
+            return Methods.CreateRemoteThread.Inject(dllPath, processName);
         }
         
         // CreateRemoteThread processId overload
         
         public bool CreateRemoteThread(string dllPath, int processId)
         {
-            return MCreateRemoteThread.Inject(dllPath, processId);
+            return Methods.CreateRemoteThread.Inject(dllPath, processId);
         }
 
         public bool ManualMap(string dllPath, string processName)
         {
-            return MManualMap.Inject(dllPath, processName);
+            return Methods.ManualMap.Inject(dllPath, processName);
         }
         
         // ManualMap processId overload
         
         public bool ManualMap(string dllPath, int processId)
         {
-            return MManualMap.Inject(dllPath, processId);
+            return Methods.ManualMap.Inject(dllPath, processId);
         }
 
         public bool QueueUserAPC(string dllPath, string processName)
         {
-            return MQueueUserAPC.Inject(dllPath, processName);
+            return Methods.QueueUserAPC.Inject(dllPath, processName);
         }
         
         // QueueUserAPC processId overload
         
         public bool QueueUserAPC(string dllPath, int processId)
         {
-            return MQueueUserAPC.Inject(dllPath, processId);
+            return Methods.QueueUserAPC.Inject(dllPath, processId);
         }
         
         public bool RtlCreateUserThread(string dllPath, string processName)
         {
-            return MRtlCreateUserThread.Inject(dllPath, processName);
+            return Methods.RtlCreateUserThread.Inject(dllPath, processName);
         }
         
         // RtlCreateUserThread processId overload
         
         public bool RtlCreateUserThread(string dllPath, int processId)
         {
-            return MRtlCreateUserThread.Inject(dllPath, processId);
+            return Methods.RtlCreateUserThread.Inject(dllPath, processId);
         }
         
         public bool SetThreadContext(string dllPath, string processName)
         {
-            return MSetThreadContext.Inject(dllPath, processName);
+            return Methods.SetThreadContext.Inject(dllPath, processName);
         }
         
         // SetThreadContext processId overload
         
         public bool SetThreadContext(string dllPath, int processId)
         {
-            return MSetThreadContext.Inject(dllPath, processId);
+            return Methods.SetThreadContext.Inject(dllPath, processId);
         }
 
         public bool EraseHeaders(string dllPath, string processName)
         {
-            return MEraseHeaders.Erase(dllPath, processName);
+            return Extensions.EraseHeaders.Erase(dllPath, processName);
         }
         
         // EraseHeaders processId overload
         
         public bool EraseHeaders(string dllPath, int processId)
         {
-            return MEraseHeaders.Erase(dllPath, processId);
+            return Extensions.EraseHeaders.Erase(dllPath, processId);
         }
 
         public bool RandomiseHeaders(string dllPath, string processName)
         {
-            return MRandomiseHeaders.Randomise(dllPath, processName);
+            return Extensions.RandomiseHeaders.Randomise(dllPath, processName);
         }
         
         // RandomiseHeaders processId overload
         
         public bool RandomiseHeaders(string dllPath, int processId)
         {
-            return MRandomiseHeaders.Randomise(dllPath, processId);
+            return Extensions.RandomiseHeaders.Randomise(dllPath, processId);
         }
     }
 }
