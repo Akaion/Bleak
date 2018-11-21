@@ -20,6 +20,7 @@ A DLL injection library written in C# that supports several methods of process i
 * Clone this repository
 * Compile the project as AnyCPU
 * Add a reference to Simple-Injection.dll to your project
+* Add a reference to PeNet.dll to your project
 
 ## Usage
 
