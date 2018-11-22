@@ -12,7 +12,7 @@ namespace Simple_Injection.Methods
     {
         internal static bool Inject(string dllPath, string processName)
         {
-            // Ensure both arguments passed in are valid
+            // Ensure both parameters are valid
             
             if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
             {
@@ -26,85 +26,28 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-            // Cache an instance of the specified process
+            // Get an instance of the specified process
 
             Process process;
             
             try
             {
-                process = Process.GetProcessesByName(processName).FirstOrDefault();
+                process = Process.GetProcessesByName(processName)[0];
             }
 
             catch (IndexOutOfRangeException)
             {
                 return false;
             }
+
+            // Inject the dll
             
-            // Get the pointer to load library
-
-            var loadLibraryPointer = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
-
-            if (loadLibraryPointer == IntPtr.Zero)
-            {
-                return false;
-            }
-            
-            // Get the handle of the specified process
-
-            var processHandle = process.SafeHandle;
-
-            if (processHandle == null)
-            {
-                return false;
-            }
-
-            // Allocate memory for the dll name
-
-            var dllNameSize = dllPath.Length;
-
-            var dllMemoryPointer = VirtualAllocEx(processHandle, IntPtr.Zero, dllNameSize, MemoryAllocation.AllAccess, MemoryProtection.PageExecuteReadWrite);
-
-            if (dllMemoryPointer == IntPtr.Zero)
-            {
-                return false;
-            }
-            
-            // Write the dll name into memory
-
-            var dllBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
-
-            if (!WriteMemory(processHandle, dllMemoryPointer, dllBytes))
-            {
-                return false;
-            }
-                       
-            // Create a user thread to call load library in the specified process
-            
-            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryPointer , dllMemoryPointer, out var userThreadHandle, IntPtr.Zero);
-            
-            if (userThreadHandle == IntPtr.Zero)
-            {
-                return false;
-            }
-            
-            // Wait for the user thread to finish
-            
-            WaitForSingleObject(userThreadHandle, int.MaxValue);
-            
-            // Free the previously allocated memory
-            
-            VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
-                    
-            // Close the previously opened handle
-
-            CloseHandle(userThreadHandle);
-            
-            return true;
+            return Inject(dllPath, process);
         }
         
         internal static bool Inject(string dllPath, int processId)
         {
-            // Ensure both arguments passed in are valid
+            // Ensure both parameters are valid
             
             if (string.IsNullOrEmpty(dllPath) || processId == 0)
             {
@@ -118,7 +61,7 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-            // Cache an instance of the specified process
+            // Get an instance of the specified process
 
             Process process;
             
@@ -131,17 +74,24 @@ namespace Simple_Injection.Methods
             {
                 return false;
             }
+
+            // Inject the dll
             
-            // Get the pointer to load library
+            return Inject(dllPath, process);
+        }
 
-            var loadLibraryPointer = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
+        private static bool Inject(string dllPath, Process process)
+        {
+            // Get the address of the load library method
 
-            if (loadLibraryPointer == IntPtr.Zero)
+            var loadLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
+
+            if (loadLibraryAddress == IntPtr.Zero)
             {
                 return false;
             }
             
-            // Get the handle of the specified process
+            // Get a handle to the specified process
 
             var processHandle = process.SafeHandle;
 
@@ -154,25 +104,25 @@ namespace Simple_Injection.Methods
 
             var dllNameSize = dllPath.Length;
 
-            var dllMemoryPointer = VirtualAllocEx(processHandle, IntPtr.Zero, dllNameSize, MemoryAllocation.AllAccess, MemoryProtection.PageExecuteReadWrite);
+            var dllNameAddress = VirtualAllocEx(processHandle, IntPtr.Zero, dllNameSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
 
-            if (dllMemoryPointer == IntPtr.Zero)
+            if (dllNameAddress == IntPtr.Zero)
             {
                 return false;
             }
             
             // Write the dll name into memory
 
-            var dllBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
+            var dllNameBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
 
-            if (!WriteMemory(processHandle, dllMemoryPointer, dllBytes))
+            if (!WriteMemory(processHandle, dllNameAddress, dllNameBytes))
             {
                 return false;
             }
                        
             // Create a user thread to call load library in the specified process
             
-            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryPointer , dllMemoryPointer, out var userThreadHandle, IntPtr.Zero);
+            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryAddress , dllNameAddress, out var userThreadHandle, IntPtr.Zero);
             
             if (userThreadHandle == IntPtr.Zero)
             {
@@ -185,13 +135,13 @@ namespace Simple_Injection.Methods
             
             // Free the previously allocated memory
             
-            VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
+            VirtualFreeEx(processHandle, dllNameAddress, dllNameSize, MemoryAllocation.Release);
                     
             // Close the previously opened handle
 
             CloseHandle(userThreadHandle);
             
             return true;
-        }     
+        }
     }
 }

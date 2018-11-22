@@ -12,14 +12,14 @@ namespace Simple_Injection.Extensions
     {
         internal static bool Erase(string dllPath, string processName)
         {
-            // Ensure both arguments passed in are valid
+            // Ensure both parameters are valid
             
             if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
             {
                 return false;
             }
             
-            // Cache an instance of the specified process
+            // Get an instance of the specified process
 
             Process process;
             
@@ -33,67 +33,21 @@ namespace Simple_Injection.Extensions
                 return false;
             }
 
-            // Get the handle of the specified process
-
-            var processHandle = process.SafeHandle;
-
-            if (processHandle == null)
-            {
-                return false;
-            }
-                   
-            var moduleBaseAddress = IntPtr.Zero;
-
-            // Find the injected dll base address
+            // Erase the headers
             
-            foreach (var module in process.Modules.Cast<ProcessModule>())
-            {
-                if (module.ModuleName == Path.GetFileName(dllPath))
-                {
-                    moduleBaseAddress = module.BaseAddress;
-
-                    break;
-                }
-            }
-            
-            if (moduleBaseAddress == IntPtr.Zero)
-            {
-                return false;
-            }
-            
-            // Get the information about the header region of the module
-
-            var memoryInformationSize = Marshal.SizeOf(typeof(MemoryBasicInformation));
-
-            if (!VirtualQueryEx(processHandle, moduleBaseAddress, out var memoryInformation, memoryInformationSize))
-            {
-                return false;
-            }
-
-            // Generate a buffer to write over the header region with
-            
-            var buffer = new byte[(int) memoryInformation.RegionSize];
-
-            // Write over the header region
-
-            if (!WriteMemory(processHandle, moduleBaseAddress, buffer))
-            {
-                return false;
-            }
-
-            return true;
+            return Erase(dllPath, process);
         }
         
         internal static bool Erase(string dllPath, int processId)
         {
-            // Ensure both arguments passed in are valid
+            // Ensure both parameters are valid
             
             if (string.IsNullOrEmpty(dllPath) || processId == 0)
             {
                 return false;
             }
             
-            // Cache an instance of the specified process
+            // Get an instance of the specified process
 
             Process process;
             
@@ -107,6 +61,13 @@ namespace Simple_Injection.Extensions
                 return false;
             }
 
+            // Erase the headers
+            
+            return Erase(dllPath, process);
+        }
+
+        private static bool Erase(string dllPath, Process process)
+        {      
             // Get the handle of the specified process
 
             var processHandle = process.SafeHandle;
@@ -115,11 +76,11 @@ namespace Simple_Injection.Extensions
             {
                 return false;
             }
-                   
+                               
+            // Find the dll base address
+            
             var moduleBaseAddress = IntPtr.Zero;
 
-            // Find the injected dll base address
-            
             foreach (var module in process.Modules.Cast<ProcessModule>())
             {
                 if (module.ModuleName == Path.GetFileName(dllPath))
@@ -135,7 +96,7 @@ namespace Simple_Injection.Extensions
                 return false;
             }
             
-            // Get the information about the header region of the module
+            // Get the information about the header region of the dll
 
             var memoryInformationSize = Marshal.SizeOf(typeof(MemoryBasicInformation));
 
@@ -150,12 +111,7 @@ namespace Simple_Injection.Extensions
 
             // Write over the header region
 
-            if (!WriteMemory(processHandle, moduleBaseAddress, buffer))
-            {
-                return false;
-            }
-
-            return true;
+            return WriteMemory(processHandle, moduleBaseAddress, buffer);
         }
     }
 }

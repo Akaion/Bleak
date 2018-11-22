@@ -78,9 +78,11 @@ namespace Simple_Injection.Etc
         
         #region Permissions
         
+        [Flags]
         internal enum MemoryAllocation
         {
-            AllAccess = 0x3000,
+            Commit = 0x1000,
+            Reserve = 0x2000,
             Release = 0x8000
         }
 
@@ -106,7 +108,7 @@ namespace Simple_Injection.Etc
 
         internal enum DataSectionFlags : uint
         {
-            MemoryNotCached = 0x04000000,
+            MemoryNotCached = 0x4000000,
             MemoryExecute = 0x20000000,
             MemoryRead = 0x40000000,
             MemoryWrite = 0x80000000

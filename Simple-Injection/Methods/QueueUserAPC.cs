@@ -12,7 +12,7 @@ namespace Simple_Injection.Methods
     {
         internal static bool Inject(string dllPath, string processName)
         {
-            // Ensure both arguments passed in are valid
+            // Ensure both parameters are valid
             
             if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
             {
@@ -26,13 +26,13 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-            // Cache an instance of the specified process
+            // Get an instance of the specified process
 
             Process process;
             
             try
             {
-                process = Process.GetProcessesByName(processName).FirstOrDefault();
+                process = Process.GetProcessesByName(processName)[0];
             }
 
             catch (IndexOutOfRangeException)
@@ -40,73 +40,12 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-            // Get the pointer to load library
-
-            var loadLibraryPointer = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
-
-            if (loadLibraryPointer == IntPtr.Zero)
-            {
-                return false;
-            }
-
-            // Get the handle of the specified process
-
-            var processHandle = process.SafeHandle;
-
-            if (processHandle == null)
-            {
-                return false;
-            }
-
-            // Allocate memory for the dll name
-
-            var dllNameSize = dllPath.Length;
-
-            var dllMemoryPointer = VirtualAllocEx(processHandle, IntPtr.Zero, dllNameSize, MemoryAllocation.AllAccess, MemoryProtection.PageExecuteReadWrite);
-
-            if (dllMemoryPointer == IntPtr.Zero)
-            {
-                return false;
-            }
-            
-            // Write the dll name into memory
-
-            var dllBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
-
-            if (!WriteMemory(processHandle, dllMemoryPointer, dllBytes))
-            {
-                return false;
-            }
-
-            // Call QueueUserAPC on each thread
-            
-            foreach (var thread in Process.GetProcessesByName(processName)[0].Threads.Cast<ProcessThread>())
-            {
-                var threadId = thread.Id;
-                
-                // Get the threads handle
-                
-                var threadHandle = OpenThread(ThreadAccess.AllAccess, false, threadId);
-
-                // Add a user-mode APC to the APC queue of the thread
-                
-                QueueUserAPC(loadLibraryPointer, threadHandle, dllMemoryPointer);
-                
-                // Close the handle to the thread
-                
-                CloseHandle(threadHandle);
-            }
-            
-            // Free the previously allocated memory
-            
-            VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
-            
-            return true;
+            return Inject(dllPath, process);
         }  
         
         internal static bool Inject(string dllPath, int processId)
         {
-            // Ensure both arguments passed in are valid
+            // Ensure both parameters are valid
             
             if (string.IsNullOrEmpty(dllPath) || processId == 0)
             {
@@ -120,7 +59,7 @@ namespace Simple_Injection.Methods
                 return false;
             }
             
-            // Cache an instance of the specified process
+            // Get an instance of the specified process
 
             Process process;
             
@@ -133,8 +72,13 @@ namespace Simple_Injection.Methods
             {
                 return false;
             }
-            
-            // Get the pointer to load library
+
+            return Inject(dllPath, process);
+        }
+
+        private static bool Inject(string dllPath, Process process)
+        { 
+            // Get the address of the load library method
 
             var loadLibraryPointer = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
 
@@ -143,7 +87,7 @@ namespace Simple_Injection.Methods
                 return false;
             }
 
-            // Get the handle of the specified process
+            // Get a handle to the specified process
 
             var processHandle = process.SafeHandle;
 
@@ -156,46 +100,44 @@ namespace Simple_Injection.Methods
 
             var dllNameSize = dllPath.Length;
 
-            var dllMemoryPointer = VirtualAllocEx(processHandle, IntPtr.Zero, dllNameSize, MemoryAllocation.AllAccess, MemoryProtection.PageExecuteReadWrite);
+            var dllNameAddress = VirtualAllocEx(processHandle, IntPtr.Zero, dllNameSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
 
-            if (dllMemoryPointer == IntPtr.Zero)
+            if (dllNameAddress == IntPtr.Zero)
             {
                 return false;
             }
             
             // Write the dll name into memory
 
-            var dllBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
+            var dllNameBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
 
-            if (!WriteMemory(processHandle, dllMemoryPointer, dllBytes))
+            if (!WriteMemory(processHandle, dllNameAddress, dllNameBytes))
             {
                 return false;
             }
-
+ 
             // Call QueueUserAPC on each thread
             
-            foreach (var thread in Process.GetProcessById(processId).Threads.Cast<ProcessThread>())
+            foreach (var thread in process.Threads.Cast<ProcessThread>())
             {
-                var threadId = thread.Id;
-                
-                // Get the threads handle
-                
-                var threadHandle = OpenThread(ThreadAccess.AllAccess, false, threadId);
-
+                // Open a handle to the thread
+            
+                var threadHandle = OpenThread(ThreadAccess.AllAccess, false, thread.Id);
+                        
                 // Add a user-mode APC to the APC queue of the thread
+            
+                QueueUserAPC(loadLibraryPointer, threadHandle, dllNameAddress);   
                 
-                QueueUserAPC(loadLibraryPointer, threadHandle, dllMemoryPointer);
-                
-                // Close the handle to the thread
-                
+                // Close the previously opened handle
+            
                 CloseHandle(threadHandle);
             }
-            
+               
             // Free the previously allocated memory
             
-            VirtualFreeEx(processHandle, dllMemoryPointer, dllNameSize, MemoryAllocation.Release);
-            
+            VirtualFreeEx(processHandle, dllNameAddress, dllNameSize, MemoryAllocation.Release);
+                    
             return true;
-        } 
+        }
     }
 }

@@ -1,7 +1,4 @@
-﻿using Simple_Injection.Methods;
-using Simple_Injection.Extensions;
-
-namespace Simple_Injection
+﻿namespace Simple_Injection
 {
     public class Injector
     {
@@ -9,9 +6,7 @@ namespace Simple_Injection
         {
             return Methods.CreateRemoteThread.Inject(dllPath, processName);
         }
-        
-        // CreateRemoteThread processId overload
-        
+       
         public bool CreateRemoteThread(string dllPath, int processId)
         {
             return Methods.CreateRemoteThread.Inject(dllPath, processId);
@@ -21,8 +16,6 @@ namespace Simple_Injection
         {
             return Methods.ManualMap.Inject(dllPath, processName);
         }
-        
-        // ManualMap processId overload
         
         public bool ManualMap(string dllPath, int processId)
         {
@@ -34,8 +27,6 @@ namespace Simple_Injection
             return Methods.QueueUserAPC.Inject(dllPath, processName);
         }
         
-        // QueueUserAPC processId overload
-        
         public bool QueueUserAPC(string dllPath, int processId)
         {
             return Methods.QueueUserAPC.Inject(dllPath, processId);
@@ -45,8 +36,6 @@ namespace Simple_Injection
         {
             return Methods.RtlCreateUserThread.Inject(dllPath, processName);
         }
-        
-        // RtlCreateUserThread processId overload
         
         public bool RtlCreateUserThread(string dllPath, int processId)
         {
@@ -58,8 +47,6 @@ namespace Simple_Injection
             return Methods.SetThreadContext.Inject(dllPath, processName);
         }
         
-        // SetThreadContext processId overload
-        
         public bool SetThreadContext(string dllPath, int processId)
         {
             return Methods.SetThreadContext.Inject(dllPath, processId);
@@ -70,8 +57,6 @@ namespace Simple_Injection
             return Extensions.EraseHeaders.Erase(dllPath, processName);
         }
         
-        // EraseHeaders processId overload
-        
         public bool EraseHeaders(string dllPath, int processId)
         {
             return Extensions.EraseHeaders.Erase(dllPath, processId);
@@ -81,8 +66,6 @@ namespace Simple_Injection
         {
             return Extensions.RandomiseHeaders.Randomise(dllPath, processName);
         }
-        
-        // RandomiseHeaders processId overload
         
         public bool RandomiseHeaders(string dllPath, int processId)
         {
