@@ -122,7 +122,7 @@ namespace Simple_Injection.Methods
             {
                 // Open a handle to the thread
             
-                var threadHandle = OpenThread(ThreadAccess.AllAccess, false, thread.Id);
+                var threadHandle = OpenThread(ThreadAccess.SetContext, false, thread.Id);
                         
                 // Add a user-mode APC to the APC queue of the thread
             

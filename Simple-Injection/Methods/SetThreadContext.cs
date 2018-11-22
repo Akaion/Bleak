@@ -136,7 +136,7 @@ namespace Simple_Injection.Methods
             
             // Open a handle to the thread
             
-            var threadHandle = OpenThread(ThreadAccess.AllAccess, false, threadId);
+            var threadHandle = OpenThread(ThreadAccess.SuspendResume | ThreadAccess.GetContext | ThreadAccess.SetContext, false, threadId);
 
             if (threadHandle == IntPtr.Zero)
             {

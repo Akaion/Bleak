@@ -85,27 +85,34 @@ namespace Simple_Injection.Etc
             Reserve = 0x2000,
             Release = 0x8000
         }
-
+        
+        [Flags]
         internal enum MemoryProtection
         {
             PageExecuteReadWrite = 0x40
         }
 
+        [Flags]
         internal enum ThreadAccess
         {
-            AllAccess = 0x1A
+            SuspendResume = 0x2,
+            GetContext = 0x8,
+            SetContext = 0x10
         }
 
+        [Flags]
         internal enum ContextFlags
         {
             ContextControl = 0x10001
         }
 
+        [Flags]
         internal enum WindowsMessage
         {
             WmKeydown = 0x100
         }
 
+        [Flags]
         internal enum DataSectionFlags : uint
         {
             MemoryNotCached = 0x4000000,
