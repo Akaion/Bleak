@@ -67,20 +67,20 @@ namespace Simple_Injection.Tests.x86
             Assert.True(_injector.SetThreadContext(_dllPath, _process.Id));
         }
 
-        /*[Fact]
+        [Fact]
         public void TestEraseHeaders()
         {
             _injector.RtlCreateUserThread(_dllPath, _process.Id);
             
             Assert.True(_injector.EraseHeaders(_dllPath, _process.Id));
-        }*/
+        }
         
-        /*[Fact]
+        [Fact]
         public void TestRandomiseHeaders()
         {
            _injector.RtlCreateUserThread(_dllPath, _process.Id);
            
            Assert.True(_injector.RandomiseHeaders(_dllPath, _process.Id));
-        }*/
+        }
 }
 }
