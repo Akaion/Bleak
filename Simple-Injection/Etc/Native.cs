@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 
 namespace Simple_Injection.Etc
@@ -6,7 +6,7 @@ namespace Simple_Injection.Etc
     internal static class Native
     {
         #region pinvoke
-        
+
         [DllImport("kernel32.dll")]
         public static extern IntPtr GetModuleHandle(string lpModuleName);
 
@@ -15,69 +15,69 @@ namespace Simple_Injection.Etc
 
         [DllImport("kernel32.dll")]
         internal static extern IntPtr VirtualAllocEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation flAllocationType, MemoryProtection flProtect);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern bool WriteProcessMemory(SafeHandle hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, int nSize, int lpNumberOfBytesWritten);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern IntPtr CreateRemoteThread(SafeHandle hProcess, IntPtr lpThreadAttributes, int dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, int dwCreationFlags, IntPtr lpThreadId);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle, int dwThreadId);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern void SuspendThread(IntPtr hThread);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern bool GetThreadContext(IntPtr hThread, ref Context lpContext);
-        
+
         // x64 Overload for GetThreadContext
-        
-        [DllImport("kernel32.dll")] 
+
+        [DllImport("kernel32.dll")]
         internal static extern bool GetThreadContext(IntPtr hThread, ref Context64 lpContext);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern bool SetThreadContext(IntPtr hThread, ref Context lpContext);
-        
+
         // x64 Overload for SetThreadContext
-        
+
         [DllImport("kernel32.dll")]
         internal static extern bool SetThreadContext(IntPtr hThread, ref Context64 lpContext);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern void ResumeThread(IntPtr hThread);
 
         [DllImport("kernel32.dll")]
         internal static extern bool QueueUserAPC(IntPtr pfnAPC, IntPtr hThread, IntPtr dwData);
-        
+
         [DllImport("ntdll.dll")]
         internal static extern void RtlCreateUserThread(SafeHandle hProcess, IntPtr lpThreadSecurity, bool bCreateSuspended, int dwStackZeroBits, IntPtr pStackReserved, IntPtr pStackCommit, IntPtr pStartAddress, IntPtr pStartParameter, out IntPtr hThread, IntPtr pClientId);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern bool VirtualQueryEx(SafeHandle hProcess, IntPtr lpAddress, out MemoryBasicInformation lpBuffer, int dwLength);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern bool VirtualProtectEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, int flNewProtect, out int lpflOldProtect);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern void WaitForSingleObject(IntPtr hHandle, int dwMilliseconds);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern void CloseHandle(IntPtr hHandle);
-        
+
         [DllImport("kernel32.dll")]
         internal static extern void VirtualFreeEx(SafeHandle hProcess, IntPtr lpAddress, int dwSize, MemoryAllocation dwFreeType);
-        
+
         [DllImport("user32.dll")]
         internal static extern void PostMessage(IntPtr hWnd, WindowsMessage dwMsg, IntPtr wParam, IntPtr lParam);
 
         [DllImport("dbghelp.dll")]
         public static extern IntPtr ImageRvaToVa(IntPtr ntHeaders, IntPtr Base, IntPtr rva, IntPtr lastRvaSection);
-        
+
         #endregion
-        
+
         #region Permissions
-        
+
         [Flags]
         internal enum MemoryAllocation
         {
@@ -85,11 +85,19 @@ namespace Simple_Injection.Etc
             Reserve = 0x2000,
             Release = 0x8000
         }
-        
+
         [Flags]
         internal enum MemoryProtection
         {
-            PageExecuteReadWrite = 0x40
+            PageNoAccess = 0x1,
+            PageReadOnly = 0x2,
+            PageReadWrite = 0x4,
+            PageWriteCopy = 0x8,
+            PageExecute = 0x10,
+            PageExecuteRead = 0x20,
+            PageExecuteReadWrite = 0x40,
+            PageExecuteWriteCopy = 0x80,
+            PageNoCache = 0x200
         }
 
         [Flags]
@@ -120,95 +128,95 @@ namespace Simple_Injection.Etc
             MemoryRead = 0x40000000,
             MemoryWrite = 0x80000000
         }
-        
+
         #endregion
-        
+
         #region Structures
-        
+
         [StructLayout(LayoutKind.Sequential)]
         private struct FloatingSaveArea
         {
-            private readonly int ControlWord; 
-            private readonly int StatusWord; 
-            private readonly int TagWord; 
-            
-            private readonly int ErrorOffset; 
-            private readonly int ErrorSelector; 
-            
+            private readonly int ControlWord;
+            private readonly int StatusWord;
+            private readonly int TagWord;
+
+            private readonly int ErrorOffset;
+            private readonly int ErrorSelector;
+
             private readonly int DataOffset;
-            private readonly int DataSelector; 
-            
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 80)] 
-            private readonly byte[] RegisterArea; 
-            
-            private readonly int Cr0NpxState; 
-            
+            private readonly int DataSelector;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 80)]
+            private readonly byte[] RegisterArea;
+
+            private readonly int Cr0NpxState;
+
         }
 
         [StructLayout(LayoutKind.Sequential)]
         internal struct Context
         {
             internal ContextFlags Flags;
-            
+
             private readonly IntPtr Dr0;
             private readonly IntPtr Dr1;
             private readonly IntPtr Dr2;
             private readonly IntPtr Dr3;
             private readonly IntPtr Dr6;
             private readonly IntPtr Dr7;
-            
+
             private readonly FloatingSaveArea FloatingSave;
-            
+
             private readonly IntPtr SegGs;
             private readonly IntPtr SegFs;
             private readonly IntPtr SegEs;
             private readonly IntPtr SegDs;
-            
+
             private readonly IntPtr Edi;
             private readonly IntPtr Esi;
             private readonly IntPtr Ebx;
             private readonly IntPtr Edx;
             private readonly IntPtr Ecx;
             private readonly IntPtr Eax;
-            
+
             private readonly IntPtr Ebp;
             internal IntPtr Eip;
             private readonly IntPtr SegCs;
             private readonly IntPtr EFlags;
             private readonly IntPtr Esp;
             private readonly IntPtr SegSs;
-            
+
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 512)]
             private readonly byte[] ExtendedRegisters;
         }
-        
+
         [StructLayout(LayoutKind.Sequential)]
         private struct M128A
         {
             private readonly IntPtr High;
             private readonly IntPtr Low;
         }
-        
+
         [StructLayout(LayoutKind.Sequential, Pack = 16)]
         private struct SaveFormat
         {
             private readonly short ControlWord;
             private readonly short StatusWord;
             private readonly byte TagWord;
-            
+
             private readonly byte Reserved1;
-            
+
             private readonly short ErrorOpcode;
             private readonly int ErrorOffset;
             private readonly short ErrorSelector;
-            
+
             private readonly short Reserved2;
-            
+
             private readonly int DataOffset;
             private readonly short DataSelector;
-            
+
             private readonly short Reserved3;
-            
+
             private readonly int MxCsr;
             private readonly int MxCsr_Mask;
 
@@ -221,7 +229,7 @@ namespace Simple_Injection.Etc
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 96)]
             private readonly byte[] Reserved4;
         }
-        
+
         [StructLayout(LayoutKind.Sequential, Pack = 16)]
         internal struct Context64
         {
@@ -241,7 +249,7 @@ namespace Simple_Injection.Etc
             private readonly short SegFs;
             private readonly short SegGs;
             private readonly short SegSs;
-            
+
             private readonly int EFlags;
 
             private readonly IntPtr Dr0;
@@ -281,22 +289,22 @@ namespace Simple_Injection.Etc
             private readonly IntPtr LastExceptionToRip;
             private readonly IntPtr LastExceptionFromRip;
         }
-        
-        [StructLayout(LayoutKind.Sequential)] 
+
+        [StructLayout(LayoutKind.Sequential)]
         internal struct MemoryBasicInformation
         {
             private readonly IntPtr BaseAddress;
-            
+
             private readonly IntPtr AllocationBase;
-            private readonly int AllocationProtect; 
-            
+            private readonly int AllocationProtect;
+
             internal readonly IntPtr RegionSize;
-            
+
             private readonly int State;
             private readonly int Protect;
-            private readonly int Type; 
+            private readonly int Type;
         }
-        
+
         [StructLayout(LayoutKind.Explicit)]
         internal struct ImageThunkData
         {
@@ -312,7 +320,7 @@ namespace Simple_Injection.Etc
             [FieldOffset(0)]
             private readonly int AddressOfData;
         }
-        
+
         #endregion
     }
 }

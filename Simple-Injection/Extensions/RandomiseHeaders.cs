@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -13,16 +13,16 @@ namespace Simple_Injection.Extensions
         internal static bool Randomise(string dllPath, string processName)
         {
             // Ensure both parameters are valid
-            
+
             if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
             {
                 return false;
             }
-            
+
             // Get an instance of the specified process
 
             Process process;
-            
+
             try
             {
                 process = Process.GetProcessesByName(processName).FirstOrDefault();
@@ -34,23 +34,23 @@ namespace Simple_Injection.Extensions
             }
 
             // Randomise the headers
-            
+
             return Randomise(dllPath, process);
         }
-        
+
         internal static bool Randomise(string dllPath, int processId)
         {
             // Ensure both parameters are valid
-            
+
             if (string.IsNullOrEmpty(dllPath) || processId == 0)
             {
                 return false;
             }
-            
+
             // Get an instance of the specified process
 
             Process process;
-            
+
             try
             {
                 process = Process.GetProcessById(processId);
@@ -62,7 +62,7 @@ namespace Simple_Injection.Extensions
             }
 
             // Randomise the headers
-            
+
             return Randomise(dllPath, process);
         }
 
@@ -76,11 +76,11 @@ namespace Simple_Injection.Extensions
             {
                 return false;
             }
-            
+
             var moduleBaseAddress = IntPtr.Zero;
-            
+
             // Find the dll base address
-            
+
             foreach (var module in process.Modules.Cast<ProcessModule>())
             {
                 if (module.ModuleName == Path.GetFileName(dllPath))
@@ -90,29 +90,29 @@ namespace Simple_Injection.Extensions
                     break;
                 }
             }
-            
+
             if (moduleBaseAddress == IntPtr.Zero)
             {
                 return false;
             }
-            
+
             // Get the information about the header region of the dll
 
             var memoryInformationSize = Marshal.SizeOf(typeof(MemoryBasicInformation));
-            
+
             if (!VirtualQueryEx(processHandle, moduleBaseAddress, out var memoryInformation, memoryInformationSize))
             {
                 return false;
             }
 
             // Generate a buffer to write over the header region with
-            
-            var buffer = new byte[(int) memoryInformation.RegionSize];
+
+            var buffer = new byte[(int)memoryInformation.RegionSize];
 
             // Fill the buffer with random bytes
-            
+
             new Random().NextBytes(buffer);
-            
+
             // Write over the header region
 
             return WriteMemory(processHandle, moduleBaseAddress, buffer);

@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using static Simple_Injection.Etc.Native;
 
 namespace Simple_Injection.Etc
 {
     internal static class Wrapper
-    { 
+    {
         internal static bool WriteMemory(SafeHandle processHandle, IntPtr address, byte[] buffer)
         {
             // Change the protection of the memory region
@@ -31,7 +31,7 @@ namespace Simple_Injection.Etc
 
             return true;
         }
-        
+
         internal static bool WriteMemory(SafeHandle processHandle, IntPtr address, byte[] buffer, int newProtection)
         {
             // Change the protection of the memory region
