@@ -17,10 +17,7 @@ A native DLL injection library written in C# that supports several methods of in
 
 ## Installation
 
-* Clone this repository
-* Compile the project as AnyCPU
-* Add a reference to Simple-Injection.dll to your project
-* Add a reference to PeNet.dll to your project
+* Download Simple-Injection using [Nuget](https://www.nuget.org/packages/Simple-Injection/1.0.0)
 
 ## Usage
 
