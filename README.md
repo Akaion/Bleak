@@ -38,4 +38,4 @@ injector.EraseHeaders("pathToDll", "processName")
 ## Contributing
 Pull requests are welcome. 
 
-For major changes, such as new injection methods, please open an issue first to discuss what you would like to add.
+For large changes, please open an issue first to discuss what you would like to add.
