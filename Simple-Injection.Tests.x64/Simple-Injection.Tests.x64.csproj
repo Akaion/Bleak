@@ -46,7 +46,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="Simple-Injection, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\Simple-Injection.1.0.0\lib\netstandard2.0\Simple-Injection.dll</HintPath>
+      <HintPath>..\packages\Simple-Injection.1.1.0\lib\netstandard2.0\Simple-Injection.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
