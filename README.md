@@ -17,7 +17,7 @@ A native DLL injection library written in C# that supports several methods of in
 
 ## Installation
 
-* Download and install Simple-Injection using [NuGet](https://www.nuget.org/packages/Simple-Injection/1.0.0)
+* Download and install Simple-Injection using [NuGet](https://www.nuget.org/packages/Simple-Injection/1.1.0)
 
 ## Usage
 
