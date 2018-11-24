@@ -10,7 +10,7 @@ namespace Simple_Injection.Etc
         {
             // Change the protection of the memory region
 
-            if (!VirtualProtectEx(processHandle, address, buffer.Length, 0x40, out var oldProtection))
+            if (!VirtualProtectEx(processHandle, address, buffer.Length, 0x040, out var oldProtection))
             {
                 return false;
             }
@@ -36,7 +36,7 @@ namespace Simple_Injection.Etc
         {
             // Change the protection of the memory region
 
-            if (!VirtualProtectEx(processHandle, address, buffer.Length, 0x40, out _))
+            if (!VirtualProtectEx(processHandle, address, buffer.Length, 0x040, out _))
             {
                 return false;
             }

@@ -80,9 +80,9 @@ namespace Simple_Injection.Methods
         {
             // Get the address of the load library method
 
-            var loadLibraryPointer = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
+            var loadLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
 
-            if (loadLibraryPointer == IntPtr.Zero)
+            if (loadLibraryAddress == IntPtr.Zero)
             {
                 return false;
             }
@@ -126,7 +126,7 @@ namespace Simple_Injection.Methods
 
                 // Add a user-mode APC to the APC queue of the thread
 
-                QueueUserAPC(loadLibraryPointer, threadHandle, dllNameAddress);
+                QueueUserAPC(loadLibraryAddress, threadHandle, dllNameAddress);
 
                 // Close the previously opened handle
 

@@ -7,7 +7,7 @@
     <Company />
     <PackageProjectUrl></PackageProjectUrl>
     <RepositoryUrl>https://github.com/Akaion/Simple-Injection</RepositoryUrl>
-	<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageTags></PackageTags>
     <RepositoryType>git</RepositoryType>

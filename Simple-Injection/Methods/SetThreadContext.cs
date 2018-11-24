@@ -156,7 +156,7 @@ namespace Simple_Injection.Methods
                 var context = new Context { Flags = ContextFlags.ContextControl };
 
                 if (!GetThreadContext(threadHandle, ref context))
-                {
+                {    
                     return false;
                 }
 

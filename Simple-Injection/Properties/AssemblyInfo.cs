@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("Simple Injection")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("A native DLL injection library written in C# that supports several methods of injection.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("Simple Injection")]

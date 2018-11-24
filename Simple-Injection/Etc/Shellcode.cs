@@ -4,7 +4,7 @@ namespace Simple_Injection.Etc
 {
     internal static class Shellcode
     {
-        internal static byte[] CallLoadLibraryx86(IntPtr instructionPointer, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer)
+        internal static byte[] CallLoadLibraryx86(IntPtr instructionPointer, IntPtr dllNameAddress, IntPtr loadLibraryAddress)
         {
             var shellcode = new byte[]
             {
@@ -21,22 +21,24 @@ namespace Simple_Injection.Etc
 
             // Get the byte representation of each pointer
 
-            var instructionPointerBytes = BitConverter.GetBytes((int)instructionPointer);
+            var instructionPointerBytes = BitConverter.GetBytes((int) instructionPointer);
 
-            var dllMemoryPointerBytes = BitConverter.GetBytes((int)dllMemoryPointer);
+            var dllMemoryPointerBytes = BitConverter.GetBytes((int) dllNameAddress);
 
-            var loadLibraryPointerBytes = BitConverter.GetBytes((int)loadLibraryPointer);
+            var loadLibraryPointerBytes = BitConverter.GetBytes((int) loadLibraryAddress);
 
             // Write the pointers into the shellcode
 
             Buffer.BlockCopy(instructionPointerBytes, 0, shellcode, 1, 4);
+            
             Buffer.BlockCopy(dllMemoryPointerBytes, 0, shellcode, 8, 4);
+            
             Buffer.BlockCopy(loadLibraryPointerBytes, 0, shellcode, 13, 4);
 
             return shellcode;
         }
 
-        internal static byte[] CallLoadLibraryx64(IntPtr instructionPointer, IntPtr dllMemoryPointer, IntPtr loadLibraryPointer)
+        internal static byte[] CallLoadLibraryx64(IntPtr instructionPointer, IntPtr dllNameAddress, IntPtr loadLibraryAddress)
         {
             var shellcode = new byte[]
             {
@@ -84,22 +86,24 @@ namespace Simple_Injection.Etc
 
             // Get the byte representation of each pointer
 
-            var instructionPointerBytes = BitConverter.GetBytes((long)instructionPointer);
+            var instructionPointerBytes = BitConverter.GetBytes((long) instructionPointer);
 
-            var dllMemoryPointerBytes = BitConverter.GetBytes((long)dllMemoryPointer);
+            var dllNameAddressBytes = BitConverter.GetBytes((long) dllNameAddress);
 
-            var loadLibraryPointerBytes = BitConverter.GetBytes((long)loadLibraryPointer);
+            var loadLibraryAddressBytes = BitConverter.GetBytes((long) loadLibraryAddress);
 
             // Write the pointers into the shellcode
 
             Buffer.BlockCopy(instructionPointerBytes, 0, shellcode, 3, 8);
-            Buffer.BlockCopy(dllMemoryPointerBytes, 0, shellcode, 41, 8);
-            Buffer.BlockCopy(loadLibraryPointerBytes, 0, shellcode, 51, 8);
+            
+            Buffer.BlockCopy(dllNameAddressBytes, 0, shellcode, 41, 8);
+            
+            Buffer.BlockCopy(loadLibraryAddressBytes, 0, shellcode, 51, 8);
 
             return shellcode;
         }
 
-        internal static byte[] CallDllMainx86(IntPtr baseAddress, IntPtr entryPointPointer)
+        internal static byte[] CallDllMainx86(IntPtr baseAddress, IntPtr entryPointAddress)
         {
             var shellcode = new byte[]
             {
@@ -112,19 +116,22 @@ namespace Simple_Injection.Etc
                 0xC3                          // ret
             };
 
-            var dllMemoryPointerBytes = BitConverter.GetBytes((int)baseAddress);
+            // Get the byte representation of each pointer
+            
+            var baseAddressBytes = BitConverter.GetBytes((int) baseAddress);
 
-            var entryPointPointerBytes = BitConverter.GetBytes((int)entryPointPointer);
+            var entryPointAddressBytes = BitConverter.GetBytes((int) entryPointAddress);
 
             // Write the pointers into the shellcode
 
-            Buffer.BlockCopy(dllMemoryPointerBytes, 0, shellcode, 1, 4);
-            Buffer.BlockCopy(entryPointPointerBytes, 0, shellcode, 16, 4);
+            Buffer.BlockCopy(baseAddressBytes, 0, shellcode, 1, 4);
+            
+            Buffer.BlockCopy(entryPointAddressBytes, 0, shellcode, 16, 4);
 
             return shellcode;
         }
 
-        internal static byte[] CallDllMainx64(IntPtr baseAddress, IntPtr entryPointPointer)
+        internal static byte[] CallDllMainx64(IntPtr baseAddress, IntPtr entryPointAddress)
         {
             var shellcode = new byte[]
             {
@@ -138,14 +145,17 @@ namespace Simple_Injection.Etc
                 0xC3                                                        // ret
             };
 
-            var dllMemoryPointerBytes = BitConverter.GetBytes((long)baseAddress);
+            // Get the byte representation of each pointer
+            
+            var baseAddressBytes = BitConverter.GetBytes((long) baseAddress);
 
-            var entryPointPointerBytes = BitConverter.GetBytes((long)entryPointPointer);
+            var entryPointAddressBytes = BitConverter.GetBytes((long) entryPointAddress);
 
             // Write the pointers into the shellcode
 
-            Buffer.BlockCopy(dllMemoryPointerBytes, 0, shellcode, 6, 4);
-            Buffer.BlockCopy(entryPointPointerBytes, 0, shellcode, 26, 4);
+            Buffer.BlockCopy(baseAddressBytes, 0, shellcode, 6, 4);
+            
+            Buffer.BlockCopy(entryPointAddressBytes, 0, shellcode, 26, 4);
 
             return shellcode;
         }

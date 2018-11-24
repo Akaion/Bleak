@@ -15,6 +15,10 @@ namespace Simple_Injection.Tests.x64
 
         private readonly string _dllPath = Path.GetFullPath(@"..\..\") + "Test-Dll-x64.dll";
 
+        // Path to test process
+
+        private readonly string _processPath = Path.GetFullPath(@"..\..\");
+        
         // Test process
 
         private readonly Process _process;
@@ -23,7 +27,7 @@ namespace Simple_Injection.Tests.x64
         {
             // Create a new test process
 
-            _process = new Process {StartInfo = {CreateNoWindow = true, FileName = "cmd.exe"}};
+            _process = new Process { StartInfo = { CreateNoWindow = true, WorkingDirectory = _processPath, FileName = "TestProcess.exe" } };
 
             _process.Start();
         }

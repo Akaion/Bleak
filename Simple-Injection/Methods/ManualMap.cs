@@ -11,7 +11,7 @@ using static Simple_Injection.Etc.Wrapper;
 
 namespace Simple_Injection.Methods
 {
-    public static class ManualMap
+    internal static class ManualMap
     {
         internal static bool Inject(string dllPath, string processName)
         {
@@ -172,15 +172,13 @@ namespace Simple_Injection.Methods
 
         private static IntPtr RvaToVa(IntPtr baseAddress, int eLfanew, IntPtr rva)
         {
-            // Convert the relative virtual address to a virtual address
+            // Convert a relative virtual address to a virtual address
 
             return ImageRvaToVa(baseAddress + eLfanew, baseAddress, rva, IntPtr.Zero);
         }
 
         private static bool MapImports(PeFile peHeaders, IntPtr baseAddress)
         {
-            // Get the pe headers
-
             var eLfanew = (int) peHeaders.ImageDosHeader.e_lfanew;
 
             // Get the imports
@@ -253,7 +251,7 @@ namespace Simple_Injection.Methods
         {
             // Check if any relocations need to be mapped
 
-            if ((peHeaders.ImageNtHeaders.FileHeader.Characteristics & 0x1) > 0)
+            if ((peHeaders.ImageNtHeaders.FileHeader.Characteristics & 0x01) > 0)
             {
                 return true;
             }
@@ -371,7 +369,7 @@ namespace Simple_Injection.Methods
 
                 else if (characteristics.HasFlag(DataSectionFlags.MemoryWrite))
                 {
-                    protection |= (int) MemoryProtection.PageWriteCopy;
+                    protection |= (int) MemoryProtection.PageExecuteWriteCopy;
                 }
 
                 else
@@ -416,7 +414,7 @@ namespace Simple_Injection.Methods
             {
                 // Get the sections protection
 
-                var protection = GetSectionProtection((DataSectionFlags)section.Characteristics);
+                var protection = GetSectionProtection((DataSectionFlags) section.Characteristics);
 
                 // Get the sections address
 
@@ -478,40 +476,40 @@ namespace Simple_Injection.Methods
 
             var shellcodeSize = shellcode.Length;
 
-            var shellcodeMemoryPointer = VirtualAllocEx(processHandle, IntPtr.Zero, shellcodeSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
+            var shellcodeAddress = VirtualAllocEx(processHandle, IntPtr.Zero, shellcodeSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
 
-            if (shellcodeMemoryPointer == IntPtr.Zero)
+            if (shellcodeAddress == IntPtr.Zero)
             {
                 return false;
             }
 
             // Write the shellcode into memory
             
-            if (!WriteMemory(processHandle, shellcodeMemoryPointer, shellcode))
+            if (!WriteMemory(processHandle, shellcodeAddress, shellcode))
             {
                 return false;
             }
 
-            // Create a remote thread to call the entry point in the specified process
+            // Create a user thread to call the entry point in the specified process
 
-            var remoteThreadHandle = CreateRemoteThread(processHandle, IntPtr.Zero, 0, shellcodeMemoryPointer, IntPtr.Zero, 0, IntPtr.Zero);
-
-            if (remoteThreadHandle == IntPtr.Zero)
+            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, shellcodeAddress, IntPtr.Zero, out var userThreadHandle, IntPtr.Zero);
+            
+            if (userThreadHandle == IntPtr.Zero)
             {
                 return false;
             }
 
-            // Wait for the remote thread to finish
+            // Wait for the user thread to finish
 
-            WaitForSingleObject(remoteThreadHandle, int.MaxValue);
+            WaitForSingleObject(userThreadHandle, int.MaxValue);
 
             // Free the previously allocated memory
 
-            VirtualFreeEx(processHandle, shellcodeMemoryPointer, shellcodeSize, MemoryAllocation.Release);
+            VirtualFreeEx(processHandle, shellcodeAddress, shellcodeSize, MemoryAllocation.Release);
 
             // Close the previously opened handle
 
-            CloseHandle(remoteThreadHandle);
+            CloseHandle(userThreadHandle);
 
             return true;
         }

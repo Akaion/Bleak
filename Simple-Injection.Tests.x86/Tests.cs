@@ -15,6 +15,10 @@ namespace Simple_Injection.Tests.x86
 
         private readonly string _dllPath = Path.GetFullPath(@"..\..\") + "Test-Dll-x86.dll";
         
+        // Path to test process
+
+        private readonly string _processPath = Path.GetFullPath(@"..\..\");
+        
         // Test process
 
         private readonly Process _process;
@@ -23,9 +27,7 @@ namespace Simple_Injection.Tests.x86
         {
             // Create a new test process
 
-            var directory = Environment.GetFolderPath(Environment.SpecialFolder.SystemX86);
-            
-            _process = new Process { StartInfo = { CreateNoWindow = true, WorkingDirectory = directory, FileName = "cmd.exe" } };
+            _process = new Process { StartInfo = { CreateNoWindow = true, WorkingDirectory = _processPath, FileName = "TestProcess.exe" } };
 
             _process.Start();
         }
@@ -43,11 +45,11 @@ namespace Simple_Injection.Tests.x86
             Assert.True(_injector.CreateRemoteThread(_dllPath, _process.Id));
         }
 
-        /*[Fact]
+        [Fact]
         public void TestManualMap()
         {
             Assert.True(_injector.ManualMap(_dllPath, _process.Id));
-        }*/
+        }
         
         [Fact]
         public void TestQueueUserAPC()

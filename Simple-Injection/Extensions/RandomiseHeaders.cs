@@ -107,7 +107,7 @@ namespace Simple_Injection.Extensions
 
             // Generate a buffer to write over the header region with
 
-            var buffer = new byte[(int)memoryInformation.RegionSize];
+            var buffer = new byte[(int) memoryInformation.RegionSize];
 
             // Fill the buffer with random bytes
 
