@@ -1,6 +1,6 @@
 # Simple Injection
 
-A native DLL injection library written in C# that supports several methods of injection.
+A Windows DLL injection library written in C# that supports several methods of injection.
 
 ## Supported Methods
 
