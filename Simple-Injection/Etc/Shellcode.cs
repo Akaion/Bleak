@@ -142,6 +142,7 @@ namespace Simple_Injection.Etc
                 0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rax, 0x0000000000000000
                 0xFF, 0xD0,                                                 // call rax
                 0x48, 0x83, 0xC4, 0x28,                                     // add rsp, 0x28
+                0x31, 0xC0,                                                 // xor eax, eax
                 0xC3                                                        // ret
             };
 
