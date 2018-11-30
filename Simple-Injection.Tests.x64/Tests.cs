@@ -50,6 +50,13 @@ namespace Simple_Injection.Tests.x64
         {
             Assert.True(_injector.ManualMap(_dllPath, _process.Id));
         }*/
+        
+        [Fact]
+        public void TestNtCreateTheadEx()
+        {
+            Assert.True(_injector.NtCreateThreadEx(_dllPath, _process.Id));
+        }
+
 
         [Fact]
         public void TestQueueUserAPC()
@@ -67,6 +74,12 @@ namespace Simple_Injection.Tests.x64
         public void TestSetThreadContext()
         {
             Assert.True(_injector.SetThreadContext(_dllPath, _process.Id));
+        }
+        
+        [Fact]
+        public void TestZwCreateThreadEx()
+        {
+            Assert.True(_injector.ZwCreateThreadEx(_dllPath, _process.Id));
         }
 
         [Fact]

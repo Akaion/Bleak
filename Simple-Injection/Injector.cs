@@ -22,6 +22,16 @@
             return Methods.ManualMap.Inject(dllPath, processId);
         }
 
+        public bool NtCreateThreadEx(string dllPath, string processName)
+        {
+            return Methods.NtCreateThreadEx.Inject(dllPath, processName);
+        }
+        
+        public bool NtCreateThreadEx(string dllPath, int processId)
+        {
+            return Methods.NtCreateThreadEx.Inject(dllPath, processId);
+        }
+
         public bool QueueUserAPC(string dllPath, string processName)
         {
             return Methods.QueueUserAPC.Inject(dllPath, processName);
@@ -50,6 +60,16 @@
         public bool SetThreadContext(string dllPath, int processId)
         {
             return Methods.SetThreadContext.Inject(dllPath, processId);
+        }
+        
+        public bool ZwCreateThreadEx(string dllPath, string processName)
+        {
+            return Methods.ZwCreateThreadEx.Inject(dllPath, processName);
+        }
+        
+        public bool ZwCreateThreadEx(string dllPath, int processId)
+        {
+            return Methods.ZwCreateThreadEx.Inject(dllPath, processId);
         }
 
         public bool EraseHeaders(string dllPath, string processName)

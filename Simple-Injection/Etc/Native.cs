@@ -7,77 +7,116 @@ namespace Simple_Injection.Etc
     {
         #region pinvoke
 
+        // kernel32.dll imports
+        
+        [DllImport("kernel32.dll")]
+        internal static extern void CloseHandle(IntPtr handle);
+        
+        [DllImport("kernel32.dll")]
+        internal static extern IntPtr CreateRemoteThread(SafeHandle processHandle, IntPtr threadAttributes, int stackSize, IntPtr startAddress, IntPtr parameter, int creationFlags, IntPtr threadId);
+        
         [DllImport("kernel32.dll")]
         internal static extern IntPtr GetModuleHandle(string moduleName);
 
         [DllImport("kernel32.dll")]
         internal static extern IntPtr GetProcAddress(IntPtr moduleHandle, string procName);
-
-        [DllImport("kernel32.dll")]
-        internal static extern IntPtr VirtualAllocEx(SafeHandle processHandle, IntPtr address, int size, MemoryAllocation allocationType, MemoryProtection protection);
-
-        [DllImport("kernel32.dll")]
-        internal static extern bool WriteProcessMemory(SafeHandle processHandle, IntPtr address, byte[] buffer, int size, int bytesWritten);
-
-        [DllImport("kernel32.dll")]
-        internal static extern IntPtr CreateRemoteThread(SafeHandle processHandle, IntPtr threadAttributes, int stackSize, IntPtr startAddress, IntPtr parameter, int creationFlags, IntPtr threadId);
-
-        [DllImport("kernel32.dll")]
-        internal static extern IntPtr OpenThread(ThreadAccess desiredAccess, bool inheritHandle, int threadId);
-
-        [DllImport("kernel32.dll")]
-        internal static extern void SuspendThread(IntPtr threadHandle);
-
+        
         [DllImport("kernel32.dll")]
         internal static extern bool GetThreadContext(IntPtr threadHandle, ref Context context);
 
-        // x64 Overload for GetThreadContext
-
         [DllImport("kernel32.dll")]
         internal static extern bool GetThreadContext(IntPtr threadHandle, ref Context64 context);
-
+        
         [DllImport("kernel32.dll")]
-        internal static extern bool SetThreadContext(IntPtr threadHandle, ref Context context);
-
-        // x64 Overload for SetThreadContext
-
+        internal static extern IntPtr OpenThread(ThreadAccess desiredAccess, bool inheritHandle, int threadId);
+        
         [DllImport("kernel32.dll")]
-        internal static extern bool SetThreadContext(IntPtr threadHandle, ref Context64 context);
+        internal static extern bool QueueUserAPC(IntPtr apc, IntPtr threadHandle, IntPtr data);
 
         [DllImport("kernel32.dll")]
         internal static extern void ResumeThread(IntPtr threadHandle);
 
         [DllImport("kernel32.dll")]
-        internal static extern bool QueueUserAPC(IntPtr apc, IntPtr threadHandle, IntPtr data);
-
-        [DllImport("ntdll.dll")]
-        internal static extern void RtlCreateUserThread(SafeHandle processHandle, IntPtr threadSecurity, bool createSuspended, int stackZeroBits, IntPtr stackReserved, IntPtr stackCommit, IntPtr startAddress, IntPtr parameter, out IntPtr threadHandle, IntPtr clientId);
+        internal static extern bool SetThreadContext(IntPtr threadHandle, ref Context context);
+        
+        [DllImport("kernel32.dll")]
+        internal static extern bool SetThreadContext(IntPtr threadHandle, ref Context64 context);
+        
+        [DllImport("kernel32.dll")]
+        internal static extern void SuspendThread(IntPtr threadHandle);
+        
+        [DllImport("kernel32.dll")]
+        internal static extern IntPtr VirtualAllocEx(SafeHandle processHandle, IntPtr address, int size, MemoryAllocation allocationType, MemoryProtection protection);
 
         [DllImport("kernel32.dll")]
-        internal static extern bool VirtualQueryEx(SafeHandle processHandle, IntPtr address, out MemoryBasicInformation buffer, int length);
+        internal static extern void VirtualFreeEx(SafeHandle processHandle, IntPtr address, int size, MemoryAllocation freeType);
 
         [DllImport("kernel32.dll")]
         internal static extern bool VirtualProtectEx(SafeHandle processHandle, IntPtr address, int size, int newProtection, out int oldProtection);
 
         [DllImport("kernel32.dll")]
+        internal static extern bool VirtualQueryEx(SafeHandle processHandle, IntPtr address, out MemoryBasicInformation mbi, int length);
+
+        [DllImport("kernel32.dll")]
         internal static extern void WaitForSingleObject(IntPtr handle, int milliseconds);
-
+        
         [DllImport("kernel32.dll")]
-        internal static extern void CloseHandle(IntPtr handle);
+        internal static extern bool WriteProcessMemory(SafeHandle processHandle, IntPtr address, byte[] buffer, int size, int bytesWritten);
 
-        [DllImport("kernel32.dll")]
-        internal static extern void VirtualFreeEx(SafeHandle processHandle, IntPtr address, int size, MemoryAllocation freeType);
-
-        [DllImport("user32.dll")]
-        internal static extern void PostMessage(IntPtr windowHandle, WindowsMessage message, IntPtr wParameter, IntPtr lParameter);
-
+        // dbghelp.dll imports
+        
         [DllImport("dbghelp.dll")]
         internal static extern IntPtr ImageRvaToVa(IntPtr ntHeader, IntPtr address, IntPtr rva, IntPtr lastRvaSection);
 
+        // ntdll.dll imports
+        
+        [DllImport("ntdll.dll")]
+        internal static extern IntPtr NtCreateThreadEx(out IntPtr threadHandle, AccessMask desiredAccess, IntPtr objectAttributes, SafeHandle processHandle, IntPtr startAddress, IntPtr parameter, CreationFlags creationFlags, int stackZeroBits, int sizeOfStack, int maximumStackSize, IntPtr attributeList);
+
+        [DllImport("ntdll.dll")]
+        internal static extern void RtlCreateUserThread(SafeHandle processHandle, IntPtr threadSecurity, bool createSuspended, int stackZeroBits, IntPtr stackReserved, IntPtr stackCommit, IntPtr startAddress, IntPtr parameter, out IntPtr threadHandle, IntPtr clientId);
+
+        [DllImport("ntdll.dll")]
+        internal static extern void ZwCreateThreadEx(out IntPtr threadHandle, AccessMask desiredAccess, IntPtr objectAttributes, SafeHandle processHandle, IntPtr startAddress, IntPtr parameter, CreationFlags creationFlags, int stackZeroBits, int sizeOfStack, int maximumStackSize, IntPtr attributeList);
+        
+        // user32.dll imports
+       
+        [DllImport("user32.dll")]
+        internal static extern void PostMessage(IntPtr windowHandle, WindowsMessage message, IntPtr wParameter, IntPtr lParameter);
+        
         #endregion
 
         #region Permissions
 
+        [Flags]
+        internal enum AccessMask
+        {
+            SpecificRightsAll = 0x0FFFF,
+            StandardRightsAll = 0x01F0000
+        }
+        
+        [Flags]
+        internal enum ContextFlags
+        {
+            ContextControl = 0x010001
+        }
+        
+        [Flags]
+        internal enum CreationFlags
+        {
+            HideFromDebugger = 0x04 
+        }
+
+  
+        [Flags]
+        internal enum DataSectionFlags : uint
+        {
+            MemoryNotCached = 0x04000000,
+            MemoryExecute = 0x020000000,
+            MemoryRead = 0x040000000,
+            MemoryWrite = 0x080000000
+        }
+        
         [Flags]
         internal enum MemoryAllocation
         {
@@ -107,26 +146,11 @@ namespace Simple_Injection.Etc
             GetContext = 0x08,
             SetContext = 0x010
         }
-
-        [Flags]
-        internal enum ContextFlags
-        {
-            ContextControl = 0x010001
-        }
-
+  
         [Flags]
         internal enum WindowsMessage
         {
             WmKeydown = 0x0100
-        }
-
-        [Flags]
-        internal enum DataSectionFlags : uint
-        {
-            MemoryNotCached = 0x04000000,
-            MemoryExecute = 0x020000000,
-            MemoryRead = 0x040000000,
-            MemoryWrite = 0x080000000
         }
 
         #endregion

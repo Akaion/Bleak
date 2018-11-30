@@ -37,18 +37,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="PeNet, Version=0.8.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\PeNet.0.8.0\lib\net461\PeNet.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="PeNet.Asn1, Version=1.3.1.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\PeNet.Asn1.1.3.1\lib\net461\PeNet.Asn1.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Simple-Injection, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\Simple-Injection.1.1.0\lib\netstandard2.0\Simple-Injection.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
@@ -79,6 +67,12 @@
   </ItemGroup>
   <ItemGroup>
     <Analyzer Include="..\packages\xunit.analyzers.0.10.0\analyzers\dotnet\cs\xunit.analyzers.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Simple-Injection\Simple-Injection.csproj">
+      <Project>{3cb7a9aa-674f-4a71-9711-8febc7cb8d11}</Project>
+      <Name>Simple-Injection</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
