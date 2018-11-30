@@ -1,14 +1,16 @@
-# Simple Injection
+# Bleak
 
 A Windows native DLL injection library written in C# that supports several methods of injection.
 
 ## Supported Methods
 
 * CreateRemoteThread
-* ManualMap (x86 only at the moment)
+* ManualMap (x86 only)
+* NtCreateThreadEx
 * QueueUserAPC
 * RtlCreateUserThread
 * SetThreadContext (Thread Hijack)
+* ZwCreateThreadEx
 
 ## Features
 
@@ -17,12 +19,12 @@ A Windows native DLL injection library written in C# that supports several metho
 
 ## Installation
 
-* Download and install Simple-Injection using [NuGet](https://www.nuget.org/packages/Simple-Injection/1.1.0)
+* Download and install Bleak using [NuGet](https://www.nuget.org/packages/Bleak/1.0.0)
 
 ## Usage
 
 ```csharp
-using Simple_Injection;
+using Bleak;
 
 var injector = new Injector();
 

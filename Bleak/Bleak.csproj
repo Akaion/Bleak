@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Description>A Windows DLL injection library written in C# that supports several methods of injection.</Description>
+    <RepositoryUrl>https://github.com/Akaion/Bleak</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="PeNet" Version="0.8.0" />
+  </ItemGroup>
+
+</Project>
