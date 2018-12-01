@@ -36,10 +36,6 @@ injector.CreateRemoteThread("pathToDll", "processName");
 // Erase the PE Headers
 
 injector.EraseHeaders("pathToDll", "processName");
-
-// Eject the DLL
-
-injector.EjectDll("pathToDll", "processName");
 ```
 
 ## Contributing
