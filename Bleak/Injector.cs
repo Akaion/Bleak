@@ -2,6 +2,8 @@
 {
     public class Injector
     {
+        // Injection Methods
+        
         public bool CreateRemoteThread(string dllPath, string processName)
         {
             return Methods.CreateRemoteThread.Inject(dllPath, processName);
@@ -32,14 +34,14 @@
             return Methods.NtCreateThreadEx.Inject(dllPath, processId);
         }
 
-        public bool QueueUserAPC(string dllPath, string processName)
+        public bool QueueUserApc(string dllPath, string processName)
         {
-            return Methods.QueueUserAPC.Inject(dllPath, processName);
+            return Methods.QueueUserApc.Inject(dllPath, processName);
         }
 
-        public bool QueueUserAPC(string dllPath, int processId)
+        public bool QueueUserApc(string dllPath, int processId)
         {
-            return Methods.QueueUserAPC.Inject(dllPath, processId);
+            return Methods.QueueUserApc.Inject(dllPath, processId);
         }
 
         public bool RtlCreateUserThread(string dllPath, string processName)
@@ -72,6 +74,18 @@
             return Methods.ZwCreateThreadEx.Inject(dllPath, processId);
         }
 
+        // Extension Methods
+        
+        public bool EjectDll(string dllPath, string processName)
+        {
+            return Extensions.EjectDll.Eject(dllPath, processName);
+        }
+        
+        public bool EjectDll(string dllPath, int processId)
+        {
+            return Extensions.EjectDll.Eject(dllPath, processId);
+        }
+        
         public bool EraseHeaders(string dllPath, string processName)
         {
             return Extensions.EraseHeaders.Erase(dllPath, processName);

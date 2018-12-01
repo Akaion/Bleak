@@ -2,19 +2,24 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using static Bleak.Etc.Native;
-using static Bleak.Etc.Wrapper;
 
 namespace Bleak.Extensions
 {
-    internal static class EraseHeaders
+    internal static class EjectDll
     {
-        internal static bool Erase(string dllPath, string processName)
+        internal static bool Eject(string dllPath, string processName)
         {
             // Ensure both parameters are valid
 
             if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
+            {
+                return false;
+            }
+
+            // Ensure the dll exists
+
+            if (!File.Exists(dllPath))
             {
                 return false;
             }
@@ -25,7 +30,7 @@ namespace Bleak.Extensions
 
             try
             {
-                process = Process.GetProcessesByName(processName).FirstOrDefault();
+                process = Process.GetProcessesByName(processName)[0];
             }
 
             catch (IndexOutOfRangeException)
@@ -33,16 +38,23 @@ namespace Bleak.Extensions
                 return false;
             }
 
-            // Erase the headers
+            // Eject the dll
 
-            return Erase(dllPath, process);
+            return Eject(dllPath, process);            
         }
-
-        internal static bool Erase(string dllPath, int processId)
+        
+        internal static bool Eject(string dllPath, int processId)
         {
             // Ensure both parameters are valid
 
             if (string.IsNullOrEmpty(dllPath) || processId == 0)
+            {
+                return false;
+            }
+
+            // Ensure the dll exists
+
+            if (!File.Exists(dllPath))
             {
                 return false;
             }
@@ -61,14 +73,23 @@ namespace Bleak.Extensions
                 return false;
             }
 
-            // Erase the headers
+            // Eject the dll
 
-            return Erase(dllPath, process);
+            return Eject(dllPath, process);
         }
-
-        private static bool Erase(string dllPath, Process process)
+        
+        private static bool Eject(string dllPath, Process process)
         {
-            // Get the handle of the specified process
+            // Get the address of the free library method
+
+            var freeLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "FreeLibrary");
+
+            if (freeLibraryAddress == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            // Get a handle to the specified process
 
             var processHandle = process.SafeHandle;
 
@@ -98,23 +119,25 @@ namespace Bleak.Extensions
             {
                 return false;
             }
-
-            // Get the information about the header region of the dll
-
-            var memoryInformationSize = Marshal.SizeOf(typeof(MemoryBasicInformation));
-
-            if (!VirtualQueryEx(processHandle, moduleBaseAddress, out var memoryInformation, memoryInformationSize))
+            
+            // Create a user thread to call free library in the specified process
+            
+            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, freeLibraryAddress, moduleBaseAddress, out var userThreadHandle, IntPtr.Zero);
+            
+            if (userThreadHandle == IntPtr.Zero)
             {
                 return false;
             }
+            
+            // Wait for the user thread to finish
 
-            // Generate a buffer to write over the header region with
+            WaitForSingleObject(userThreadHandle, int.MaxValue);
+            
+            // Close the previously opened handle
 
-            var buffer = new byte[(int) memoryInformation.RegionSize];
-
-            // Write over the header region
-
-            return WriteMemory(processHandle, moduleBaseAddress, buffer);
+            CloseHandle(userThreadHandle);
+            
+            return true;
         }
     }
 }

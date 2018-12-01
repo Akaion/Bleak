@@ -8,7 +8,7 @@ using static Bleak.Etc.Wrapper;
 
 namespace Bleak.Methods
 {
-    internal static class QueueUserAPC
+    internal static class QueueUserApc
     {
         internal static bool Inject(string dllPath, string processName)
         {

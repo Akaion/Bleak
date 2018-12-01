@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Xunit;
 
 namespace Bleak.Tests.x64
@@ -53,9 +54,9 @@ namespace Bleak.Tests.x64
 
 
         [Fact]
-        public void TestQueueUserAPC()
+        public void TestQueueUserApc()
         {
-            Assert.True(_injector.QueueUserAPC(_dllPath, _process.Id));
+            Assert.True(_injector.QueueUserApc(_dllPath, _process.Id));
         }
 
         [Fact]
@@ -76,6 +77,24 @@ namespace Bleak.Tests.x64
             Assert.True(_injector.ZwCreateThreadEx(_dllPath, _process.Id));
         }
 
+        [Fact]
+        public void TestEjectDll()
+        {   
+            _injector.RtlCreateUserThread(_dllPath, _process.Id);
+            
+            Assert.True(_injector.EjectDll(_dllPath, _process.Id));
+            
+            // Get the name of the dll
+
+            var dllName = Path.GetFileName(_dllPath);
+            
+            // Ensure that the dll isn't loaded into process
+            
+            var module = _process.Modules.Cast<ProcessModule>().SingleOrDefault(m => string.Equals(m.ModuleName, dllName, StringComparison.OrdinalIgnoreCase));
+            
+            Assert.Null(module);
+        }
+        
         [Fact]
         public void TestEraseHeaders()
         {

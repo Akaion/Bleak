@@ -113,7 +113,7 @@ namespace Bleak.Methods
 
             // Allocate memory in process
 
-            var remoteAddress = VirtualAllocEx(processHandle, IntPtr.Zero, (int) peHeaders.ImageNtHeaders.OptionalHeader.SizeOfImage, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
+            var remoteDllAddress = VirtualAllocEx(processHandle, IntPtr.Zero, (int) peHeaders.ImageNtHeaders.OptionalHeader.SizeOfImage, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
 
             // Map the imports
 
@@ -124,14 +124,14 @@ namespace Bleak.Methods
 
             // Map the relocations
 
-            if (!MapRelocations(peHeaders, baseAddress.AddrOfPinnedObject(), remoteAddress))
+            if (!MapRelocations(peHeaders, baseAddress.AddrOfPinnedObject(), remoteDllAddress))
             {
                 return false;
             }
 
             // Map the sections
 
-            if (!MapSections(peHeaders, processHandle, baseAddress.AddrOfPinnedObject(), remoteAddress))
+            if (!MapSections(peHeaders, processHandle, baseAddress.AddrOfPinnedObject(), remoteDllAddress))
             {
                 return false;
             }
@@ -145,9 +145,9 @@ namespace Bleak.Methods
 
             // Call the entry point
 
-            var dllEntryPoint = remoteAddress + (int) peHeaders.ImageNtHeaders.OptionalHeader.AddressOfEntryPoint;
+            var dllEntryPoint = remoteDllAddress + (int) peHeaders.ImageNtHeaders.OptionalHeader.AddressOfEntryPoint;
 
-            if (!CallEntryPoint(processHandle, remoteAddress, dllEntryPoint))
+            if (!CallEntryPoint(processHandle, remoteDllAddress, dllEntryPoint))
             {
                 return false;
             }

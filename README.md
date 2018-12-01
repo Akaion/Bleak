@@ -14,6 +14,7 @@ A Windows native DLL injection library written in C# that supports several metho
 
 ## Features
 
+* Eject DLL
 * Erase PE Headers
 * Randomise PE Headers
 
@@ -34,7 +35,11 @@ injector.CreateRemoteThread("pathToDll", "processName");
 
 // Erase the PE Headers
 
-injector.EraseHeaders("pathToDll", "processName")
+injector.EraseHeaders("pathToDll", "processName");
+
+// Eject the DLL
+
+injector.EjectDll("pathToDll", "processName");
 ```
 
 ## Contributing

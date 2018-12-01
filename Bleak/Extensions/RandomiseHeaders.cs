@@ -77,10 +77,23 @@ namespace Bleak.Extensions
                 return false;
             }
 
-            // Find the dll base address
+            // Get the name of the dll
 
-            var moduleBaseAddress = process.Modules.Cast<ProcessModule>().First(module => module.ModuleName == Path.GetFileName(dllPath)).BaseAddress;
+            var dllName = Path.GetFileName(dllPath);
+            
+            // Get an instance of the dll in the process
+            
+            var module = process.Modules.Cast<ProcessModule>().SingleOrDefault(m => string.Equals(m.ModuleName, dllName, StringComparison.OrdinalIgnoreCase));
 
+            if (module == null)
+            {
+                return false;
+            }
+
+            // Get the dll base address
+            
+            var moduleBaseAddress = module.BaseAddress;
+            
             if (moduleBaseAddress == IntPtr.Zero)
             {
                 return false;
