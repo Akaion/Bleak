@@ -20,7 +20,7 @@ A Windows native DLL injection library written in C# that supports several metho
 
 ## Installation
 
-* Download and install Bleak using [NuGet](https://www.nuget.org/packages/Bleak/1.0.0)
+* Download and install Bleak using [NuGet](https://www.nuget.org/packages/Bleak)
 
 ## Usage
 
