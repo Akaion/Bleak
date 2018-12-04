@@ -111,9 +111,11 @@ namespace Bleak.Methods
 
             var baseAddress = GCHandle.Alloc(dllBytes, GCHandleType.Pinned);
 
-            // Allocate memory in process
+            // Allocate memory for the dll
 
-            var remoteDllAddress = VirtualAllocEx(processHandle, IntPtr.Zero, (int) peHeaders.ImageNtHeaders.OptionalHeader.SizeOfImage, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
+            var dllSize = peHeaders.ImageNtHeaders.OptionalHeader.SizeOfImage;
+            
+            var remoteDllAddress = VirtualAllocEx(processHandle, IntPtr.Zero, (int) dllSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
 
             // Map the imports
 
@@ -156,6 +158,10 @@ namespace Bleak.Methods
 
             baseAddress.Free();
 
+            // Free the previously allocated memory
+            
+            VirtualFreeEx(processHandle, remoteDllAddress, (int) dllSize, MemoryAllocation.Release);
+            
             return true;  
         }
         

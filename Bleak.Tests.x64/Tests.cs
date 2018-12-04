@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using Xunit;
 
 namespace Bleak.Tests.x64
@@ -12,23 +11,23 @@ namespace Bleak.Tests.x64
 
         private readonly Injector _injector = new Injector();
 
-        // Path to test dll
-
-        private readonly string _dllPath = Path.GetFullPath(@"..\..\") + "Test-Dll-x64.dll";
-
-        // Path to test process
-
-        private readonly string _processPath = Path.GetFullPath(@"..\..\");
-        
-        // Test process
+        private readonly string _dllPath;
 
         private readonly Process _process;
 
         public Tests()
         {
-            // Create a new test process
+            // Get the root directory
 
-            _process = new Process { StartInfo = { CreateNoWindow = true, WorkingDirectory = _processPath, FileName = "TestProcess.exe" } };
+            var rootDirectory = Path.GetFullPath(@"..\..\");
+            
+            // Get the path to the test dll
+
+            _dllPath = rootDirectory + "Test-Dll-x64.dll";
+            
+            // Initialise a test process
+
+            _process = new Process { StartInfo = { CreateNoWindow = true, WorkingDirectory = rootDirectory, FileName = "TestProcess.exe" } };
 
             _process.Start();
         }
@@ -51,7 +50,6 @@ namespace Bleak.Tests.x64
         {
             Assert.True(_injector.NtCreateThreadEx(_dllPath, _process.Id));
         }
-
 
         [Fact]
         public void TestQueueUserApc()
@@ -83,16 +81,6 @@ namespace Bleak.Tests.x64
             _injector.RtlCreateUserThread(_dllPath, _process.Id);
             
             Assert.True(_injector.EjectDll(_dllPath, _process.Id));
-            
-            // Get the name of the dll
-
-            var dllName = Path.GetFileName(_dllPath);
-            
-            // Ensure that the dll isn't loaded into process
-            
-            var module = _process.Modules.Cast<ProcessModule>().SingleOrDefault(m => string.Equals(m.ModuleName, dllName, StringComparison.OrdinalIgnoreCase));
-            
-            Assert.Null(module);
         }
         
         [Fact]
