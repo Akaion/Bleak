@@ -144,7 +144,8 @@ namespace Bleak.Etc
         {
             SuspendResume = 0x02,
             GetContext = 0x08,
-            SetContext = 0x010
+            SetContext = 0x010,
+            AllAccess = SuspendResume | GetContext | SetContext
         }
   
         [Flags]

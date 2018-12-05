@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="PeNet" Version="0.8.0" />
+    <PackageReference Include="PeNet" Version="0.8.1" />
   </ItemGroup>
 
 </Project>

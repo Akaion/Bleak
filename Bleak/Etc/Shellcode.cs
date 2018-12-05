@@ -44,7 +44,7 @@ namespace Bleak.Etc
             {
                 0x50,                                                       // push rax
                 0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rax, 0x0
-                0x9c,                                                       // pushf
+                0x9C,                                                       // pushf
                 0x51,                                                       // push rcx
                 0x52,                                                       // push rdx
                 0x53,                                                       // push rbx
