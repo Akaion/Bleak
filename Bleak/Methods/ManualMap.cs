@@ -240,7 +240,7 @@ namespace Bleak.Methods
 
                     // Map the import
 
-                    Marshal.WriteInt32(functionDataAddress, procAddress.ToInt32());
+                    Marshal.WriteInt64(functionDataAddress, (long) procAddress);
 
                     // Next function data virtual address
 
@@ -288,55 +288,29 @@ namespace Bleak.Methods
                     
                     var address = relocationDirectoryAddress + offset.Offset;
 
-                    // Get the relocation value
-                    
-                    var value = PointerToStructure<uint>(address);
-
                     switch (offset.Type)
                     {
-                        case 1:
-                            {
-                                // If the relocation is Based High
-
-                                value += (ushort) (((uint) baseDelta >> 16) & ushort.MaxValue);
-
-                                Marshal.WriteInt16(address, (short) value);
-
-                                break;
-                            }
-
-                        case 2:
-                            {
-                                // If the relocation is Based Low 
-
-                                value += (ushort) ((uint) baseDelta & ushort.MaxValue);
-
-                                Marshal.WriteInt16(address, (short) value);
-
-                                break;
-                            }
-
                         case 3:
-                            {
-                                // If the relocation is Based High Low
+                        {
+                            // If the relocation is Based High Low
 
-                                value += (uint) baseDelta;
+                            var value = PointerToStructure<int>(address) + (int) baseDelta;
+                            
+                            Marshal.WriteInt32(address, value);
 
-                                Marshal.WriteInt32(address, (int) value);
-
-                                break;
-                            }
+                            break;
+                        }
 
                         case 10:
-                            {
-                                // If the relocation is Based Dir64
+                        {
+                            // If the relocation is Based Dir64
 
-                                value += (uint) baseDelta;
+                            var value = PointerToStructure<long>(address) + (long) baseDelta;
+                            
+                            Marshal.WriteInt64(address, value);
 
-                                Marshal.WriteInt32(address, (int) value);
-
-                                break;
-                            }
+                            break;
+                        }
                     }
                 }
 

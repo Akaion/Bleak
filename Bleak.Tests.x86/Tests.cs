@@ -46,15 +46,15 @@ namespace Bleak.Tests.x86
         }
 
         [Fact]
-        public void TestNtCreateThreadEx()
-        {
-            Assert.True(_injector.NtCreateThreadEx(_dllPath, _process.Id));
-        }
-        
-        [Fact]
         public void TestManualMap()
         {
             Assert.True(_injector.ManualMap(_dllPath, _process.Id));
+        }
+        
+        [Fact]
+        public void TestNtCreateThreadEx()
+        {
+            Assert.True(_injector.NtCreateThreadEx(_dllPath, _process.Id));
         }
         
         [Fact]
