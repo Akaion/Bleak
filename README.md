@@ -26,6 +26,8 @@ A Windows native DLL injection library written in C# that supports several metho
 
 ## Usage
 
+All methods (including features) can be overloaded with a process id instead of a process name
+
 ```csharp
 using Bleak;
 
