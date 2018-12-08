@@ -7,7 +7,7 @@ A Windows native DLL injection library written in C# that supports several metho
 ## Supported Methods
 
 * CreateRemoteThread
-* ManualMap (x86 only)
+* ManualMap
 * NtCreateThreadEx
 * QueueUserAPC
 * RtlCreateUserThread

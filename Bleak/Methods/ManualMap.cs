@@ -98,10 +98,10 @@ namespace Bleak.Methods
 
             var peHeaders = new PeFile(dllPath);
 
-            if (peHeaders.Is64Bit)
+            /*if (peHeaders.Is64Bit)
             {
                 return false;
-            }
+            }*/
 
             // Get the dll bytes
 
@@ -264,39 +264,37 @@ namespace Bleak.Methods
 
             var eLfanew = (int) peHeaders.ImageDosHeader.e_lfanew;
 
-            // Calculate the base delta
+            // Calculate the image delta
 
-            var baseDelta = remoteAddress - (int) peHeaders.ImageNtHeaders.OptionalHeader.ImageBase;
+            var imageDelta = (long) remoteAddress - (long) peHeaders.ImageNtHeaders.OptionalHeader.ImageBase;
 
             // Get the relocation directory
 
             var relocationDirectory = peHeaders.ImageRelocationDirectory;
 
-            var index = 0;
-
-            while (index < relocationDirectory.Length)
+            foreach (var relocation in relocationDirectory)
             {
-                // Get the relocation directory address
-
-                var relocationDirectoryAddress = RvaToVa(baseAddress, eLfanew, (IntPtr) relocationDirectory[index].VirtualAddress);
-
-                // Map the relocations
+                // Get the relocation base address
                 
-                foreach (var offset in relocationDirectory[index].TypeOffsets)
+                var relocationBaseAddress = RvaToVa(baseAddress, eLfanew, (IntPtr) relocation.VirtualAddress);
+                
+                // Map the relocations
+
+                foreach (var offset in relocation.TypeOffsets)
                 {
                     // Get the relocation address
-                    
-                    var address = relocationDirectoryAddress + offset.Offset;
+
+                    var relocationAddress = relocationBaseAddress + offset.Offset;
 
                     switch (offset.Type)
                     {
                         case 3:
                         {
                             // If the relocation is Based High Low
-
-                            var value = PointerToStructure<int>(address) + (int) baseDelta;
                             
-                            Marshal.WriteInt32(address, value);
+                            var value = PointerToStructure<int>(relocationAddress) + (int) imageDelta;
+                            
+                            Marshal.WriteInt32(relocationAddress, value);
 
                             break;
                         }
@@ -305,16 +303,14 @@ namespace Bleak.Methods
                         {
                             // If the relocation is Based Dir64
 
-                            var value = PointerToStructure<long>(address) + (long) baseDelta;
+                            var value = PointerToStructure<long>(relocationAddress) + imageDelta;
                             
-                            Marshal.WriteInt64(address, value);
+                            Marshal.WriteInt64(relocationAddress, value);
 
                             break;
                         }
                     }
                 }
-
-                index += 1;
             }
 
             return true;
@@ -438,6 +434,8 @@ namespace Bleak.Methods
 
             catch (NullReferenceException)
             {
+                // No tls callbacks
+                
                 return true;
             }
 
@@ -448,9 +446,13 @@ namespace Bleak.Methods
 
         private static bool CallEntryPoint(SafeHandle processHandle, IntPtr baseAddress, IntPtr entryPoint)
         {
+            // Determine whether compiled as x86 or x64
+
+            var compiledAsx64 = Environment.Is64BitProcess;
+            
             // Create shellcode to call the entry point
 
-            var shellcode = CallDllMainx86(baseAddress, entryPoint);
+            var shellcode = compiledAsx64 ? CallDllMainx64(baseAddress, entryPoint) : CallDllMainx86(baseAddress, entryPoint);
 
             // Allocate memory for the shellcode
 

@@ -96,22 +96,22 @@ namespace Bleak.Methods
                 return false;
             }
 
-            // Allocate memory for the dll name
+            // Allocate memory for the dll path
 
-            var dllNameSize = dllPath.Length;
+            var dllPathSize = dllPath.Length;
 
-            var dllNameAddress = VirtualAllocEx(processHandle, IntPtr.Zero, dllNameSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
+            var dllPathAddress = VirtualAllocEx(processHandle, IntPtr.Zero, dllPathSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
 
-            if (dllNameAddress == IntPtr.Zero)
+            if (dllPathAddress == IntPtr.Zero)
             {
                 return false;
             }
 
-            // Write the dll name into memory
+            // Write the dll path into memory
 
-            var dllNameBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
+            var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
 
-            if (!WriteMemory(processHandle, dllNameAddress, dllNameBytes))
+            if (!WriteMemory(processHandle, dllPathAddress, dllPathBytes))
             {
                 return false;
             }
@@ -126,7 +126,7 @@ namespace Bleak.Methods
 
                 // Add a user-mode APC to the APC queue of the thread
 
-                QueueUserAPC(loadLibraryAddress, threadHandle, dllNameAddress);
+                QueueUserAPC(loadLibraryAddress, threadHandle, dllPathAddress);
 
                 // Close the previously opened handle
 
@@ -135,7 +135,7 @@ namespace Bleak.Methods
 
             // Free the previously allocated memory
 
-            VirtualFreeEx(processHandle, dllNameAddress, dllNameSize, MemoryAllocation.Release);
+            VirtualFreeEx(processHandle, dllPathAddress, dllPathSize, MemoryAllocation.Release);
 
             return true;
         }

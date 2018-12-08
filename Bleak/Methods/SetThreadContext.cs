@@ -104,22 +104,22 @@ namespace Bleak.Methods
                 return false;
             }
 
-            // Allocate memory for the dll name
+            // Allocate memory for the dll path
 
-            var dllNameSize = dllPath.Length;
+            var dllPathSize = dllPath.Length;
 
-            var dllNameAddress = VirtualAllocEx(processHandle, IntPtr.Zero, dllNameSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
+            var dllPathAddress = VirtualAllocEx(processHandle, IntPtr.Zero, dllPathSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
 
-            if (dllNameAddress == IntPtr.Zero)
+            if (dllPathAddress == IntPtr.Zero)
             {
                 return false;
             }
 
-            // Write the dll name into memory
+            // Write the dll path into memory
 
-            var dllNameBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
+            var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
 
-            if (!WriteMemory(processHandle, dllNameAddress, dllNameBytes))
+            if (!WriteMemory(processHandle, dllPathAddress, dllPathBytes))
             {
                 return false;
             }
@@ -170,7 +170,7 @@ namespace Bleak.Methods
 
                 // Write the shellcode into memory
 
-                var shellcode = CallLoadLibraryx86(instructionPointer, dllNameAddress, loadLibraryAddress);
+                var shellcode = CallLoadLibraryx86(instructionPointer, dllPathAddress, loadLibraryAddress);
 
                 if (!WriteMemory(processHandle, shellcodeAddress, shellcode))
                 {
@@ -208,7 +208,7 @@ namespace Bleak.Methods
 
                 // Write the shellcode into memory
 
-                var shellcode = CallLoadLibraryx64(instructionPointer, dllNameAddress, loadLibraryAddress);
+                var shellcode = CallLoadLibraryx64(instructionPointer, dllPathAddress, loadLibraryAddress);
 
                 if (!WriteMemory(processHandle, shellcodeAddress, shellcode))
                 {
@@ -233,7 +233,7 @@ namespace Bleak.Methods
 
             // Free the previously allocated memory
 
-            VirtualFreeEx(processHandle, dllNameAddress, dllNameSize, MemoryAllocation.Release);
+            VirtualFreeEx(processHandle, dllPathAddress, dllPathSize, MemoryAllocation.Release);
 
             VirtualFreeEx(processHandle, shellcodeAddress, shellcodeSize, MemoryAllocation.Release);
 
