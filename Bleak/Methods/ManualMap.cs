@@ -98,11 +98,6 @@ namespace Bleak.Methods
 
             var peHeaders = new PeFile(dllPath);
 
-            /*if (peHeaders.Is64Bit)
-            {
-                return false;
-            }*/
-
             // Get the dll bytes
 
             var dllBytes = File.ReadAllBytes(dllPath);
