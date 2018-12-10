@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using PeNet;
 using static Bleak.Etc.Native;
 using static Bleak.Etc.Wrapper;
 
@@ -15,6 +16,17 @@ namespace Bleak.Extensions
             // Ensure both parameters are valid
 
             if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
+            {
+                return false;
+            }
+            
+            // Get the pe headers
+
+            var peHeaders = new PeFile(dllPath);
+            
+            // Ensure the dll architecture is the same as the compiled architecture
+
+            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
             {
                 return false;
             }
@@ -43,6 +55,17 @@ namespace Bleak.Extensions
             // Ensure both parameters are valid
 
             if (string.IsNullOrEmpty(dllPath) || processId == 0)
+            {
+                return false;
+            }
+            
+            // Get the pe headers
+
+            var peHeaders = new PeFile(dllPath);
+            
+            // Ensure the dll architecture is the same as the compiled architecture
+
+            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
             {
                 return false;
             }
@@ -92,9 +115,9 @@ namespace Bleak.Extensions
 
             // Get the dll base address
             
-            var moduleBaseAddress = module.BaseAddress;
+            var dllBaseAddress = module.BaseAddress;
             
-            if (moduleBaseAddress == IntPtr.Zero)
+            if (dllBaseAddress == IntPtr.Zero)
             {
                 return false;
             }
@@ -103,7 +126,7 @@ namespace Bleak.Extensions
 
             var memoryInformationSize = Marshal.SizeOf(typeof(MemoryBasicInformation));
 
-            if (!VirtualQueryEx(processHandle, moduleBaseAddress, out var memoryInformation, memoryInformationSize))
+            if (!VirtualQueryEx(processHandle, dllBaseAddress, out var memoryInformation, memoryInformationSize))
             {
                 return false;
             }
@@ -118,7 +141,7 @@ namespace Bleak.Extensions
 
             // Write over the header region
 
-            return WriteMemory(processHandle, moduleBaseAddress, buffer);
+            return WriteMemory(processHandle, dllBaseAddress, buffer);
         }
     }
 }

@@ -2,17 +2,18 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using PeNet;
 using static Bleak.Etc.Native;
 using static Bleak.Etc.Shellcode;
 using static Bleak.Etc.Wrapper;
 
 namespace Bleak.Methods
 {
-     internal static class SetThreadContext
+    internal static class SetThreadContext
     {
         internal static bool Inject(string dllPath, string processName)
         {
-            // Ensure both parameters are valid
+            // Ensure parameters are valid
 
             if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
             {
@@ -22,6 +23,17 @@ namespace Bleak.Methods
             // Ensure the dll exists
 
             if (!File.Exists(dllPath))
+            {
+                return false;
+            }
+            
+            // Get the pe headers
+
+            var peHeaders = new PeFile(dllPath);
+            
+            // Ensure the dll architecture is the same as the compiled architecture
+
+            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
             {
                 return false;
             }
@@ -47,7 +59,7 @@ namespace Bleak.Methods
 
         internal static bool Inject(string dllPath, int processId)
         {
-            // Ensure both parameters are valid
+            // Ensure parameters are valid
 
             if (string.IsNullOrEmpty(dllPath) || processId == 0)
             {
@@ -57,6 +69,17 @@ namespace Bleak.Methods
             // Ensure the dll exists
 
             if (!File.Exists(dllPath))
+            {
+                return false;
+            }
+            
+            // Get the pe headers
+
+            var peHeaders = new PeFile(dllPath);
+            
+            // Ensure the dll architecture is the same as the compiled architecture
+
+            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
             {
                 return false;
             }
@@ -226,10 +249,6 @@ namespace Bleak.Methods
             // Resume the thread
 
             ResumeThread(threadHandle);
-
-            // Simulate a keypress to execute the dll
-
-            PostMessage(process.MainWindowHandle, WindowsMessage.WmKeydown, IntPtr.Zero, IntPtr.Zero);
 
             // Free the previously allocated memory
 

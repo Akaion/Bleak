@@ -65,15 +65,16 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Tests.cs" />
+    <Compile Include="ExtensionTests.cs" />
+    <Compile Include="MethodTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Test-Dll-x86.dll" />
-    <Content Include="TestProcess.exe" />
+    <Content Include="Etc\Test-Dll-x86.dll" />
+    <Content Include="Etc\TestProcess.exe" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Bleak\Bleak.csproj">

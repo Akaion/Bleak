@@ -79,11 +79,6 @@ namespace Bleak.Etc
         [DllImport("ntdll.dll")]
         internal static extern void ZwCreateThreadEx(out IntPtr threadHandle, AccessMask desiredAccess, IntPtr objectAttributes, SafeHandle processHandle, IntPtr startAddress, IntPtr parameter, CreationFlags creationFlags, int stackZeroBits, int sizeOfStack, int maximumStackSize, IntPtr attributeList);
         
-        // user32.dll imports
-       
-        [DllImport("user32.dll")]
-        internal static extern void PostMessage(IntPtr windowHandle, WindowsMessage message, IntPtr wParameter, IntPtr lParameter);
-        
         #endregion
 
         #region Permissions

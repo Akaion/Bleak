@@ -1,9 +1,9 @@
 using System;
-using PeNet;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using PeNet;
 using static Bleak.Etc.Native;
 using static Bleak.Etc.Shellcode;
 using static Bleak.Etc.Tools;
@@ -11,11 +11,11 @@ using static Bleak.Etc.Wrapper;
 
 namespace Bleak.Methods
 {
-   internal static class ManualMap
+    internal static class ManualMap
     {
         internal static bool Inject(string dllPath, string processName)
         {
-            // Ensure both parameters are valid
+            // Ensure parameters are valid
 
             if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
             {
@@ -25,6 +25,17 @@ namespace Bleak.Methods
             // Ensure the dll exists
 
             if (!File.Exists(dllPath))
+            {
+                return false;
+            }
+            
+            // Get the pe headers
+
+            var peHeaders = new PeFile(dllPath);
+            
+            // Ensure the dll architecture is the same as the compiled architecture
+
+            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
             {
                 return false;
             }
@@ -45,12 +56,12 @@ namespace Bleak.Methods
 
             // Inject the dll
             
-            return Inject(dllPath, process);
+            return Inject(dllPath, peHeaders, process);
         }
 
         internal static bool Inject(string dllPath, int processId)
         {
-            // Ensure both parameters are valid
+            // Ensure parameters are valid
 
             if (string.IsNullOrEmpty(dllPath) || processId == 0)
             {
@@ -60,6 +71,17 @@ namespace Bleak.Methods
             // Ensure the dll exists
 
             if (!File.Exists(dllPath))
+            {
+                return false;
+            }
+            
+            // Get the pe headers
+
+            var peHeaders = new PeFile(dllPath);
+            
+            // Ensure the dll architecture is the same as the compiled architecture
+
+            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
             {
                 return false;
             }
@@ -80,10 +102,10 @@ namespace Bleak.Methods
 
             // Inject the dll
             
-            return Inject(dllPath, process);
+            return Inject(dllPath, peHeaders, process);
         }
 
-        private static bool Inject(string dllPath, Process process)
+        private static bool Inject(string dllPath, PeFile peHeaders, Process process)
         {
             // Get a handle to the specified process
 
@@ -93,10 +115,6 @@ namespace Bleak.Methods
             {
                 return false;
             }
-
-            // Get the pe headers
-
-            var peHeaders = new PeFile(dllPath);
 
             // Get the dll bytes
 

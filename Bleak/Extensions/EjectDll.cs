@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using PeNet;
 using static Bleak.Etc.Native;
 
 namespace Bleak.Extensions
@@ -20,6 +21,17 @@ namespace Bleak.Extensions
             // Ensure the dll exists
 
             if (!File.Exists(dllPath))
+            {
+                return false;
+            }
+            
+            // Get the pe headers
+
+            var peHeaders = new PeFile(dllPath);
+            
+            // Ensure the dll architecture is the same as the compiled architecture
+
+            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
             {
                 return false;
             }
@@ -55,6 +67,17 @@ namespace Bleak.Extensions
             // Ensure the dll exists
 
             if (!File.Exists(dllPath))
+            {
+                return false;
+            }
+            
+            // Get the pe headers
+
+            var peHeaders = new PeFile(dllPath);
+            
+            // Ensure the dll architecture is the same as the compiled architecture
+
+            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
             {
                 return false;
             }
@@ -113,16 +136,16 @@ namespace Bleak.Extensions
 
             // Get the dll base address
             
-            var moduleBaseAddress = module.BaseAddress;
+            var dllBaseAddress = module.BaseAddress;
             
-            if (moduleBaseAddress == IntPtr.Zero)
+            if (dllBaseAddress == IntPtr.Zero)
             {
                 return false;
             }
             
             // Create a user thread to call free library in the specified process
             
-            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, freeLibraryAddress, moduleBaseAddress, out var userThreadHandle, IntPtr.Zero);
+            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, freeLibraryAddress, dllBaseAddress, out var userThreadHandle, IntPtr.Zero);
             
             if (userThreadHandle == IntPtr.Zero)
             {
