@@ -14,7 +14,7 @@ A Windows native DLL injection library written in C# that supports several metho
 * SetThreadContext (Thread Hijack)
 * ZwCreateThreadEx
 
-## Features
+## Extensions
 
 * Eject DLL
 * Erase PE Headers
@@ -25,8 +25,6 @@ A Windows native DLL injection library written in C# that supports several metho
 * Download and install Bleak using [NuGet](https://www.nuget.org/packages/Bleak)
 
 ## Usage
-
-All methods (including features) can be overloaded with a process id instead of a process name
 
 ```csharp
 using Bleak;
@@ -40,6 +38,22 @@ injector.CreateRemoteThread("pathToDll", "processName");
 // Erase the PE Headers
 
 injector.EraseHeaders("pathToDll", "processName");
+```
+
+You can also overload any method with a process id instead of a process name
+
+```csharp
+using Bleak;
+
+var injector = new Injector();
+
+// Inject using the CreateRemoteThread method
+
+injector.CreateRemoteThread("pathToDll", processId);
+
+// Erase the PE Headers
+
+injector.EraseHeaders("pathToDll", processId);
 ```
 
 ## Contributing
