@@ -1,19 +1,17 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <Description>A Windows native DLL injection library written in C# that supports several methods of injection.</Description>
-    <RepositoryUrl>https://github.com/Akaion/Bleak</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>1.2.2</Version>
-    <Authors>Akaion</Authors>
-    <Company />
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>netcoreapp2.2</TargetFramework>
+        <LangVersion>latest</LangVersion>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="PeNet" Version="0.8.1" />
-  </ItemGroup>
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+      <Optimize>true</Optimize>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Jupiter" Version="1.3.3" />
+      <PackageReference Include="PeNet" Version="0.8.1" />
+    </ItemGroup>
 
 </Project>

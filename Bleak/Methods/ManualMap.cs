@@ -3,347 +3,176 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Bleak.Etc;
+using Jupiter;
 using PeNet;
 using static Bleak.Etc.Native;
-using static Bleak.Etc.Shellcode;
-using static Bleak.Etc.Tools;
-using static Bleak.Etc.Wrapper;
 
 namespace Bleak.Methods
 {
-    internal static class ManualMap
+    internal class ManualMap
     {
-        internal static bool Inject(string dllPath, string processName)
+        private readonly MemoryModule _memoryModule;
+
+        private Process _process;
+        
+        internal ManualMap()
         {
-            // Ensure parameters are valid
-
-            if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
-            {
-                return false;
-            }
-
-            // Ensure the dll exists
-
-            if (!File.Exists(dllPath))
-            {
-                return false;
-            }
-            
-            // Get the pe headers
-
-            var peHeaders = new PeFile(dllPath);
-            
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessesByName(processName)[0];
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            // Inject the dll
-            
-            return Inject(dllPath, peHeaders, process);
+            _memoryModule = new MemoryModule();
         }
-
-        internal static bool Inject(string dllPath, int processId)
+        
+        internal bool Inject(Process process, string dllPath)
         {
-            // Ensure parameters are valid
-
-            if (string.IsNullOrEmpty(dllPath) || processId == 0)
-            {
-                return false;
-            }
-
-            // Ensure the dll exists
-
-            if (!File.Exists(dllPath))
-            {
-                return false;
-            }
+            _process = process;
             
-            // Get the pe headers
+            // Get the id of the process
 
-            var peHeaders = new PeFile(dllPath);
+            var processId = _process.Id;
             
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessById(processId);
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            // Inject the dll
+            // Get the bytes of the dll
             
-            return Inject(dllPath, peHeaders, process);
-        }
-
-        private static bool Inject(string dllPath, PeFile peHeaders, Process process)
-        {
-            // Get a handle to the specified process
-
-            var processHandle = process.SafeHandle;
-
-            if (processHandle == null)
-            {
-                return false;
-            }
-
-            // Get the dll bytes
-
             var dllBytes = File.ReadAllBytes(dllPath);
-
-            // Pin the dll bytes
+            
+            // Pin the dll bytes in the memory of the host process
 
             var baseAddress = GCHandle.Alloc(dllBytes, GCHandleType.Pinned);
-
-            // Allocate memory for the dll
+         
+            // Get the pe headers of the dll
+            
+            var peHeaders = new PeFile(dllPath);
+            
+            // Allocate memory for the dll in the remote process
 
             var dllSize = peHeaders.ImageNtHeaders.OptionalHeader.SizeOfImage;
-            
-            var remoteDllAddress = VirtualAllocEx(processHandle, IntPtr.Zero, (int) dllSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
 
-            // Map the imports
+            var remoteDllAddress = _memoryModule.AllocateMemory(processId, (int) dllSize);
+            
+            // Map the imports of the dll into the host process
 
             if (!MapImports(peHeaders, baseAddress.AddrOfPinnedObject()))
             {
                 return false;
             }
+            
+            // Perform the relocations needed in the host process
 
-            // Map the relocations
-
-            if (!MapRelocations(peHeaders, baseAddress.AddrOfPinnedObject(), remoteDllAddress))
+            if (!PerformRelocations(peHeaders, baseAddress.AddrOfPinnedObject(), remoteDllAddress))
             {
                 return false;
             }
+            
+            // Map the sections of the dll into the remote process
 
-            // Map the sections
-
-            if (!MapSections(peHeaders, processHandle, baseAddress.AddrOfPinnedObject(), remoteDllAddress))
+            if (!MapSections(peHeaders, baseAddress.AddrOfPinnedObject(), remoteDllAddress))
             {
                 return false;
             }
+            
+            // Map the tls entries of the dll into the remote process
 
-            // Map the tls entries
-
-            if (!MapTlsEntries(peHeaders, processHandle, baseAddress.AddrOfPinnedObject()))
+            if (!MapTlsEntries(peHeaders, baseAddress.AddrOfPinnedObject()))
             {
                 return false;
             }
+            
+            // Call the entry point of the dll in the remote process
 
-            // Call the entry point
+            var dllEntryPointAddress = remoteDllAddress + (int) peHeaders.ImageNtHeaders.OptionalHeader.AddressOfEntryPoint;
 
-            var dllEntryPoint = remoteDllAddress + (int) peHeaders.ImageNtHeaders.OptionalHeader.AddressOfEntryPoint;
-
-            if (!CallEntryPoint(processHandle, remoteDllAddress, dllEntryPoint))
+            if (!CallEntryPoint(remoteDllAddress, dllEntryPointAddress))
             {
                 return false;
             }
-
-            // Unpin the dll bytes
-
+            
+            // Unpin the dll bytes from the memory of the host process
+            
             baseAddress.Free();
+            
+            return true;
+        }
 
-            // Free the previously allocated memory
+        private bool CallEntryPoint(IntPtr baseAddress, IntPtr entryPoint)
+        {
+            // Get the id of the process
+
+            var processId = _process.Id;
             
-            VirtualFreeEx(processHandle, remoteDllAddress, (int) dllSize, MemoryAllocation.Release);
+            // Open a handle to the process
+
+            var processHandle = _process.SafeHandle;
             
-            return true;  
+            // Determine if the process is running under WOW64
+
+            IsWow64Process(processHandle, out var isWow64);
+            
+            // Create shellcode to call the entry of the dll in the process
+
+            var shellcode = isWow64 ? Shellcode.CallDllMainx86(baseAddress, entryPoint) : Shellcode.CallDllMainx64(baseAddress, entryPoint);
+            
+            // Allocate memory for the shellcode in the process
+
+            var shellcodeSize = shellcode.Length;
+
+            var shellcodeAddress = _memoryModule.AllocateMemory(processId, shellcodeSize);
+
+            if (shellcodeAddress == IntPtr.Zero)
+            {
+                return false;
+            }
+            
+            // Write the shellcode into the memory of the process
+
+            if (!_memoryModule.WriteMemory(processId, shellcodeAddress, shellcode))
+            {
+                return false;
+            }
+            
+            // Create a remote thread to call the entry point in the process
+            
+            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, shellcodeAddress, IntPtr.Zero, out var remoteThreadHandle, 0);
+
+            if (remoteThreadHandle is null)
+            {
+                return false;
+            }
+            
+            // Wait for the remote thread to finish its task
+            
+            WaitForSingleObject(remoteThreadHandle, int.MaxValue);
+            
+            // Free the memory previously allocated for the shellcode
+
+            if (!_memoryModule.FreeMemory(processId, shellcodeAddress))
+            {
+                return false;
+            }
+            
+            // Close the handle opened to the process
+            
+            processHandle.Close();
+            
+            // Close the handle opened to the remote thread
+            
+            remoteThreadHandle.Close();
+            
+            return true;
         }
         
-        private static bool LoadModuleIntoHost(string dllName)
-        {
-            // Get the dll path
-
-            var dllPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), dllName.ToLower());
-
-            // Load the dll into the host process
-
-            return RtlCreateUserThread.Inject(dllPath, Process.GetCurrentProcess().Id);
-        }
-
-        private static IntPtr RvaToVa(IntPtr baseAddress, int eLfanew, IntPtr rva)
-        {
-            // Convert a relative virtual address to a virtual address
-
-            return ImageRvaToVa(baseAddress + eLfanew, baseAddress, rva, IntPtr.Zero);
-        }
-
-        private static bool MapImports(PeFile peHeaders, IntPtr baseAddress)
-        {
-            var eLfanew = (int) peHeaders.ImageDosHeader.e_lfanew;
-
-            // Get the imports
-
-            var imports = peHeaders.ImportedFunctions;
-
-            // Get the import descriptors
-
-            var importDescriptors = peHeaders.ImageImportDescriptors;
-
-            if (importDescriptors == null)
-            {
-                // No imports
-
-                return true;
-            }
-
-            // Group the imports by their dll
-
-            var groupedImports = imports.GroupBy(import => import.DLL);
-
-            // Map the imports
-
-            var descriptorIndex = 0;
-
-            foreach (var dll in groupedImports)
-            {
-                // Get the function data virtual address
-
-                var functionDataAddress = RvaToVa(baseAddress, eLfanew, (IntPtr) importDescriptors[descriptorIndex].FirstThunk);
-
-                foreach (var import in dll)
-                {
-                    // Get the proc address
-
-                    var procAddress = GetProcAddress(GetModuleHandle(import.DLL), import.Name);
-
-                    // If the dll isn't already loaded into the host process
-
-                    if (procAddress == IntPtr.Zero)
-                    {
-                        // Load the dll into the host process
-
-                        if (!LoadModuleIntoHost(import.DLL))
-                        {
-                            return false;
-                        }
-
-                        // Get the proc address
-
-                        procAddress = GetProcAddress(GetModuleHandle(import.DLL), import.Name);
-                    }
-
-                    // Map the import
-
-                    Marshal.WriteInt64(functionDataAddress, (long) procAddress);
-
-                    // Next function data virtual address
-
-                    functionDataAddress += Marshal.SizeOf(typeof(IntPtr));
-                }
-
-                descriptorIndex += 1;
-            }
-
-            return true;
-        }
-
-        private static bool MapRelocations(PeFile peHeaders, IntPtr baseAddress, IntPtr remoteAddress)
-        {
-            // Check if any relocations need to be mapped
-
-            if ((peHeaders.ImageNtHeaders.FileHeader.Characteristics & 0x01) > 0)
-            {
-                return true;
-            }
-
-            var eLfanew = (int) peHeaders.ImageDosHeader.e_lfanew;
-
-            // Calculate the image delta
-
-            var imageDelta = (long) remoteAddress - (long) peHeaders.ImageNtHeaders.OptionalHeader.ImageBase;
-
-            // Get the relocation directory
-
-            var relocationDirectory = peHeaders.ImageRelocationDirectory;
-
-            foreach (var relocation in relocationDirectory)
-            {
-                // Get the relocation base address
-                
-                var relocationBaseAddress = RvaToVa(baseAddress, eLfanew, (IntPtr) relocation.VirtualAddress);
-                
-                // Map the relocations
-
-                foreach (var offset in relocation.TypeOffsets)
-                {
-                    // Get the relocation address
-
-                    var relocationAddress = relocationBaseAddress + offset.Offset;
-
-                    switch (offset.Type)
-                    {
-                        case 3:
-                        {
-                            // If the relocation is Based High Low
-                            
-                            var value = PointerToStructure<int>(relocationAddress) + (int) imageDelta;
-                            
-                            Marshal.WriteInt32(relocationAddress, value);
-
-                            break;
-                        }
-
-                        case 10:
-                        {
-                            // If the relocation is Based Dir64
-
-                            var value = PointerToStructure<long>(relocationAddress) + imageDelta;
-                            
-                            Marshal.WriteInt64(relocationAddress, value);
-
-                            break;
-                        }
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        private static int GetSectionProtection(DataSectionFlags characteristics)
+        private int GetSectionProtection(DataSectionFlags characteristics)
         {
             var protection = 0;
-
-            // Calculate the sections protection
             
+            // Determine the protection of the section
+
             if (characteristics.HasFlag(DataSectionFlags.MemoryNotCached))
             {
                 protection |= (int) MemoryProtection.PageNoCache;
             }
-    
+
             if (characteristics.HasFlag(DataSectionFlags.MemoryExecute))
-            {             
+            {
                 if (characteristics.HasFlag(DataSectionFlags.MemoryRead))
-                {          
+                {
                     if (characteristics.HasFlag(DataSectionFlags.MemoryWrite))
                     {
                         protection |= (int) MemoryProtection.PageExecuteReadWrite;
@@ -353,9 +182,8 @@ namespace Bleak.Methods
                     {
                         protection |= (int) MemoryProtection.PageExecuteRead;
                     }
-
                 }
-
+                
                 else if (characteristics.HasFlag(DataSectionFlags.MemoryWrite))
                 {
                     protection |= (int) MemoryProtection.PageExecuteWriteCopy;
@@ -366,7 +194,7 @@ namespace Bleak.Methods
                     protection |= (int) MemoryProtection.PageExecute;
                 }
             }
-
+            
             else if (characteristics.HasFlag(DataSectionFlags.MemoryRead))
             {
                 if (characteristics.HasFlag(DataSectionFlags.MemoryWrite))
@@ -379,7 +207,7 @@ namespace Bleak.Methods
                     protection |= (int) MemoryProtection.PageReadOnly;
                 }
             }
-
+            
             else if (characteristics.HasFlag(DataSectionFlags.MemoryWrite))
             {
                 protection |= (int) MemoryProtection.PageWriteCopy;
@@ -389,123 +217,212 @@ namespace Bleak.Methods
             {
                 protection |= (int) MemoryProtection.PageNoAccess;
             }
-
+            
             return protection;
         }
-
-        private static bool MapSections(PeFile peHeaders, SafeHandle processHandle, IntPtr baseAddress, IntPtr remoteAddress)
+        
+        private bool MapImports(PeFile peHeaders, IntPtr baseAddress)
         {
-            // Get the section headers
+            // Get the dll imported functions
+
+            var importedFunctions = peHeaders.ImportedFunctions;
+            
+            // Get the dll import descriptors
+
+            var importDescriptors = peHeaders.ImageImportDescriptors;
+
+            if (importDescriptors is null)
+            {
+                // No dll imports
+                
+                return true;
+            }
+            
+            // Group the imported functions by the dll they reside in
+
+            var groupedImportedFunctions = importedFunctions.GroupBy(importedFunction => importedFunction.DLL);
+
+            var importDescriptorIndex = 0;
+
+            // Get the e_lfanew value
+
+            var eLfanew = peHeaders.ImageDosHeader.e_lfanew;
+            
+            foreach (var dll in groupedImportedFunctions)
+            {
+                // Get the virtual address of the imported function
+
+                var functionVirtualAddress = Tools.RvaToVa(baseAddress, (int) eLfanew, (IntPtr) importDescriptors[importDescriptorIndex].FirstThunk);
+
+                foreach (var importedFunction in dll)
+                {
+                    // Get the proc address of the imported function
+
+                    var procAddress = GetProcAddress(GetModuleHandle(importedFunction.DLL), importedFunction.Name);
+                    
+                    // If the dll isn't already loaded into the host process
+
+                    if (procAddress == IntPtr.Zero)
+                    {
+                        // Load the dll into the host process
+
+                        if (LoadLibrary(importedFunction.DLL) is null)
+                        {
+                            return false;
+                        }
+                        
+                        // Get the proc address of the imported function
+                        
+                        procAddress = GetProcAddress(GetModuleHandle(importedFunction.DLL), importedFunction.Name);
+                    }
+                    
+                    // Map the imported function into the host process
+                    
+                    Marshal.WriteInt64(functionVirtualAddress, (long) procAddress);
+                    
+                    // Jump to the next functions virtual address
+
+                    functionVirtualAddress += Marshal.SizeOf(typeof(IntPtr));
+                }
+
+                importDescriptorIndex += 1;
+            }
+            
+            return true;
+        }
+
+        private bool MapSections(PeFile peHeaders, IntPtr baseAddress, IntPtr remoteAddress)
+        {
+            var processId = _process.Id;
+            
+            // Get the dll section headers
 
             var sectionHeaders = peHeaders.ImageSectionHeaders;
 
             foreach (var section in sectionHeaders)
             {
-                // Get the sections protection
+                // Get the protection of the section
 
-                var protection = GetSectionProtection((DataSectionFlags) section.Characteristics);
-
-                // Get the sections address
+                var sectionProtection = GetSectionProtection((DataSectionFlags) section.Characteristics);
+                
+                // Determine the address to map the section to in the process
 
                 var sectionAddress = remoteAddress + (int) section.VirtualAddress;
-
-                // Get the raw data address
+                
+                // Get the address of the raw data of the section in the host process
 
                 var rawDataAddress = baseAddress + (int) section.PointerToRawData;
-
-                // Get the size of the raw data
+                
+                // Get the size of the raw data of the section
 
                 var rawDataSize = (int) section.SizeOfRawData;
-
-                // Get the raw data
+                
+                // Get the raw data of the section
 
                 var rawData = new byte[rawDataSize];
-
+                
                 Marshal.Copy(rawDataAddress, rawData, 0, rawDataSize);
+                
+                // Map the section into the process
 
-                // Map the section
+                if (!_memoryModule.WriteMemory(processId, sectionAddress, rawData))
+                {
+                    return false;
+                }
+                
+                // Adjust the protection of the section in the process
 
-                if (!WriteMemory(processHandle, sectionAddress, rawData, protection))
+                if (!_memoryModule.ProtectMemory(processId, sectionAddress, rawDataSize, sectionProtection))
                 {
                     return false;
                 }
             }
-
+            
             return true;
         }
-
-        private static bool MapTlsEntries(PeFile peHeaders, SafeHandle processHandle, IntPtr baseAddress)
+        
+        private bool MapTlsEntries(PeFile peHeaders, IntPtr baseAddress)
         {
-            // Get the tls callbacks
+            // Get the tls directory of the dll
 
-            PeNet.Structures.IMAGE_TLS_CALLBACK[] tlsCallbacks;
+            var tlsDirectory = peHeaders?.ImageTlsDirectory;
 
-            try
+            if (tlsDirectory is null)
             {
-                tlsCallbacks = peHeaders.ImageTlsDirectory.TlsCallbacks;
-            }
-
-            catch (NullReferenceException)
-            {
-                // No tls callbacks
+                // No tls directory
                 
                 return true;
             }
+            
+            // Call the entry point for each tls callback in the process
 
-            // Call the entry point for each tls callback
-
-            return tlsCallbacks.All(callback => CallEntryPoint(processHandle, baseAddress, (IntPtr) callback.Callback));
-        }
-
-        private static bool CallEntryPoint(SafeHandle processHandle, IntPtr baseAddress, IntPtr entryPoint)
+            return tlsDirectory.TlsCallbacks.All(callback => CallEntryPoint(baseAddress, (IntPtr) callback.Callback));
+        }        
+        
+        private static bool PerformRelocations(PeFile peHeaders, IntPtr baseAddress, IntPtr remoteAddress)
         {
-            // Determine whether compiled as x86 or x64
+            // Determine if any relocations need to be performed
 
-            var compiledAsx64 = Environment.Is64BitProcess;
-            
-            // Create shellcode to call the entry point
-
-            var shellcode = compiledAsx64 ? CallDllMainx64(baseAddress, entryPoint) : CallDllMainx86(baseAddress, entryPoint);
-
-            // Allocate memory for the shellcode
-
-            var shellcodeSize = shellcode.Length;
-
-            var shellcodeAddress = VirtualAllocEx(processHandle, IntPtr.Zero, shellcodeSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
-
-            if (shellcodeAddress == IntPtr.Zero)
+            if ((peHeaders.ImageNtHeaders.FileHeader.Characteristics & 0x01) > 0)
             {
-                return false;
+                return true;
             }
-
-            // Write the shellcode into memory
             
-            if (!WriteMemory(processHandle, shellcodeAddress, shellcode))
-            {
-                return false;
-            }
+            // Get the e_lfanew value
 
-            // Create a user thread to call the entry point in the specified process
-
-            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, shellcodeAddress, IntPtr.Zero, out var userThreadHandle, IntPtr.Zero);
+            var eLfanew = peHeaders.ImageDosHeader.e_lfanew;
             
-            if (userThreadHandle == IntPtr.Zero)
+            // Determine the image delta
+
+            var imageDelta = (long) remoteAddress - (long) peHeaders.ImageNtHeaders.OptionalHeader.ImageBase;
+            
+            // Get the relocation directory of the dll
+
+            var relocationDirectory = peHeaders.ImageRelocationDirectory;
+
+            foreach (var relocation in relocationDirectory)
             {
-                return false;
+                // Get the base address of the relocations
+
+                var relocationsBaseAddress = Tools.RvaToVa(baseAddress, (int) eLfanew, (IntPtr) relocation.VirtualAddress);
+
+                foreach (var offset in relocation.TypeOffsets)
+                {
+                    // Get the address of the relocation
+
+                    var relocationAddress = relocationsBaseAddress + offset.Offset;
+
+                    switch (offset.Type)
+                    {
+                        case 3:
+                        {
+                            // If the relocation is High Low
+
+                            var value = Tools.PointerToStructure<int>(relocationAddress) + (int) imageDelta;
+                            
+                            // Perform the relocation
+                            
+                            Marshal.WriteInt32(relocationAddress, value);
+
+                            break;
+                        }
+
+                        case 10:
+                        {
+                            // If the relocation is Dir64
+
+                            var value = Tools.PointerToStructure<long>(relocationAddress) + imageDelta;
+                            
+                            // Perform the relocation
+                            
+                            Marshal.WriteInt64(relocationAddress, value);
+                            
+                            break;
+                        }
+                    }
+                }
             }
-
-            // Wait for the user thread to finish
-
-            WaitForSingleObject(userThreadHandle, int.MaxValue);
-
-            // Free the previously allocated memory
-
-            VirtualFreeEx(processHandle, shellcodeAddress, shellcodeSize, MemoryAllocation.Release);
-
-            // Close the previously opened handle
-
-            CloseHandle(userThreadHandle);
-
+            
             return true;
         }
     }

@@ -1,162 +1,93 @@
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Text;
-using PeNet;
+using Jupiter;
 using static Bleak.Etc.Native;
-using static Bleak.Etc.Wrapper;
 
 namespace Bleak.Methods
 {
-    internal static class NtCreateThreadEx
+    internal class NtCreateThreadEx
     {
-        internal static bool Inject(string dllPath, string processName)
+        private readonly MemoryModule _memoryModule;
+
+        internal NtCreateThreadEx()
         {
-            // Ensure parameters are valid
-
-            if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
-            {
-                return false;
-            }
-
-            // Ensure the dll exists
-
-            if (!File.Exists(dllPath))
-            {
-                return false;
-            }
-            
-            // Get the pe headers
-
-            var peHeaders = new PeFile(dllPath);
-            
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessesByName(processName)[0];
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            // Inject the dll
-
-            return Inject(dllPath, process);
+            _memoryModule = new MemoryModule();
         }
-
-        internal static bool Inject(string dllPath, int processId)
+        
+        internal bool Inject(Process process, string dllPath)
         {
-            // Ensure parameters are valid
+            // Ensure the process has kernel32.dll loaded
 
-            if (string.IsNullOrEmpty(dllPath) || processId == 0)
-            {
-                return false;
-            }
-
-            // Ensure the dll exists
-
-            if (!File.Exists(dllPath))
+            if (LoadLibrary("kernel32.dll") is null)
             {
                 return false;
             }
             
-            // Get the pe headers
+            // Get the id of the process
 
-            var peHeaders = new PeFile(dllPath);
+            var processId = process.Id;
             
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessById(processId);
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            // Inject the dll
-
-            return Inject(dllPath, process);
-        }
-
-        private static bool Inject(string dllPath, Process process)
-        {
-            // Get the address of the load library method
-
+            // Get the address of the LoadLibraryW method from kernel32.dll
+            
             var loadLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
-
+            
             if (loadLibraryAddress == IntPtr.Zero)
             {
                 return false;
             }
-
-            // Get a handle to the specified process
-
-            var processHandle = process.SafeHandle;
-
-            if (processHandle == null)
-            {
-                return false;
-            }
-
-            // Allocate memory for the dll path
-
+            
+            // Allocate memory for the dll path in the process
+            
             var dllPathSize = dllPath.Length;
 
-            var dllPathAddress = VirtualAllocEx(processHandle, IntPtr.Zero, dllPathSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
+            var dllPathAddress = _memoryModule.AllocateMemory(processId, dllPathSize);
 
             if (dllPathAddress == IntPtr.Zero)
             {
                 return false;
             }
-
-            // Write the dll path into memory
-
+            
+            // Write the dll path into the process
+            
             var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
 
-            if (!WriteMemory(processHandle, dllPathAddress, dllPathBytes))
+            if (!_memoryModule.WriteMemory(processId, dllPathAddress, dllPathBytes))
             {
                 return false;
             }
+            
+            // Open a handle to the process
 
-            // Create a thread to call load library in the specified process
-
+            var processHandle = process.SafeHandle;
+            
+            // Create a remote thread to call load library in the process
+            
             NtCreateThreadEx(out var remoteThreadHandle, AccessMask.SpecificRightsAll | AccessMask.StandardRightsAll, IntPtr.Zero, processHandle, loadLibraryAddress, dllPathAddress, CreationFlags.HideFromDebugger, 0, 0, 0, IntPtr.Zero);
             
-            // Wait for remote thread to finish
-
+            if (remoteThreadHandle is null)
+            {
+                return false;
+            }
+            
+            // Wait for the remote thread to finish its task
+            
             WaitForSingleObject(remoteThreadHandle, int.MaxValue);
+            
+            // Free the memory previously allocated for the dll path
 
-            // Free the previously allocated memory
-
-            VirtualFreeEx(processHandle, dllPathAddress, dllPathSize, MemoryAllocation.Release);
-
-            // Close the previously opened handle
-
-            CloseHandle(remoteThreadHandle);
+            if (!_memoryModule.FreeMemory(processId, dllPathAddress))
+            {
+                return false;
+            }
+            
+            // Close the handle opened to the process
+            
+            processHandle.Close();
+            
+            // Close the handle opened to the remote thread
+            
+            remoteThreadHandle.Close();
 
             return true;
         }

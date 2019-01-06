@@ -1,145 +1,62 @@
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Text;
-using PeNet;
+using Jupiter;
 using static Bleak.Etc.Native;
-using static Bleak.Etc.Wrapper;
 
 namespace Bleak.Methods
 {
-    internal static class QueueUserApc
+    internal class QueueUserApc
     {
-        internal static bool Inject(string dllPath, string processName)
+        private readonly MemoryModule _memoryModule;
+        
+        internal QueueUserApc()
         {
-            // Ensure parameters are valid
-
-            if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
-            {
-                return false;
-            }
-
-            // Ensure the dll exists
-
-            if (!File.Exists(dllPath))
-            {
-                return false;
-            }
-            
-            // Get the pe headers
-
-            var peHeaders = new PeFile(dllPath);
-            
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessesByName(processName)[0];
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            return Inject(dllPath, process);
+            _memoryModule = new MemoryModule();
         }
-
-        internal static bool Inject(string dllPath, int processId)
+        
+        internal bool Inject(Process process, string dllPath)
         {
-            // Ensure parameters are valid
+            // Ensure the process has kernel32.dll loaded
 
-            if (string.IsNullOrEmpty(dllPath) || processId == 0)
-            {
-                return false;
-            }
-
-            // Ensure the dll exists
-
-            if (!File.Exists(dllPath))
+            if (LoadLibrary("kernel32.dll") is null)
             {
                 return false;
             }
             
-            // Get the pe headers
+            // Get the id of the process
 
-            var peHeaders = new PeFile(dllPath);
+            var processId = process.Id;
             
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessById(processId);
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            return Inject(dllPath, process);
-        }
-
-        private static bool Inject(string dllPath, Process process)
-        {
-            // Get the address of the load library method
-
+            // Get the address of the LoadLibraryW method from kernel32.dll
+            
             var loadLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
-
+            
             if (loadLibraryAddress == IntPtr.Zero)
             {
                 return false;
             }
-
-            // Get a handle to the specified process
-
-            var processHandle = process.SafeHandle;
-
-            if (processHandle == null)
-            {
-                return false;
-            }
-
-            // Allocate memory for the dll path
-
+            
+            // Allocate memory for the dll path in the process
+            
             var dllPathSize = dllPath.Length;
 
-            var dllPathAddress = VirtualAllocEx(processHandle, IntPtr.Zero, dllPathSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
+            var dllPathAddress = _memoryModule.AllocateMemory(processId, dllPathSize);
 
             if (dllPathAddress == IntPtr.Zero)
             {
                 return false;
             }
-
-            // Write the dll path into memory
-
+            
+            // Write the dll path into the process
+            
             var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
 
-            if (!WriteMemory(processHandle, dllPathAddress, dllPathBytes))
+            if (!_memoryModule.WriteMemory(processId, dllPathAddress, dllPathBytes))
             {
                 return false;
             }
-
-            // Call QueueUserAPC on each thread
 
             foreach (var thread in process.Threads.Cast<ProcessThread>())
             {
@@ -147,19 +64,23 @@ namespace Bleak.Methods
 
                 var threadHandle = OpenThread(ThreadAccess.SetContext, false, thread.Id);
 
-                // Add a user-mode APC to the APC queue of the thread
+                if (threadHandle is null)
+                {
+                    return false;
+                }
+                
+                // Adda user-mode APC to the APC queue of the thread
 
-                QueueUserAPC(loadLibraryAddress, threadHandle, dllPathAddress);
+                if (!QueueUserAPC(loadLibraryAddress, threadHandle, dllPathAddress))
+                {
+                    return false;
+                }
+                
+                // Close the handle opened to the thread
 
-                // Close the previously opened handle
-
-                CloseHandle(threadHandle);
+                threadHandle.Close();
             }
-
-            // Free the previously allocated memory
-
-            VirtualFreeEx(processHandle, dllPathAddress, dllPathSize, MemoryAllocation.Release);
-
+            
             return true;
         }
     }

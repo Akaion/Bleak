@@ -1,265 +1,284 @@
 using System;
 using System.Diagnostics;
-using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
-using PeNet;
+using Bleak.Etc;
+using Jupiter;
 using static Bleak.Etc.Native;
-using static Bleak.Etc.Shellcode;
-using static Bleak.Etc.Wrapper;
 
 namespace Bleak.Methods
 {
-    internal static class SetThreadContext
+    internal class SetThreadContext
     {
-        internal static bool Inject(string dllPath, string processName)
+        private readonly MemoryModule _memoryModule;
+
+        internal SetThreadContext()
         {
-            // Ensure parameters are valid
-
-            if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
-            {
-                return false;
-            }
-
-            // Ensure the dll exists
-
-            if (!File.Exists(dllPath))
-            {
-                return false;
-            }
-            
-            // Get the pe headers
-
-            var peHeaders = new PeFile(dllPath);
-            
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessesByName(processName)[0];
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            // Inject the dll
-
-            return Inject(dllPath, process);
+            _memoryModule = new MemoryModule();
         }
-
-        internal static bool Inject(string dllPath, int processId)
+        
+        internal bool Inject(Process process, string dllPath)
         {
-            // Ensure parameters are valid
+            // Ensure the process has kernel32.dll loaded
 
-            if (string.IsNullOrEmpty(dllPath) || processId == 0)
-            {
-                return false;
-            }
-
-            // Ensure the dll exists
-
-            if (!File.Exists(dllPath))
+            if (LoadLibrary("kernel32.dll") is null)
             {
                 return false;
             }
             
-            // Get the pe headers
+            // Get the id of the process
 
-            var peHeaders = new PeFile(dllPath);
+            var processId = process.Id;
             
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessById(processId);
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            // Inject the dll
-
-            return Inject(dllPath, process);
-        }
-
-        private static bool Inject(string dllPath, Process process)
-        {
-            // Determine whether compiled as x86 or x64
-
-            var compiledAsx64 = Environment.Is64BitProcess;
-
-            // Get the address of the load library method
-
+            // Get the address of the LoadLibraryW method from kernel32.dll
+            
             var loadLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
-
+            
             if (loadLibraryAddress == IntPtr.Zero)
             {
                 return false;
             }
-
-            // Get a handle to the specified process
-
-            var processHandle = process.SafeHandle;
-
-            if (processHandle == null)
-            {
-                return false;
-            }
-
-            // Allocate memory for the dll path
-
+            
+            // Allocate memory for the dll path in the process
+            
             var dllPathSize = dllPath.Length;
 
-            var dllPathAddress = VirtualAllocEx(processHandle, IntPtr.Zero, dllPathSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
+            var dllPathAddress = _memoryModule.AllocateMemory(processId, dllPathSize);
 
             if (dllPathAddress == IntPtr.Zero)
             {
                 return false;
             }
-
-            // Write the dll path into memory
-
+            
+            // Write the dll path into the process
+            
             var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
 
-            if (!WriteMemory(processHandle, dllPathAddress, dllPathBytes))
+            if (!_memoryModule.WriteMemory(processId, dllPathAddress, dllPathBytes))
             {
                 return false;
             }
+            
+            // Open a handle to the process
+            
+            var processHandle = process.SafeHandle;
+            
+            // Determine if the process is running under WOW64
 
-            // Allocate memory for the shellcode
+            IsWow64Process(processHandle, out var isWow64);
+            
+            // Allocate memory for the shellcode in the process
 
-            var shellcodeSize = compiledAsx64 ? 87 : 22;
+            var shellcodeSize = isWow64 ? 22 : 87;
 
-            var shellcodeAddress = VirtualAllocEx(processHandle, IntPtr.Zero, shellcodeSize, MemoryAllocation.Commit | MemoryAllocation.Reserve, MemoryProtection.PageExecuteReadWrite);
+            var shellcodeAddress = _memoryModule.AllocateMemory(processId, shellcodeSize);
 
-            // Get the handle of the first thread in the specified process
+            if (shellcodeAddress == IntPtr.Zero)
+            {
+                return false;
+            }
+            
+            // Get the id of the first thread in the process
 
             var threadId = process.Threads[0].Id;
-
+            
             // Open a handle to the thread
 
             var threadHandle = OpenThread(ThreadAccess.AllAccess, false, threadId);
 
-            if (threadHandle == IntPtr.Zero)
+            if (threadHandle is null)
             {
                 return false;
             }
-
+            
             // Suspend the thread
 
-            SuspendThread(threadHandle);
-
-            // If compiled as x86
-
-            if (!compiledAsx64)
+            if (SuspendThread(threadHandle) == -1)
             {
-                // Get the threads context
+                return false;
+            }
+            
+            // If the process is x86
+            
+            if (isWow64)
+            {
+                var threadContext = new Context {Flags = ContextFlags.ContextControl};
+                
+                // Get the size of the structure
+                
+                var threadContextSize = Marshal.SizeOf(threadContext);
 
-                var context = new Context { Flags = ContextFlags.ContextControl };
+                // Allocate memory for a buffer to store the structure
+                
+                var buffer = Marshal.AllocHGlobal(threadContextSize);
+                
+                // Convert the structure to bytes
+                
+                var threadContextBytes = Tools.StructureToBytes(threadContext);
+                
+                // Copy the structure bytes into the buffer
+                
+                Marshal.Copy(threadContextBytes, 0, buffer, threadContextSize);
+                
+                // Get the context of the thread and save it in the buffer
+                
+                if (!GetThreadContext(threadHandle, buffer))
+                {    
+                    return false;
+                }
+                
+                // Read the new thread context structure from the buffer
+                
+                threadContext = Tools.PointerToStructure<Context>(buffer);
+                
+                // Save the instruction pointer
 
-                if (!GetThreadContext(threadHandle, ref context))
+                var instructionPointer = threadContext.Eip;
+                
+                // Write the shellcode into the memory of the process
+
+                var shellcode = Shellcode.CallLoadLibraryx86(instructionPointer, dllPathAddress, loadLibraryAddress);
+
+                if (!_memoryModule.WriteMemory(processId, shellcodeAddress, shellcode))
+                {
+                    return false;
+                }
+                
+                // Change the instruction pointer to the shellcode address
+
+                threadContext.Eip = shellcodeAddress;
+                
+                // Convert the structure to bytes
+                
+                threadContextBytes = Tools.StructureToBytes(threadContext);
+                
+                // Copy the structure bytes into the buffer
+                
+                Marshal.Copy(threadContextBytes, 0, buffer, threadContextSize);
+                
+                // Set the context of the thread with the new context
+
+                if (!SetThreadContext(threadHandle, buffer))
+                {
+                    return false;
+                }
+                
+                // Free the memory previously allocated for the buffer
+                
+                Marshal.FreeHGlobal(buffer);
+            }
+
+            // If the process is x64
+            
+            else
+            {   
+                var threadContext = new Context64 {Flags = ContextFlags.ContextControl};
+
+                // Get the size of the structure
+                
+                var threadContextSize = Marshal.SizeOf(threadContext);
+                
+                // Allocate memory for a buffer to store the structure
+                
+                var buffer = Marshal.AllocHGlobal(threadContextSize);
+
+                // Convert the structure to bytes
+                
+                var threadContextBytes = Tools.StructureToBytes(threadContext);
+                
+                // Copy the structure bytes into the buffer
+                
+                Marshal.Copy(threadContextBytes, 0, buffer, threadContextSize);
+                
+                // Get the context of the thread and save it in the buffer
+                
+                if (!GetThreadContext(threadHandle, buffer))
                 {    
                     return false;
                 }
 
+                // Read the new thread context structure from the buffer
+                
+                threadContext = Tools.PointerToStructure<Context64>(buffer);
+                
                 // Save the instruction pointer
 
-                var instructionPointer = context.Eip;
+                var instructionPointer = threadContext.Rip;
 
-                // Change the instruction pointer to the shellcode pointer
+                // Write the shellcode into the memory of the process
 
-                context.Eip = shellcodeAddress;
+                var shellcode = Shellcode.CallLoadLibraryx64(instructionPointer, dllPathAddress, loadLibraryAddress);
 
-                // Write the shellcode into memory
-
-                var shellcode = CallLoadLibraryx86(instructionPointer, dllPathAddress, loadLibraryAddress);
-
-                if (!WriteMemory(processHandle, shellcodeAddress, shellcode))
+                if (!_memoryModule.WriteMemory(processId, shellcodeAddress, shellcode))
                 {
                     return false;
                 }
+                
+                // Change the instruction pointer to the shellcode address
 
-                // Set the threads context
+                threadContext.Rip = shellcodeAddress;
 
-                if (!SetThreadContext(threadHandle, ref context))
+                // Convert the structure to bytes
+                
+                threadContextBytes = Tools.StructureToBytes(threadContext);
+                
+                // Copy the structure bytes into the buffer
+                
+                Marshal.Copy(threadContextBytes, 0, buffer, threadContextSize);
+                
+                // Set the context of the thread with the new context
+
+                if (!SetThreadContext(threadHandle, buffer))
                 {
                     return false;
                 }
+                
+                // Free the memory previously allocated for the buffer
+                
+                Marshal.FreeHGlobal(buffer);
             }
+            
+            // Resume the suspended thread
 
-            // If compiled as x64
-
-            else
+            if (ResumeThread(threadHandle) == -1)
             {
-                // Get the threads context
-
-                var context = new Context64 { Flags = ContextFlags.ContextControl };
-
-                if (!GetThreadContext(threadHandle, ref context))
-                {
-                    return false;
-                }
-
-                // Save the instruction pointer
-
-                var instructionPointer = context.Rip;
-
-                // Change the instruction pointer to the shellcode pointer
-
-                context.Rip = shellcodeAddress;
-
-                // Write the shellcode into memory
-
-                var shellcode = CallLoadLibraryx64(instructionPointer, dllPathAddress, loadLibraryAddress);
-
-                if (!WriteMemory(processHandle, shellcodeAddress, shellcode))
-                {
-                    return false;
-                }
-
-                // Set the threads context
-
-                if (!SetThreadContext(threadHandle, ref context))
-                {
-                    return false;
-                }
+                return false;
             }
+            
+            // Open a handle to the main window handle of the process
+            
+            var windowHandle = new SafeWindowHandle(process.MainWindowHandle);
+            
+            // Switch to the process to load the dll
+            
+            SwitchToThisWindow(windowHandle, true);
 
-            // Resume the thread
-
-            ResumeThread(threadHandle);
-
-            // Free the previously allocated memory
-
-            VirtualFreeEx(processHandle, dllPathAddress, dllPathSize, MemoryAllocation.Release);
-
-            VirtualFreeEx(processHandle, shellcodeAddress, shellcodeSize, MemoryAllocation.Release);
-
-            // Close the previously opened handle
-
-            CloseHandle(threadHandle);
-
+            // Buffer the execution by 10 milliseconds to avoid freeing memory before it has been referenced
+            
+            Tools.AsyncWait(10);
+            
+            // Free the memory previously allocated for the dll path
+            
+            if (!_memoryModule.FreeMemory(processId, dllPathAddress))
+            {
+                return false;
+            }
+            
+            // Free the memory previously allocated for the shellcode
+            
+            if (!_memoryModule.FreeMemory(processId, shellcodeAddress))
+            {
+                return false;
+            }
+            
+            // Close the handle opened to the process
+            
+            process.Close();
+            
+            // Close the handle opened to the thread
+            
+            threadHandle.Close();
+            
             return true;
         }
     }

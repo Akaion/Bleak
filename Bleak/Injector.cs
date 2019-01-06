@@ -1,109 +1,187 @@
-﻿namespace Bleak
+using Bleak.Wrappers;
+
+namespace Bleak
 {
     public class Injector
     {
-        // Injection Methods
+        #region CreateRemoteThread
         
-        public bool CreateRemoteThread(string dllPath, string processName)
+        public bool CreateRemoteThread(string processName, string dllPath)
         {
-            return Methods.CreateRemoteThread.Inject(dllPath, processName);
-        }
+            var methodWrapper = new MethodWrapper(processName, dllPath);
 
-        public bool CreateRemoteThread(string dllPath, int processId)
-        {
-            return Methods.CreateRemoteThread.Inject(dllPath, processId);
-        }
-
-        public bool ManualMap(string dllPath, string processName)
-        {
-            return Methods.ManualMap.Inject(dllPath, processName);
-        }
-
-        public bool ManualMap(string dllPath, int processId)
-        {
-            return Methods.ManualMap.Inject(dllPath, processId);
-        }
-
-        public bool NtCreateThreadEx(string dllPath, string processName)
-        {
-            return Methods.NtCreateThreadEx.Inject(dllPath, processName);
+            return methodWrapper.CreateRemoteThread();
         }
         
-        public bool NtCreateThreadEx(string dllPath, int processId)
+        public bool CreateRemoteThread(int processId, string dllPath)
         {
-            return Methods.NtCreateThreadEx.Inject(dllPath, processId);
-        }
+            var methodWrapper = new MethodWrapper(processId, dllPath);
 
-        public bool QueueUserApc(string dllPath, string processName)
-        {
-            return Methods.QueueUserApc.Inject(dllPath, processName);
-        }
-
-        public bool QueueUserApc(string dllPath, int processId)
-        {
-            return Methods.QueueUserApc.Inject(dllPath, processId);
-        }
-
-        public bool RtlCreateUserThread(string dllPath, string processName)
-        {
-            return Methods.RtlCreateUserThread.Inject(dllPath, processName);
-        }
-
-        public bool RtlCreateUserThread(string dllPath, int processId)
-        {
-            return Methods.RtlCreateUserThread.Inject(dllPath, processId);
-        }
-
-        public bool SetThreadContext(string dllPath, string processName)
-        {
-            return Methods.SetThreadContext.Inject(dllPath, processName);
-        }
-
-        public bool SetThreadContext(string dllPath, int processId)
-        {
-            return Methods.SetThreadContext.Inject(dllPath, processId);
+            return methodWrapper.CreateRemoteThread();
         }
         
-        public bool ZwCreateThreadEx(string dllPath, string processName)
+        #endregion
+        
+        #region EjectDll
+        
+        public bool EjectDll(string processName, string dllPath)
         {
-            return Methods.ZwCreateThreadEx.Inject(dllPath, processName);
+            var methodWrapper = new ExtensionWrapper(processName, dllPath);
+
+            return methodWrapper.EjectDll();
         }
         
-        public bool ZwCreateThreadEx(string dllPath, int processId)
+        public bool EjectDll(int processId, string dllPath)
         {
-            return Methods.ZwCreateThreadEx.Inject(dllPath, processId);
-        }
+            var methodWrapper = new ExtensionWrapper(processId, dllPath);
 
-        // Extension Methods
-        
-        public bool EjectDll(string dllPath, string processName)
-        {
-            return Extensions.EjectDll.Eject(dllPath, processName);
+            return methodWrapper.EjectDll();
         }
         
-        public bool EjectDll(string dllPath, int processId)
+        #endregion
+        
+        #region EraseHeaders
+        
+        public bool EraseHeaders(string processName, string dllPath)
         {
-            return Extensions.EjectDll.Eject(dllPath, processId);
+            var methodWrapper = new ExtensionWrapper(processName, dllPath);
+
+            return methodWrapper.EraseHeaders();
         }
         
-        public bool EraseHeaders(string dllPath, string processName)
+        public bool EraseHeaders(int processId, string dllPath)
         {
-            return Extensions.EraseHeaders.Erase(dllPath, processName);
-        }
+            var methodWrapper = new ExtensionWrapper(processId, dllPath);
 
-        public bool EraseHeaders(string dllPath, int processId)
-        {
-            return Extensions.EraseHeaders.Erase(dllPath, processId);
+            return methodWrapper.EraseHeaders();
         }
+        
+        #endregion
+        
+        #region ManualMap
+        
+        public bool ManualMap(string processName, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllPath);
 
-        public bool RandomiseHeaders(string dllPath, string processName)
-        {
-            return Extensions.RandomiseHeaders.Randomise(dllPath, processName);
+            return methodWrapper.ManualMap();
         }
+        
+        public bool ManualMap(int processId, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllPath);
 
-        public bool RandomiseHeaders(string dllPath, int processId)
-        {
-            return Extensions.RandomiseHeaders.Randomise(dllPath, processId);
+            return methodWrapper.ManualMap();
         }
+        
+        #endregion
+        
+        #region NtCreateThreadEx
+        
+        public bool NtCreateThreadEx(string processName, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllPath);
+
+            return methodWrapper.NtCreateThreadEx();
+        }
+        
+        public bool NtCreateThreadEx(int processId, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllPath);
+
+            return methodWrapper.NtCreateThreadEx();
+        }
+        
+        #endregion
+        
+        #region QueueUserApc
+        
+        public bool QueueUserApc(string processName, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllPath);
+
+            return methodWrapper.QueueUserApc();
+        }
+        
+        public bool QueueUserApc(int processId, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllPath);
+
+            return methodWrapper.QueueUserApc();
+        }
+        
+        #endregion
+        
+        #region RandomiseHeaders
+        
+        public bool RandomiseHeaders(string processName, string dllPath)
+        {
+            var methodWrapper = new ExtensionWrapper(processName, dllPath);
+
+            return methodWrapper.RandomiseHeaders();
+        }
+        
+        public bool RandomiseHeaders(int processId, string dllPath)
+        {
+            var methodWrapper = new ExtensionWrapper(processId, dllPath);
+
+            return methodWrapper.RandomiseHeaders();
+        }
+        
+        #endregion
+        
+        #region RtlCreateUserThread
+        
+        public bool RtlCreateUserThread(string processName, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllPath);
+
+            return methodWrapper.RtlCreateUserThread();
+        }
+        
+        public bool RtlCreateUserThread(int processId, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllPath);
+
+            return methodWrapper.RtlCreateUserThread();
+        }
+        
+        #endregion
+        
+        #region SetThreadContext
+        
+        public bool SetThreadContext(string processName, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllPath);
+
+            return methodWrapper.SetThreadContext();
+        }
+        
+        public bool SetThreadContext(int processId, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllPath);
+
+            return methodWrapper.SetThreadContext();
+        }
+        
+        #endregion
+        
+        #region ZwCreateThreadEx
+        
+        public bool ZwCreateThreadEx(string processName, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllPath);
+
+            return methodWrapper.ZwCreateThreadEx();
+        }
+        
+        public bool ZwCreateThreadEx(int processId, string dllPath)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllPath);
+
+            return methodWrapper.ZwCreateThreadEx();
+        }
+        
+        #endregion
     }
 }

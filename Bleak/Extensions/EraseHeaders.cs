@@ -3,103 +3,26 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using PeNet;
+using Jupiter;
 using static Bleak.Etc.Native;
-using static Bleak.Etc.Wrapper;
 
 namespace Bleak.Extensions
 {
-    internal static class EraseHeaders
+    internal class EraseHeaders
     {
-        internal static bool Erase(string dllPath, string processName)
+        private readonly MemoryModule _memoryModule;
+        
+        internal EraseHeaders()
         {
-            // Ensure both parameters are valid
-
-            if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
-            {
-                return false;
-            }
-            
-            // Get the pe headers
-
-            var peHeaders = new PeFile(dllPath);
-            
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessesByName(processName).FirstOrDefault();
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            // Erase the headers
-
-            return Erase(dllPath, process);
+            _memoryModule = new MemoryModule();
         }
-
-        internal static bool Erase(string dllPath, int processId)
+        
+        internal bool Erase(Process process, string dllPath)
         {
-            // Ensure both parameters are valid
+            // Get the id of the process
 
-            if (string.IsNullOrEmpty(dllPath) || processId == 0)
-            {
-                return false;
-            }
+            var processId = process.Id;
             
-            // Get the pe headers
-
-            var peHeaders = new PeFile(dllPath);
-            
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessById(processId);
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            // Erase the headers
-
-            return Erase(dllPath, process);
-        }
-
-        private static bool Erase(string dllPath, Process process)
-        {
-            // Get the handle of the specified process
-
-            var processHandle = process.SafeHandle;
-
-            if (processHandle == null)
-            {
-                return false;
-            }
-
             // Get the name of the dll
 
             var dllName = Path.GetFileName(dllPath);
@@ -108,20 +31,24 @@ namespace Bleak.Extensions
             
             var module = process.Modules.Cast<ProcessModule>().SingleOrDefault(m => string.Equals(m.ModuleName, dllName, StringComparison.OrdinalIgnoreCase));
 
-            if (module == null)
+            if (module is null)
             {
                 return false;
             }
+            
+            // Get the base address of the dll
 
-            // Get the dll base address
-            
             var dllBaseAddress = module.BaseAddress;
-            
+
             if (dllBaseAddress == IntPtr.Zero)
             {
                 return false;
             }
 
+            // Open a handle to the process
+
+            var processHandle = process.SafeHandle;
+            
             // Get the information about the header region of the dll
 
             var memoryInformationSize = Marshal.SizeOf(typeof(MemoryBasicInformation));
@@ -130,14 +57,14 @@ namespace Bleak.Extensions
             {
                 return false;
             }
-
-            // Generate a buffer to write over the header region with
+            
+            // Create a buffer to write over the header region with
 
             var buffer = new byte[(int) memoryInformation.RegionSize];
 
-            // Write over the header region
-
-            return WriteMemory(processHandle, dllBaseAddress, buffer);
+            // Write over the header region with the buffer
+            
+            return _memoryModule.WriteMemory(processId, dllBaseAddress, buffer);
         }
     }
 }

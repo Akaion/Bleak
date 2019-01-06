@@ -2,125 +2,30 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using PeNet;
 using static Bleak.Etc.Native;
 
 namespace Bleak.Extensions
 {
-    internal static class EjectDll
+    internal class EjectDll
     {
-        internal static bool Eject(string dllPath, string processName)
+        internal bool Eject(Process process, string dllPath)
         {
-            // Ensure both parameters are valid
+            // Ensure the process has kernel32.dll loaded
 
-            if (string.IsNullOrEmpty(dllPath) || string.IsNullOrEmpty(processName))
-            {
-                return false;
-            }
-
-            // Ensure the dll exists
-
-            if (!File.Exists(dllPath))
+            if (LoadLibrary("kernel32.dll") is null)
             {
                 return false;
             }
             
-            // Get the pe headers
-
-            var peHeaders = new PeFile(dllPath);
+            // Get the address of the FreeLibrary method in kernel32.dll
             
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessesByName(processName)[0];
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            // Eject the dll
-
-            return Eject(dllPath, process);            
-        }
-        
-        internal static bool Eject(string dllPath, int processId)
-        {
-            // Ensure both parameters are valid
-
-            if (string.IsNullOrEmpty(dllPath) || processId == 0)
-            {
-                return false;
-            }
-
-            // Ensure the dll exists
-
-            if (!File.Exists(dllPath))
-            {
-                return false;
-            }
-            
-            // Get the pe headers
-
-            var peHeaders = new PeFile(dllPath);
-            
-            // Ensure the dll architecture is the same as the compiled architecture
-
-            if (peHeaders.Is64Bit != Environment.Is64BitProcess)
-            {
-                return false;
-            }
-
-            // Get an instance of the specified process
-
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessById(processId);
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-
-            // Eject the dll
-
-            return Eject(dllPath, process);
-        }
-        
-        private static bool Eject(string dllPath, Process process)
-        {
-            // Get the address of the free library method
-
             var freeLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "FreeLibrary");
 
             if (freeLibraryAddress == IntPtr.Zero)
             {
                 return false;
             }
-
-            // Get a handle to the specified process
-
-            var processHandle = process.SafeHandle;
-
-            if (processHandle == null)
-            {
-                return false;
-            }
-
+            
             // Get the name of the dll
 
             var dllName = Path.GetFileName(dllPath);
@@ -129,36 +34,40 @@ namespace Bleak.Extensions
             
             var module = process.Modules.Cast<ProcessModule>().SingleOrDefault(m => string.Equals(m.ModuleName, dllName, StringComparison.OrdinalIgnoreCase));
 
-            if (module == null)
+            if (module is null)
             {
                 return false;
             }
+            
+            // Get the base address of the dll
 
-            // Get the dll base address
-            
             var dllBaseAddress = module.BaseAddress;
-            
+
             if (dllBaseAddress == IntPtr.Zero)
             {
                 return false;
             }
             
-            // Create a user thread to call free library in the specified process
+            // Open a handle to the process
+
+            var processHandle = process.SafeHandle;
             
-            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, freeLibraryAddress, dllBaseAddress, out var userThreadHandle, IntPtr.Zero);
+            // Create a remote thread to call free library in the process
             
-            if (userThreadHandle == IntPtr.Zero)
+            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, freeLibraryAddress, dllBaseAddress, out var remoteThreadHandle, 0);
+
+            if (remoteThreadHandle is null)
             {
                 return false;
             }
             
-            // Wait for the user thread to finish
-
-            WaitForSingleObject(userThreadHandle, int.MaxValue);
+            // Wait for the remote thread to finish its task
             
-            // Close the previously opened handle
-
-            CloseHandle(userThreadHandle);
+            WaitForSingleObject(remoteThreadHandle, int.MaxValue);
+            
+            // Close the handle opened to the process
+            
+            processHandle.Close();
             
             return true;
         }
