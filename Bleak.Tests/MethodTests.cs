@@ -35,10 +35,6 @@ namespace Bleak.Tests
             // Inject the test dll
             
             Assert.True(_injector.CreateRemoteThread(_hostProcessName, _dllPath));
-
-            // Eject the test dll
-            
-            _injector.EjectDll(_hostProcessName, _dllPath);
         }
 
         [Fact]
@@ -55,10 +51,6 @@ namespace Bleak.Tests
             // Inject the test dll
             
             Assert.True(_injector.NtCreateThreadEx(_hostProcessName, _dllPath));
-
-            // Eject the test dll
-            
-            _injector.EjectDll(_hostProcessName, _dllPath);
         }
 
         [Fact]
@@ -67,10 +59,6 @@ namespace Bleak.Tests
             // Inject the test dll
             
             Assert.True(_injector.QueueUserApc(_hostProcessName, _dllPath));
-
-            // Eject the test dll
-            
-            _injector.EjectDll(_hostProcessName, _dllPath);
         }
 
         [Fact]
@@ -79,10 +67,6 @@ namespace Bleak.Tests
             // Inject the test dll
             
             Assert.True(_injector.RtlCreateUserThread(_hostProcessName, _dllPath));
-
-            // Eject the test dll
-            
-            _injector.EjectDll(_hostProcessName, _dllPath);
         }
 
         [Fact]
@@ -91,10 +75,6 @@ namespace Bleak.Tests
             // Inject the test dll
             
             Assert.True(_injector.SetThreadContext(_hostProcessName, _dllPath));
-
-            // Eject the test dll
-            
-            _injector.EjectDll(_hostProcessName, _dllPath);
         }
 
         [Fact]
@@ -103,10 +83,6 @@ namespace Bleak.Tests
             // Inject the test dll
             
             Assert.True(_injector.ZwCreateThreadEx(_hostProcessName, _dllPath));
-            
-            // Eject the test dll
-            
-            _injector.EjectDll(_hostProcessName, _dllPath);
         }
     }
 }

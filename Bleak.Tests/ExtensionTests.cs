@@ -51,10 +51,6 @@ namespace Bleak.Tests
             // Erase the test dll headers
             
             Assert.True(_injector.EraseHeaders(_hostProcessName, _dllPath));
-            
-            // Eject the test dll
-
-            _injector.EjectDll(_hostProcessName, _dllPath);
         }
 
         [Fact]
@@ -67,10 +63,6 @@ namespace Bleak.Tests
             // Erase the test dll headers
             
             Assert.True(_injector.RandomiseHeaders(_hostProcessName, _dllPath));
-            
-            // Eject the test dll
-
-            _injector.EjectDll(_hostProcessName, _dllPath);
         }   
     }
 }
