@@ -1,10 +1,10 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Text;
 using Bleak.Etc;
+using Bleak.Services;
 using Jupiter;
-using static Bleak.Etc.Native;
 
 namespace Bleak.Methods
 {
@@ -21,9 +21,9 @@ namespace Bleak.Methods
         {
             // Ensure the process has kernel32.dll loaded
 
-            if (LoadLibrary("kernel32.dll") is null)
+            if (Native.LoadLibrary("kernel32.dll") is null)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to load kernel32.dll into the process");
             }
             
             // Get the id of the process
@@ -32,31 +32,41 @@ namespace Bleak.Methods
             
             // Get the address of the LoadLibraryW method from kernel32.dll
             
-            var loadLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
+            var loadLibraryAddress = Native.GetProcAddress(Native.GetModuleHandle("kernel32.dll"), "LoadLibraryW");
             
             if (loadLibraryAddress == IntPtr.Zero)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to find the address of the LoadLibraryW method in kernel32.dll");
             }
             
             // Allocate memory for the dll path in the process
             
             var dllPathSize = dllPath.Length;
 
-            var dllPathAddress = _memoryModule.AllocateMemory(processId, dllPathSize);
+            var dllPathAddress = IntPtr.Zero;
 
-            if (dllPathAddress == IntPtr.Zero)
+            try
             {
-                return false;
+                dllPathAddress = _memoryModule.AllocateMemory(processId, dllPathSize);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the dll path in the process");
             }
             
             // Write the dll path into the process
             
             var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
 
-            if (!_memoryModule.WriteMemory(processId, dllPathAddress, dllPathBytes))
+            try
             {
-                return false;
+                _memoryModule.WriteMemory(processId, dllPathAddress, dllPathBytes);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the process");   
             }
             
             // Open a handle to the process
@@ -65,71 +75,64 @@ namespace Bleak.Methods
             
             // Determine if the process is running under WOW64
 
-            IsWow64Process(processHandle, out var isWow64);
+            Native.IsWow64Process(processHandle, out var isWow64);
             
             // Allocate memory for the shellcode in the process
 
             var shellcodeSize = isWow64 ? 22 : 87;
 
-            var shellcodeAddress = _memoryModule.AllocateMemory(processId, shellcodeSize);
+            var shellcodeAddress = IntPtr.Zero;
 
-            if (shellcodeAddress == IntPtr.Zero)
+            try
             {
-                return false;
+                shellcodeAddress = _memoryModule.AllocateMemory(processId, shellcodeSize);
             }
-            
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the shellcode in the process");              
+            }
+
             // Get the id of the first thread in the process
 
             var threadId = process.Threads[0].Id;
             
             // Open a handle to the thread
 
-            var threadHandle = OpenThread(ThreadAccess.AllAccess, false, threadId);
+            var threadHandle = Native.OpenThread(Native.ThreadAccess.AllAccess, false, threadId);
 
             if (threadHandle is null)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to open a handle to the first thread in the process");
             }
             
             // Suspend the thread
 
-            if (SuspendThread(threadHandle) == -1)
+            if (Native.SuspendThread(threadHandle) == -1)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to suspend the first thread in the process");
             }
             
             // If the process is x86
             
             if (isWow64)
             {
-                var threadContext = new Context {Flags = ContextFlags.ContextControl};
-                
-                // Get the size of the structure
-                
-                var threadContextSize = Marshal.SizeOf(threadContext);
+                var threadContext = new Native.Context {Flags = Native.ContextFlags.ContextControl};
 
-                // Allocate memory for a buffer to store the structure
+                // Store the thread context structure in a buffer
                 
-                var buffer = Marshal.AllocHGlobal(threadContextSize);
-                
-                // Convert the structure to bytes
-                
-                var threadContextBytes = Tools.StructureToBytes(threadContext);
-                
-                // Copy the structure bytes into the buffer
-                
-                Marshal.Copy(threadContextBytes, 0, buffer, threadContextSize);
+                var threadContextBuffer = Tools.StructureToPointer(threadContext);
                 
                 // Get the context of the thread and save it in the buffer
                 
-                if (!GetThreadContext(threadHandle, buffer))
+                if (!Native.GetThreadContext(threadHandle, threadContextBuffer))
                 {    
-                    return false;
+                    ExceptionHandler.ThrowWin32Exception("Failed to get the context of the first thread in the process");
                 }
                 
                 // Read the new thread context structure from the buffer
                 
-                threadContext = Tools.PointerToStructure<Context>(buffer);
+                threadContext = Tools.PointerToStructure<Native.Context>(threadContextBuffer);
                 
                 // Save the instruction pointer
 
@@ -137,69 +140,54 @@ namespace Bleak.Methods
                 
                 // Write the shellcode into the memory of the process
 
-                var shellcode = Shellcode.CallLoadLibraryx86(instructionPointer, dllPathAddress, loadLibraryAddress);
+                var shellcodeBytes = Shellcode.CallLoadLibraryx86(instructionPointer, dllPathAddress, loadLibraryAddress);
 
-                if (!_memoryModule.WriteMemory(processId, shellcodeAddress, shellcode))
+                try
                 {
-                    return false;
+                    _memoryModule.WriteMemory(processId, shellcodeAddress, shellcodeBytes);
+                }
+
+                catch (Win32Exception)
+                {
+                    ExceptionHandler.ThrowWin32Exception("Failed to write the shellcode into the memory of the process");   
                 }
                 
                 // Change the instruction pointer to the shellcode address
 
                 threadContext.Eip = shellcodeAddress;
                 
-                // Convert the structure to bytes
+                // Store the thread context structure in a buffer
                 
-                threadContextBytes = Tools.StructureToBytes(threadContext);
-                
-                // Copy the structure bytes into the buffer
-                
-                Marshal.Copy(threadContextBytes, 0, buffer, threadContextSize);
-                
+                threadContextBuffer = Tools.StructureToPointer(threadContext);
+
                 // Set the context of the thread with the new context
 
-                if (!SetThreadContext(threadHandle, buffer))
+                if (!Native.SetThreadContext(threadHandle, threadContextBuffer))
                 {
-                    return false;
+                    ExceptionHandler.ThrowWin32Exception("Failed to set the context of the first thread in the process");
                 }
-                
-                // Free the memory previously allocated for the buffer
-                
-                Marshal.FreeHGlobal(buffer);
             }
 
             // If the process is x64
             
             else
             {   
-                var threadContext = new Context64 {Flags = ContextFlags.ContextControl};
+                var threadContext = new Native.Context64 {Flags = Native.ContextFlags.ContextControl};
 
-                // Get the size of the structure
+                // Store the thread context structure in a buffer
                 
-                var threadContextSize = Marshal.SizeOf(threadContext);
-                
-                // Allocate memory for a buffer to store the structure
-                
-                var buffer = Marshal.AllocHGlobal(threadContextSize);
-
-                // Convert the structure to bytes
-                
-                var threadContextBytes = Tools.StructureToBytes(threadContext);
-                
-                // Copy the structure bytes into the buffer
-                
-                Marshal.Copy(threadContextBytes, 0, buffer, threadContextSize);
+                var threadContextBuffer = Tools.StructureToPointer(threadContext);
                 
                 // Get the context of the thread and save it in the buffer
                 
-                if (!GetThreadContext(threadHandle, buffer))
+                if (!Native.GetThreadContext(threadHandle, threadContextBuffer))
                 {    
-                    return false;
+                    ExceptionHandler.ThrowWin32Exception("Failed to get the context of the first thread in the process");
                 }
 
                 // Read the new thread context structure from the buffer
                 
-                threadContext = Tools.PointerToStructure<Context64>(buffer);
+                threadContext = Tools.PointerToStructure<Native.Context64>(threadContextBuffer);
                 
                 // Save the instruction pointer
 
@@ -207,77 +195,84 @@ namespace Bleak.Methods
 
                 // Write the shellcode into the memory of the process
 
-                var shellcode = Shellcode.CallLoadLibraryx64(instructionPointer, dllPathAddress, loadLibraryAddress);
+                var shellcodeBytes = Shellcode.CallLoadLibraryx64(instructionPointer, dllPathAddress, loadLibraryAddress);
 
-                if (!_memoryModule.WriteMemory(processId, shellcodeAddress, shellcode))
+                try
                 {
-                    return false;
+                    _memoryModule.WriteMemory(processId, shellcodeAddress, shellcodeBytes);
+                }
+
+                catch (Win32Exception)
+                {
+                    ExceptionHandler.ThrowWin32Exception("Failed to write the shellcode into the memory of the process");   
                 }
                 
                 // Change the instruction pointer to the shellcode address
 
                 threadContext.Rip = shellcodeAddress;
 
-                // Convert the structure to bytes
+                // Store the thread context structure in a buffer
                 
-                threadContextBytes = Tools.StructureToBytes(threadContext);
-                
-                // Copy the structure bytes into the buffer
-                
-                Marshal.Copy(threadContextBytes, 0, buffer, threadContextSize);
+                threadContextBuffer = Tools.StructureToPointer(threadContext);
                 
                 // Set the context of the thread with the new context
 
-                if (!SetThreadContext(threadHandle, buffer))
+                if (!Native.SetThreadContext(threadHandle, threadContextBuffer))
                 {
-                    return false;
+                    ExceptionHandler.ThrowWin32Exception("Failed to set the context of the first thread in the process");
                 }
-                
-                // Free the memory previously allocated for the buffer
-                
-                Marshal.FreeHGlobal(buffer);
             }
             
             // Resume the suspended thread
 
-            if (ResumeThread(threadHandle) == -1)
+            if (Native.ResumeThread(threadHandle) == -1)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to resume the first thread in the process");
             }
             
-            // Open a handle to the main window handle of the process
+            // Open a handle to the main window of the process
             
             var windowHandle = new SafeWindowHandle(process.MainWindowHandle);
             
             // Switch to the process to load the dll
             
-            SwitchToThisWindow(windowHandle, true);
+            Native.SwitchToThisWindow(windowHandle, true);
 
             // Buffer the execution by 10 milliseconds to avoid freeing memory before it has been referenced
             
             Tools.AsyncWait(10);
             
             // Free the memory previously allocated for the dll path
-            
-            if (!_memoryModule.FreeMemory(processId, dllPathAddress))
+
+            try
             {
-                return false;
+                _memoryModule.FreeMemory(processId, dllPathAddress);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the dll path in the process");   
             }
             
             // Free the memory previously allocated for the shellcode
-            
-            if (!_memoryModule.FreeMemory(processId, shellcodeAddress))
+
+            try
             {
-                return false;
+                _memoryModule.FreeMemory(processId, shellcodeAddress);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the shellcode in the process");   
             }
             
             // Close the handle opened to the process
             
-            process.Close();
+            processHandle?.Close();
             
             // Close the handle opened to the thread
             
-            threadHandle.Close();
+            threadHandle?.Close();
             
             return true;
         }

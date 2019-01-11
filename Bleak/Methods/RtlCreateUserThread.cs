@@ -1,8 +1,10 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
+using Bleak.Etc;
+using Bleak.Services;
 using Jupiter;
-using static Bleak.Etc.Native;
 
 namespace Bleak.Methods
 {
@@ -19,9 +21,9 @@ namespace Bleak.Methods
         {
             // Ensure the process has kernel32.dll loaded
 
-            if (LoadLibrary("kernel32.dll") is null)
+            if (Native.LoadLibrary("kernel32.dll") is null)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to load kernel32.dll into the process");
             }
             
             // Get the id of the process
@@ -30,31 +32,41 @@ namespace Bleak.Methods
             
             // Get the address of the LoadLibraryW method from kernel32.dll
             
-            var loadLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
+            var loadLibraryAddress = Native.GetProcAddress(Native.GetModuleHandle("kernel32.dll"), "LoadLibraryW");
             
             if (loadLibraryAddress == IntPtr.Zero)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to find the address of the LoadLibraryW method in kernel32.dll");
             }
             
             // Allocate memory for the dll path in the process
             
             var dllPathSize = dllPath.Length;
 
-            var dllPathAddress = _memoryModule.AllocateMemory(processId, dllPathSize);
+            var dllPathAddress = IntPtr.Zero;
 
-            if (dllPathAddress == IntPtr.Zero)
+            try
             {
-                return false;
+                dllPathAddress = _memoryModule.AllocateMemory(processId, dllPathSize);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the dll path in the process");
             }
             
             // Write the dll path into the process
             
             var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
 
-            if (!_memoryModule.WriteMemory(processId, dllPathAddress, dllPathBytes))
+            try
             {
-                return false;
+                _memoryModule.WriteMemory(processId, dllPathAddress, dllPathBytes);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the process");   
             }
             
             // Open a handle to the process
@@ -63,22 +75,27 @@ namespace Bleak.Methods
             
             // Create a remote thread to call load library in the process
             
-            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryAddress, dllPathAddress, out var remoteThreadHandle, 0);
+            Native.RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryAddress, dllPathAddress, out var remoteThreadHandle, 0);
 
             if (remoteThreadHandle is null)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call load library in the process");
             }
             
             // Wait for the remote thread to finish its task
             
-            WaitForSingleObject(remoteThreadHandle, int.MaxValue);
+            Native.WaitForSingleObject(remoteThreadHandle, int.MaxValue);
             
             // Free the memory previously allocated for the dll path
 
-            if (!_memoryModule.FreeMemory(processId, dllPathAddress))
+            try
             {
-                return false;
+                _memoryModule.FreeMemory(processId, dllPathAddress);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the dll path in the process");   
             }
             
             // Close the handle opened to the process

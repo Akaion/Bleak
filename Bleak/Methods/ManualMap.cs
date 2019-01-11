@@ -1,12 +1,13 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Bleak.Etc;
+using Bleak.Services;
 using Jupiter;
 using PeNet;
-using static Bleak.Etc.Native;
 
 namespace Bleak.Methods
 {
@@ -49,40 +50,25 @@ namespace Bleak.Methods
             
             // Map the imports of the dll into the host process
 
-            if (!MapImports(peHeaders, baseAddress.AddrOfPinnedObject()))
-            {
-                return false;
-            }
+            MapImports(peHeaders, baseAddress.AddrOfPinnedObject());
             
             // Perform the relocations needed in the host process
 
-            if (!PerformRelocations(peHeaders, baseAddress.AddrOfPinnedObject(), remoteDllAddress))
-            {
-                return false;
-            }
+            PerformRelocations(peHeaders, baseAddress.AddrOfPinnedObject(), remoteDllAddress);
             
             // Map the sections of the dll into the remote process
 
-            if (!MapSections(peHeaders, baseAddress.AddrOfPinnedObject(), remoteDllAddress))
-            {
-                return false;
-            }
+            MapSections(peHeaders, baseAddress.AddrOfPinnedObject(), remoteDllAddress);
             
             // Map the tls entries of the dll into the remote process
 
-            if (!MapTlsEntries(peHeaders, baseAddress.AddrOfPinnedObject()))
-            {
-                return false;
-            }
+            MapTlsEntries(peHeaders, baseAddress.AddrOfPinnedObject());
             
             // Call the entry point of the dll in the remote process
 
             var dllEntryPointAddress = remoteDllAddress + (int) peHeaders.ImageNtHeaders.OptionalHeader.AddressOfEntryPoint;
 
-            if (!CallEntryPoint(remoteDllAddress, dllEntryPointAddress))
-            {
-                return false;
-            }
+            CallEntryPoint(remoteDllAddress, dllEntryPointAddress);
             
             // Unpin the dll bytes from the memory of the host process
             
@@ -91,7 +77,7 @@ namespace Bleak.Methods
             return true;
         }
 
-        private bool CallEntryPoint(IntPtr baseAddress, IntPtr entryPoint)
+        private void CallEntryPoint(IntPtr baseAddress, IntPtr entryPoint)
         {
             // Get the id of the process
 
@@ -103,125 +89,138 @@ namespace Bleak.Methods
             
             // Determine if the process is running under WOW64
 
-            IsWow64Process(processHandle, out var isWow64);
+            Native.IsWow64Process(processHandle, out var isWow64);
             
             // Create shellcode to call the entry of the dll in the process
 
-            var shellcode = isWow64 ? Shellcode.CallDllMainx86(baseAddress, entryPoint) : Shellcode.CallDllMainx64(baseAddress, entryPoint);
+            var shellcodeBytes = isWow64 ? Shellcode.CallDllMainx86(baseAddress, entryPoint) : Shellcode.CallDllMainx64(baseAddress, entryPoint);
             
             // Allocate memory for the shellcode in the process
 
-            var shellcodeSize = shellcode.Length;
+            var shellcodeSize = shellcodeBytes.Length;
 
-            var shellcodeAddress = _memoryModule.AllocateMemory(processId, shellcodeSize);
+            var shellcodeAddress = IntPtr.Zero;
 
-            if (shellcodeAddress == IntPtr.Zero)
+            try
             {
-                return false;
+                shellcodeAddress = _memoryModule.AllocateMemory(processId, shellcodeSize);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the shellcode in the process");
             }
             
             // Write the shellcode into the memory of the process
 
-            if (!_memoryModule.WriteMemory(processId, shellcodeAddress, shellcode))
+            try
             {
-                return false;
+                _memoryModule.WriteMemory(processId, shellcodeAddress, shellcodeBytes);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to write the shellcode into the memory of the process");   
             }
             
             // Create a remote thread to call the entry point in the process
             
-            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, shellcodeAddress, IntPtr.Zero, out var remoteThreadHandle, 0);
+            Native.RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, shellcodeAddress, IntPtr.Zero, out var remoteThreadHandle, 0);
 
             if (remoteThreadHandle is null)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call the entry point in the process");
             }
             
             // Wait for the remote thread to finish its task
             
-            WaitForSingleObject(remoteThreadHandle, int.MaxValue);
+            Native.WaitForSingleObject(remoteThreadHandle, int.MaxValue);
             
             // Free the memory previously allocated for the shellcode
 
-            if (!_memoryModule.FreeMemory(processId, shellcodeAddress))
+            try
             {
-                return false;
+                _memoryModule.FreeMemory(processId, shellcodeAddress);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the shellcode in the process");   
             }
             
             // Close the handle opened to the process
             
-            processHandle.Close();
+            processHandle?.Close();
             
             // Close the handle opened to the remote thread
             
-            remoteThreadHandle.Close();
-            
-            return true;
+            remoteThreadHandle?.Close();
         }
         
-        private int GetSectionProtection(DataSectionFlags characteristics)
+        private int GetSectionProtection(Native.DataSectionFlags characteristics)
         {
             var protection = 0;
             
             // Determine the protection of the section
 
-            if (characteristics.HasFlag(DataSectionFlags.MemoryNotCached))
+            if (characteristics.HasFlag(Native.DataSectionFlags.MemoryNotCached))
             {
-                protection |= (int) MemoryProtection.PageNoCache;
+                protection |= (int) Native.MemoryProtection.PageNoCache;
             }
 
-            if (characteristics.HasFlag(DataSectionFlags.MemoryExecute))
+            if (characteristics.HasFlag(Native.DataSectionFlags.MemoryExecute))
             {
-                if (characteristics.HasFlag(DataSectionFlags.MemoryRead))
+                if (characteristics.HasFlag(Native.DataSectionFlags.MemoryRead))
                 {
-                    if (characteristics.HasFlag(DataSectionFlags.MemoryWrite))
+                    if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
                     {
-                        protection |= (int) MemoryProtection.PageExecuteReadWrite;
+                        protection |= (int) Native.MemoryProtection.PageExecuteReadWrite;
                     }
 
                     else
                     {
-                        protection |= (int) MemoryProtection.PageExecuteRead;
+                        protection |= (int) Native.MemoryProtection.PageExecuteRead;
                     }
                 }
                 
-                else if (characteristics.HasFlag(DataSectionFlags.MemoryWrite))
+                else if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
                 {
-                    protection |= (int) MemoryProtection.PageExecuteWriteCopy;
+                    protection |= (int) Native.MemoryProtection.PageExecuteWriteCopy;
                 }
 
                 else
                 {
-                    protection |= (int) MemoryProtection.PageExecute;
+                    protection |= (int) Native.MemoryProtection.PageExecute;
                 }
             }
             
-            else if (characteristics.HasFlag(DataSectionFlags.MemoryRead))
+            else if (characteristics.HasFlag(Native.DataSectionFlags.MemoryRead))
             {
-                if (characteristics.HasFlag(DataSectionFlags.MemoryWrite))
+                if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
                 {
-                    protection |= (int) MemoryProtection.PageReadWrite;
+                    protection |= (int) Native.MemoryProtection.PageReadWrite;
                 }
 
                 else
                 {
-                    protection |= (int) MemoryProtection.PageReadOnly;
+                    protection |= (int) Native.MemoryProtection.PageReadOnly;
                 }
             }
             
-            else if (characteristics.HasFlag(DataSectionFlags.MemoryWrite))
+            else if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
             {
-                protection |= (int) MemoryProtection.PageWriteCopy;
+                protection |= (int) Native.MemoryProtection.PageWriteCopy;
             }
 
             else
             {
-                protection |= (int) MemoryProtection.PageNoAccess;
+                protection |= (int) Native.MemoryProtection.PageNoAccess;
             }
             
             return protection;
         }
         
-        private bool MapImports(PeFile peHeaders, IntPtr baseAddress)
+        private void MapImports(PeFile peHeaders, IntPtr baseAddress)
         {
             // Get the dll imported functions
 
@@ -235,7 +234,7 @@ namespace Bleak.Methods
             {
                 // No dll imports
                 
-                return true;
+                return;
             }
             
             // Group the imported functions by the dll they reside in
@@ -258,7 +257,7 @@ namespace Bleak.Methods
                 {
                     // Get the proc address of the imported function
 
-                    var procAddress = GetProcAddress(GetModuleHandle(importedFunction.DLL), importedFunction.Name);
+                    var procAddress = Native.GetProcAddress(Native.GetModuleHandle(importedFunction.DLL), importedFunction.Name);
                     
                     // If the dll isn't already loaded into the host process
 
@@ -266,14 +265,14 @@ namespace Bleak.Methods
                     {
                         // Load the dll into the host process
 
-                        if (LoadLibrary(importedFunction.DLL) is null)
+                        if (Native.LoadLibrary(importedFunction.DLL) is null)
                         {
-                            return false;
+                            ExceptionHandler.ThrowWin32Exception("Failed to load a dll import into the host process");
                         }
                         
                         // Get the proc address of the imported function
                         
-                        procAddress = GetProcAddress(GetModuleHandle(importedFunction.DLL), importedFunction.Name);
+                        procAddress = Native.GetProcAddress(Native.GetModuleHandle(importedFunction.DLL), importedFunction.Name);
                     }
                     
                     // Map the imported function into the host process
@@ -287,11 +286,9 @@ namespace Bleak.Methods
 
                 importDescriptorIndex += 1;
             }
-            
-            return true;
         }
 
-        private bool MapSections(PeFile peHeaders, IntPtr baseAddress, IntPtr remoteAddress)
+        private void MapSections(PeFile peHeaders, IntPtr baseAddress, IntPtr remoteAddress)
         {
             var processId = _process.Id;
             
@@ -303,7 +300,7 @@ namespace Bleak.Methods
             {
                 // Get the protection of the section
 
-                var sectionProtection = GetSectionProtection((DataSectionFlags) section.Characteristics);
+                var sectionProtection = GetSectionProtection((Native.DataSectionFlags) section.Characteristics);
                 
                 // Determine the address to map the section to in the process
 
@@ -325,23 +322,31 @@ namespace Bleak.Methods
                 
                 // Map the section into the process
 
-                if (!_memoryModule.WriteMemory(processId, sectionAddress, rawData))
+                try
                 {
-                    return false;
+                    _memoryModule.WriteMemory(processId, sectionAddress, rawData);
                 }
-                
+
+                catch (Win32Exception)
+                {
+                    ExceptionHandler.ThrowWin32Exception("Failed to write a section into the process");
+                }
+
                 // Adjust the protection of the section in the process
 
-                if (!_memoryModule.ProtectMemory(processId, sectionAddress, rawDataSize, sectionProtection))
+                try
                 {
-                    return false;
+                    _memoryModule.ProtectMemory(processId, sectionAddress, rawDataSize, sectionProtection);
+                }
+
+                catch (Win32Exception)
+                {
+                    ExceptionHandler.ThrowWin32Exception("Failed to adjust the protection of a section in the process"); 
                 }
             }
-            
-            return true;
         }
         
-        private bool MapTlsEntries(PeFile peHeaders, IntPtr baseAddress)
+        private void MapTlsEntries(PeFile peHeaders, IntPtr baseAddress)
         {
             // Get the tls directory of the dll
 
@@ -351,21 +356,24 @@ namespace Bleak.Methods
             {
                 // No tls directory
                 
-                return true;
+                return;
             }
             
             // Call the entry point for each tls callback in the process
 
-            return tlsDirectory.TlsCallbacks.All(callback => CallEntryPoint(baseAddress, (IntPtr) callback.Callback));
+            foreach (var tlsCallback in tlsDirectory.TlsCallbacks)
+            {
+                CallEntryPoint(baseAddress, (IntPtr) tlsCallback.Callback);
+            }
         }        
         
-        private static bool PerformRelocations(PeFile peHeaders, IntPtr baseAddress, IntPtr remoteAddress)
+        private void PerformRelocations(PeFile peHeaders, IntPtr baseAddress, IntPtr remoteAddress)
         {
             // Determine if any relocations need to be performed
 
             if ((peHeaders.ImageNtHeaders.FileHeader.Characteristics & 0x01) > 0)
             {
-                return true;
+                return;
             }
             
             // Get the e_lfanew value
@@ -422,8 +430,6 @@ namespace Bleak.Methods
                     }
                 }
             }
-            
-            return true;
         }
     }
 }

@@ -19,6 +19,7 @@ A Windows native DLL injection library written in C# that supports several metho
 * Eject DLL
 * Erase PE Headers
 * Randomise PE Headers
+* Unlink DLL From PEB
 
 ## Installation
 

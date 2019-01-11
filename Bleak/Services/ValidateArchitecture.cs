@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics;
+using Bleak.Etc;
 using PeNet;
-using static Bleak.Etc.Native;
 
 namespace Bleak.Services
 {
@@ -11,7 +11,7 @@ namespace Bleak.Services
         {
             // Determine if the process is running under WOW64
             
-            IsWow64Process(process.SafeHandle, out var isWow64);
+            Native.IsWow64Process(process.SafeHandle, out var isWow64);
             
             // Determine the architecture of the dll
             

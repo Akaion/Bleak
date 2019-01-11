@@ -1,10 +1,12 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Bleak.Etc;
+using Bleak.Services;
 using Jupiter;
-using static Bleak.Etc.Native;
 
 namespace Bleak.Extensions
 {
@@ -33,17 +35,12 @@ namespace Bleak.Extensions
 
             if (module is null)
             {
-                return false;
+                throw new ArgumentException($"There is no module named {dllName} loaded in the process");
             }
             
             // Get the base address of the dll
 
             var dllBaseAddress = module.BaseAddress;
-
-            if (dllBaseAddress == IntPtr.Zero)
-            {
-                return false;
-            }
 
             // Open a handle to the process
 
@@ -51,11 +48,11 @@ namespace Bleak.Extensions
             
             // Get the information about the header region of the dll
 
-            var memoryInformationSize = Marshal.SizeOf(typeof(MemoryBasicInformation));
+            var memoryInformationSize = Marshal.SizeOf(typeof(Native.MemoryBasicInformation));
 
-            if (!VirtualQueryEx(processHandle, dllBaseAddress, out var memoryInformation, memoryInformationSize))
+            if (!Native.VirtualQueryEx(processHandle, dllBaseAddress, out var memoryInformation, memoryInformationSize))
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to query the memory of the process");
             }
             
             // Create a buffer to write over the header region with
@@ -63,8 +60,22 @@ namespace Bleak.Extensions
             var buffer = new byte[(int) memoryInformation.RegionSize];
 
             // Write over the header region with the buffer
+
+            try
+            {
+                _memoryModule.WriteMemory(processId, dllBaseAddress, buffer);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to write over the header region");
+            }
+
+            // Close the handle opened to the process
             
-            return _memoryModule.WriteMemory(processId, dllBaseAddress, buffer);
+            processHandle?.Close();
+            
+            return true;
         }
     }
 }

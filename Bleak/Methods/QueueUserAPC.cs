@@ -1,9 +1,11 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using Bleak.Etc;
+using Bleak.Services;
 using Jupiter;
-using static Bleak.Etc.Native;
 
 namespace Bleak.Methods
 {
@@ -20,9 +22,9 @@ namespace Bleak.Methods
         {
             // Ensure the process has kernel32.dll loaded
 
-            if (LoadLibrary("kernel32.dll") is null)
+            if (Native.LoadLibrary("kernel32.dll") is null)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to load kernel32.dll into the process");
             }
             
             // Get the id of the process
@@ -31,56 +33,78 @@ namespace Bleak.Methods
             
             // Get the address of the LoadLibraryW method from kernel32.dll
             
-            var loadLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryW");
+            var loadLibraryAddress = Native.GetProcAddress(Native.GetModuleHandle("kernel32.dll"), "LoadLibraryW");
             
             if (loadLibraryAddress == IntPtr.Zero)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to find the address of the LoadLibraryW method in kernel32.dll");
             }
             
             // Allocate memory for the dll path in the process
             
             var dllPathSize = dllPath.Length;
 
-            var dllPathAddress = _memoryModule.AllocateMemory(processId, dllPathSize);
+            var dllPathAddress = IntPtr.Zero;
 
-            if (dllPathAddress == IntPtr.Zero)
+            try
             {
-                return false;
+                dllPathAddress = _memoryModule.AllocateMemory(processId, dllPathSize);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the dll path in the process");
             }
             
             // Write the dll path into the process
             
             var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
 
-            if (!_memoryModule.WriteMemory(processId, dllPathAddress, dllPathBytes))
+            try
             {
-                return false;
+                _memoryModule.WriteMemory(processId, dllPathAddress, dllPathBytes);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the process");   
             }
 
             foreach (var thread in process.Threads.Cast<ProcessThread>())
             {
                 // Open a handle to the thread
 
-                var threadHandle = OpenThread(ThreadAccess.SetContext, false, thread.Id);
+                var threadHandle = Native.OpenThread(Native.ThreadAccess.SetContext, false, thread.Id);
 
                 if (threadHandle is null)
                 {
-                    return false;
+                    ExceptionHandler.ThrowWin32Exception("Failed to open a handle to a thread in the process");
                 }
                 
-                // Adda user-mode APC to the APC queue of the thread
+                // Add a user-mode APC to the APC queue of the thread
 
-                if (!QueueUserAPC(loadLibraryAddress, threadHandle, dllPathAddress))
+                if (!Native.QueueUserAPC(loadLibraryAddress, threadHandle, dllPathAddress))
                 {
-                    return false;
+                    ExceptionHandler.ThrowWin32Exception("Failed to queue a user-mode apc to the apc queue of a thread in the process");
                 }
                 
                 // Close the handle opened to the thread
 
-                threadHandle.Close();
+                threadHandle?.Close();
             }
             
+            // Free the memory previously allocated for the dll path
+
+            try
+            {
+                _memoryModule.FreeMemory(processId, dllPathAddress);
+            }
+
+            catch (Win32Exception)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the dll path in the process");   
+            }
+
             return true;
         }
     }

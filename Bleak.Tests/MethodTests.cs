@@ -1,14 +1,15 @@
+using System;
 using System.Diagnostics;
 using System.IO;
 using Xunit;
 
 namespace Bleak.Tests
 {
-    public class MethodTests
+    public class MethodTests : IDisposable
     {
         private readonly Injector _injector;
 
-        private readonly string _hostProcessName;
+        private readonly Process _process;
 
         private readonly string _dllPath;
         
@@ -16,17 +17,26 @@ namespace Bleak.Tests
         {
             _injector = new Injector();
 
-            // Get the name of the host process
-            
-            _hostProcessName = Process.GetCurrentProcess().ProcessName;
-            
             // Get the root directory 
             
             var rootDirectory = Path.GetFullPath(@"..\..\..\Etc\");
+
+            // Initialize a test process
+            
+            _process = new Process { StartInfo = {CreateNoWindow = true, FileName = "notepad.exe" } };
+
+            _process.Start();
             
             // Get the path to the test dll
             
             _dllPath = Path.Combine(rootDirectory, "TestDll.dll");
+        }
+
+        public void Dispose()
+        {
+            // Terminate the test process
+
+            _process.Kill();
         }
 
         [Fact]
@@ -34,7 +44,7 @@ namespace Bleak.Tests
         {
             // Inject the test dll
             
-            Assert.True(_injector.CreateRemoteThread(_hostProcessName, _dllPath));
+            Assert.True(_injector.CreateRemoteThread(_process.Id, _dllPath));
         }
 
         [Fact]
@@ -42,7 +52,7 @@ namespace Bleak.Tests
         {
             // Inject the test dll
             
-            Assert.True(_injector.ManualMap(_hostProcessName, _dllPath));
+            Assert.True(_injector.ManualMap(_process.Id, _dllPath));
         }
 
         [Fact]
@@ -50,7 +60,7 @@ namespace Bleak.Tests
         {
             // Inject the test dll
             
-            Assert.True(_injector.NtCreateThreadEx(_hostProcessName, _dllPath));
+            Assert.True(_injector.NtCreateThreadEx(_process.Id, _dllPath));
         }
 
         [Fact]
@@ -58,7 +68,7 @@ namespace Bleak.Tests
         {
             // Inject the test dll
             
-            Assert.True(_injector.QueueUserApc(_hostProcessName, _dllPath));
+            Assert.True(_injector.QueueUserApc(_process.Id, _dllPath));
         }
 
         [Fact]
@@ -66,7 +76,7 @@ namespace Bleak.Tests
         {
             // Inject the test dll
             
-            Assert.True(_injector.RtlCreateUserThread(_hostProcessName, _dllPath));
+            Assert.True(_injector.RtlCreateUserThread(_process.Id, _dllPath));
         }
 
         [Fact]
@@ -74,7 +84,7 @@ namespace Bleak.Tests
         {
             // Inject the test dll
             
-            Assert.True(_injector.SetThreadContext(_hostProcessName, _dllPath));
+            Assert.True(_injector.SetThreadContext(_process.Id, _dllPath));
         }
 
         [Fact]
@@ -82,7 +92,7 @@ namespace Bleak.Tests
         {
             // Inject the test dll
             
-            Assert.True(_injector.ZwCreateThreadEx(_hostProcessName, _dllPath));
+            Assert.True(_injector.ZwCreateThreadEx(_process.Id, _dllPath));
         }
     }
 }

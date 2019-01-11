@@ -104,9 +104,7 @@ namespace Bleak.Wrappers
             
             // Inject the dll
             
-            var result = injectionMethod.Inject(_process, _dllPath);
-            
-            return result;
+            return injectionMethod.Inject(_process, _dllPath);
         }
 
         internal bool ManualMap()
@@ -115,9 +113,7 @@ namespace Bleak.Wrappers
             
             // Inject the dll
             
-            var result = injectionMethod.Inject(_process, _dllPath);
-            
-            return result;
+            return injectionMethod.Inject(_process, _dllPath);
         }
 
         internal bool NtCreateThreadEx()
@@ -126,9 +122,7 @@ namespace Bleak.Wrappers
             
             // Inject the dll
 
-            var result = injectionMethod.Inject(_process, _dllPath);
-            
-            return result;
+            return injectionMethod.Inject(_process, _dllPath);
         }
 
         internal bool QueueUserApc()
@@ -137,9 +131,7 @@ namespace Bleak.Wrappers
             
             // Inject the dll
 
-            var result = injectionMethod.Inject(_process, _dllPath);
-            
-            return result;
+            return injectionMethod.Inject(_process, _dllPath);
         }
 
         internal bool RtlCreateUserThread()
@@ -148,9 +140,7 @@ namespace Bleak.Wrappers
             
             // Inject the dll
 
-            var result = injectionMethod.Inject(_process, _dllPath);
-            
-            return result;
+            return injectionMethod.Inject(_process, _dllPath);
         }
 
         internal bool SetThreadContext()
@@ -159,9 +149,7 @@ namespace Bleak.Wrappers
             
             // Inject the dll
             
-            var result = injectionMethod.Inject(_process, _dllPath);
-            
-            return result;
+            return injectionMethod.Inject(_process, _dllPath);
         }
 
         internal bool ZwCreateThreadEx()
@@ -170,9 +158,7 @@ namespace Bleak.Wrappers
 
             // Inject the dll
             
-            var result = injectionMethod.Inject(_process, _dllPath);
-            
-            return result;
+            return injectionMethod.Inject(_process, _dllPath);
         }
     }
 }

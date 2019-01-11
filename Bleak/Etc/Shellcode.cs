@@ -43,7 +43,7 @@ namespace Bleak.Etc
             var shellcode = new byte[]
             {
                 0x50,                                                       // push rax
-                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rax, 0x00 (old instruction pointer)
+                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rax, 0x00 (old instruction pointer)
                 0x9C,                                                       // pushf
                 0x51,                                                       // push rcx
                 0x52,                                                       // push rdx
@@ -60,8 +60,8 @@ namespace Bleak.Etc
                 0x41, 0x56,                                                 // push r14
                 0x41, 0x57,                                                 // push r15
                 0x68, 0x00, 0x00, 0x00, 0x00,                               // push 0x00
-                0x48, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rcx, 0x00 (dll path)
-                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rax, 0x00 (load library address)
+                0x48, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rcx, 0x00 (dll path)
+                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rax, 0x00 (load library address)
                 0xFF, 0xD0,                                                 // call rax
                 0x58,                                                       // pop rax
                 0x41, 0x5F,                                                 // pop r15
@@ -100,16 +100,6 @@ namespace Bleak.Etc
             Buffer.BlockCopy(loadLibraryAddressBytes, 0, shellcode, 51, 8);
             
             return shellcode;
-        }
-
-        internal static byte[] CallLdrLoadDllx86()
-        {
-            return null;
-        }
-
-        internal static byte[] CallLdrLoadDllx64()
-        {
-            return null;
         }
 
         internal static byte[] CallDllMainx86(IntPtr baseAddress, IntPtr entryPointAddress)

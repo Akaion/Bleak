@@ -2,7 +2,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using static Bleak.Etc.Native;
+using Bleak.Etc;
+using Bleak.Services;
 
 namespace Bleak.Extensions
 {
@@ -12,18 +13,18 @@ namespace Bleak.Extensions
         {
             // Ensure the process has kernel32.dll loaded
 
-            if (LoadLibrary("kernel32.dll") is null)
+            if (Native.LoadLibrary("kernel32.dll") is null)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to load kernel32.dll into the process");
             }
             
             // Get the address of the FreeLibrary method in kernel32.dll
             
-            var freeLibraryAddress = GetProcAddress(GetModuleHandle("kernel32.dll"), "FreeLibrary");
+            var freeLibraryAddress = Native.GetProcAddress(Native.GetModuleHandle("kernel32.dll"), "FreeLibrary");
 
             if (freeLibraryAddress == IntPtr.Zero)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to find the address of the FreeLibrary method in kernel32.dll");
             }
             
             // Get the name of the dll
@@ -36,17 +37,12 @@ namespace Bleak.Extensions
 
             if (module is null)
             {
-                return false;
+                throw new ArgumentException($"There is no module named {dllName} loaded in the process");
             }
             
             // Get the base address of the dll
 
             var dllBaseAddress = module.BaseAddress;
-
-            if (dllBaseAddress == IntPtr.Zero)
-            {
-                return false;
-            }
             
             // Open a handle to the process
 
@@ -54,20 +50,24 @@ namespace Bleak.Extensions
             
             // Create a remote thread to call free library in the process
             
-            RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, freeLibraryAddress, dllBaseAddress, out var remoteThreadHandle, 0);
+            Native.RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, freeLibraryAddress, dllBaseAddress, out var remoteThreadHandle, 0);
 
             if (remoteThreadHandle is null)
             {
-                return false;
+                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call free library in the process");
             }
             
             // Wait for the remote thread to finish its task
             
-            WaitForSingleObject(remoteThreadHandle, int.MaxValue);
+            Native.WaitForSingleObject(remoteThreadHandle, int.MaxValue);
             
             // Close the handle opened to the process
             
-            processHandle.Close();
+            processHandle?.Close();
+            
+            // Close the handle opened to the remote thread
+            
+            remoteThreadHandle?.Close();
             
             return true;
         }

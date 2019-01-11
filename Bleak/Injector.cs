@@ -26,16 +26,16 @@ namespace Bleak
         
         public bool EjectDll(string processName, string dllPath)
         {
-            var methodWrapper = new ExtensionWrapper(processName, dllPath);
+            var extensionWrapper = new ExtensionWrapper(processName, dllPath);
 
-            return methodWrapper.EjectDll();
+            return extensionWrapper.EjectDll();
         }
         
         public bool EjectDll(int processId, string dllPath)
         {
-            var methodWrapper = new ExtensionWrapper(processId, dllPath);
+            var extensionWrapper = new ExtensionWrapper(processId, dllPath);
 
-            return methodWrapper.EjectDll();
+            return extensionWrapper.EjectDll();
         }
         
         #endregion
@@ -44,16 +44,16 @@ namespace Bleak
         
         public bool EraseHeaders(string processName, string dllPath)
         {
-            var methodWrapper = new ExtensionWrapper(processName, dllPath);
+            var extensionWrapper = new ExtensionWrapper(processName, dllPath);
 
-            return methodWrapper.EraseHeaders();
+            return extensionWrapper.EraseHeaders();
         }
         
         public bool EraseHeaders(int processId, string dllPath)
         {
-            var methodWrapper = new ExtensionWrapper(processId, dllPath);
+            var extensionWrapper = new ExtensionWrapper(processId, dllPath);
 
-            return methodWrapper.EraseHeaders();
+            return extensionWrapper.EraseHeaders();
         }
         
         #endregion
@@ -116,16 +116,16 @@ namespace Bleak
         
         public bool RandomiseHeaders(string processName, string dllPath)
         {
-            var methodWrapper = new ExtensionWrapper(processName, dllPath);
+            var extensionWrapper = new ExtensionWrapper(processName, dllPath);
 
-            return methodWrapper.RandomiseHeaders();
+            return extensionWrapper.RandomiseHeaders();
         }
         
         public bool RandomiseHeaders(int processId, string dllPath)
         {
-            var methodWrapper = new ExtensionWrapper(processId, dllPath);
+            var extensionWrapper = new ExtensionWrapper(processId, dllPath);
 
-            return methodWrapper.RandomiseHeaders();
+            return extensionWrapper.RandomiseHeaders();
         }
         
         #endregion
@@ -162,6 +162,24 @@ namespace Bleak
             var methodWrapper = new MethodWrapper(processId, dllPath);
 
             return methodWrapper.SetThreadContext();
+        }
+        
+        #endregion
+        
+        #region UnlinkFromPeb
+
+        public bool UnlinkFromPeb(string processName, string dllPath)
+        {
+            var extensionWrapper = new ExtensionWrapper(processName, dllPath);
+
+            return extensionWrapper.UnlinkFromPeb();
+        }
+        
+        public bool UnlinkFromPeb(int processId, string dllPath)
+        {
+            var extensionWrapper = new ExtensionWrapper(processId, dllPath);
+
+            return extensionWrapper.UnlinkFromPeb();
         }
         
         #endregion

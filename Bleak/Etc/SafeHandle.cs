@@ -1,6 +1,5 @@
 using System;
 using Microsoft.Win32.SafeHandles;
-using static Bleak.Etc.Native;
 
 namespace Bleak.Etc
 {
@@ -10,7 +9,7 @@ namespace Bleak.Etc
 
         protected override bool ReleaseHandle()
         {
-            return CloseHandle(handle);
+            return Native.CloseHandle(handle);
         }
     }
     
@@ -20,7 +19,7 @@ namespace Bleak.Etc
 
         protected override bool ReleaseHandle()
         {
-            return CloseHandle(handle);
+            return Native.CloseHandle(handle);
         }
     }
     
@@ -33,7 +32,7 @@ namespace Bleak.Etc
         
         protected override bool ReleaseHandle()
         {
-            return CloseHandle(handle);
+            return Native.CloseHandle(handle);
         }
     }
 }

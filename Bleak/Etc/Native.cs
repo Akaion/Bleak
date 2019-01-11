@@ -10,67 +10,70 @@ namespace Bleak.Etc
         
         // kernel32.dll imports
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool CloseHandle(IntPtr handle);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern SafeThreadHandle CreateRemoteThread(SafeProcessHandle processHandle, IntPtr threadAttributes, int stackSize, IntPtr startAddress, IntPtr parameter, int creationFlags, int threadId);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern SafeModuleHandle GetModuleHandle(string moduleName);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern IntPtr GetProcAddress(SafeModuleHandle moduleHandle, string procName);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool GetThreadContext(SafeThreadHandle threadHandle, IntPtr context);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool IsWow64Process(SafeProcessHandle processHandle, out bool isWow64Process);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern SafeModuleHandle LoadLibrary(string fileName);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern SafeThreadHandle OpenThread(ThreadAccess desiredAccess, bool inheritHandle, int threadId);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool QueueUserAPC(IntPtr apc, SafeThreadHandle threadHandle, IntPtr data);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern int ResumeThread(SafeThreadHandle threadHandle);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool SetThreadContext(SafeThreadHandle threadHandle, IntPtr context);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern int SuspendThread(SafeThreadHandle threadHandle);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool VirtualQueryEx(SafeProcessHandle processHandle, IntPtr baseAddress, out MemoryBasicInformation buffer, int length);
         
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern void WaitForSingleObject(SafeHandle handle, int milliseconds);
         
         // dbghelp.dll imports
 
-        [DllImport("dbghelp.dll")]
+        [DllImport("dbghelp.dll", SetLastError = true)]
         internal static extern IntPtr ImageRvaToVa(IntPtr ntHeader, IntPtr address, IntPtr rva, IntPtr lastRvaSection);
         
         // ntdll.dll imports
 
-        [DllImport("ntdll.dll")]
+        [DllImport("ntdll.dll", SetLastError = true)]
         internal static extern void NtCreateThreadEx(out SafeThreadHandle threadHandle, AccessMask desiredAccess, IntPtr objectAttributes, SafeProcessHandle processHandle, IntPtr startAddress, IntPtr parameter, CreationFlags creationFlags, int stackZeroBits, int sizeOfStack, int maximumStackSize, IntPtr attributeList);
         
-        [DllImport("ntdll.dll")]
+        [DllImport("ntdll.dll", SetLastError = true)]
+        internal static extern void NtQueryInformationProcess(SafeProcessHandle processHandle, int processInformationClass, IntPtr pbi, int processInformationLength, int returnLength);
+        
+        [DllImport("ntdll.dll", SetLastError = true)]
         internal static extern void RtlCreateUserThread(SafeProcessHandle processHandle, IntPtr threadSecurity, bool createSuspended, int stackZeroBits, IntPtr stackReserved, IntPtr stackCommit, IntPtr startAddress, IntPtr parameter, out SafeThreadHandle threadHandle, int clientId);
 
-        [DllImport("ntdll.dll")]
+        [DllImport("ntdll.dll", SetLastError = true)]
         internal static extern void ZwCreateThreadEx(out SafeThreadHandle threadHandle, AccessMask desiredAccess, IntPtr objectAttributes, SafeProcessHandle processHandle, IntPtr startAddress, IntPtr parameter, CreationFlags creationFlags, int stackZeroBits, int sizeOfStack, int maximumStackSize, IntPtr attributeList);
         
         // user32.dll imports
         
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         internal static extern void SwitchToThisWindow(SafeWindowHandle windowHandle, bool altTab);
         
         #endregion
@@ -106,14 +109,6 @@ namespace Bleak.Etc
         }
         
         [Flags]
-        internal enum MemoryAllocation
-        {
-            Commit = 0x01000,
-            Reserve = 0x02000,
-            Release = 0x08000
-        }
-        
-        [Flags]
         internal enum MemoryProtection
         {
             PageNoAccess = 0x01,
@@ -142,25 +137,6 @@ namespace Bleak.Etc
 
         #region Structures
 
-        [StructLayout(LayoutKind.Sequential)]
-        private struct FloatingSaveArea
-        {
-            private readonly uint ControlWord;
-            private readonly uint StatusWord;
-            private readonly uint TagWord;
-
-            private readonly uint ErrorOffset;
-            private readonly uint ErrorSelector;
-
-            private readonly uint DataOffset;
-            private readonly uint DataSelector;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 80)]
-            private readonly byte[] RegisterArea;
-
-            private readonly uint Cr0NpxState;
-        }
-        
         [StructLayout(LayoutKind.Sequential)]
         internal struct Context
         {
@@ -196,46 +172,6 @@ namespace Bleak.Etc
 
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 512)]
             private readonly byte[] ExtendedRegisters;
-        }
-        
-        [StructLayout(LayoutKind.Sequential)]
-        private struct M128A
-        {
-            private readonly ulong High;
-            private readonly ulong Low;
-        }
-        
-        [StructLayout(LayoutKind.Sequential, Pack = 16)]
-        private struct SaveFormat
-        {
-            private readonly ushort ControlWord;
-            private readonly ushort StatusWord;
-            private readonly byte TagWord;
-
-            private readonly byte Reserved1;
-
-            private readonly ushort ErrorOpcode;
-            private readonly uint ErrorOffset;
-            private readonly ushort ErrorSelector;
-
-            private readonly ushort Reserved2;
-
-            private readonly uint DataOffset;
-            private readonly ushort DataSelector;
-
-            private readonly ushort Reserved3;
-
-            private readonly uint MxCsr;
-            private readonly uint MxCsr_Mask;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-            private readonly M128A[] FloatRegisters;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
-            private readonly M128A[] XmmRegisters;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 96)]
-            private readonly byte[] Reserved4;
         }
         
         [StructLayout(LayoutKind.Sequential, Pack = 16)]
@@ -299,6 +235,72 @@ namespace Bleak.Etc
         }
         
         [StructLayout(LayoutKind.Sequential)]
+        private struct FloatingSaveArea
+        {
+            private readonly uint ControlWord;
+            private readonly uint StatusWord;
+            private readonly uint TagWord;
+
+            private readonly uint ErrorOffset;
+            private readonly uint ErrorSelector;
+
+            private readonly uint DataOffset;
+            private readonly uint DataSelector;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 80)]
+            private readonly byte[] RegisterArea;
+
+            private readonly uint Cr0NpxState;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct LdrDataTableEntry
+        {
+            internal readonly ListEntry InLoadOrderLinks;
+            internal readonly ListEntry InMemoryOrderLinks;
+            internal readonly ListEntry InInitOrderLinks;
+
+            private readonly IntPtr DllBase;
+
+            private readonly IntPtr EntryPoint;
+
+            private readonly ulong SizeOfImage;
+
+            internal UnicodeString FullDllName;
+
+            internal UnicodeString BaseDllName;
+
+            private readonly uint Flags;
+
+            private readonly ushort LoadCount;
+
+            private readonly ushort TlsIndex;
+
+            private readonly ListEntry HashTableEntry;
+
+            private readonly uint TimeDateStamp;
+
+            private readonly IntPtr EntryPointActivationContext;
+
+            private readonly IntPtr PatchInformation;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct ListEntry
+        {
+            internal IntPtr Flink;
+
+            internal IntPtr Blink;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        private struct M128A
+        {
+            private readonly ulong High;
+            private readonly ulong Low;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
         internal struct MemoryBasicInformation
         {
             private readonly IntPtr BaseAddress;
@@ -313,7 +315,125 @@ namespace Bleak.Etc
             private readonly uint Type;
         }
         
-        #endregion
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct Peb
+        {
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
+            private readonly byte[] Reserved1;
 
+            private readonly byte BeingDebugged;
+
+            private readonly byte Reserved2;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
+            private readonly IntPtr[] Reserved3;
+
+            internal readonly IntPtr Ldr;
+
+            private readonly IntPtr ProcessParameters;
+            
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
+            private readonly IntPtr[] Reserved4;
+
+            private readonly IntPtr AtlThunkSListPtr;
+            
+            private readonly IntPtr Reserved5;
+            
+            private readonly IntPtr Reserved6;
+            
+            private readonly IntPtr Reserved7;
+            
+            private readonly ulong Reserved8;
+            
+            private readonly ulong AtlThunkSListPtr32;
+            
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 45)]
+            private readonly IntPtr[] Reserved9;
+            
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 96)]
+            private readonly byte[] Reserved10;
+
+            private readonly IntPtr PostProcessInitRoutine;
+            
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 128)]
+            private readonly byte[] Reserved11;
+            
+            private readonly IntPtr Reserved12;
+
+            private readonly ulong SessionId;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct PebLdrData
+        {
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
+            private readonly byte[] Reserved1;
+
+            private readonly IntPtr Reserved2;
+
+            internal readonly ListEntry InLoadOrderModuleList;
+            private readonly ListEntry InMemoryOrderModuleList;
+            private readonly ListEntry InInitOrderModuleList;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct ProcessBasicInformation
+        {
+            private readonly IntPtr ExitStatus;
+
+            internal readonly IntPtr PebBaseAddress;
+
+            private readonly IntPtr AffinityMask;
+
+            private readonly IntPtr BasePriority;
+
+            private readonly IntPtr UniqueProcessId;
+            private readonly IntPtr InheritedFromUniqueProcessId;
+        }
+        
+        [StructLayout(LayoutKind.Sequential, Pack = 16)]
+        private struct SaveFormat
+        {
+            private readonly ushort ControlWord;
+            private readonly ushort StatusWord;
+            private readonly byte TagWord;
+
+            private readonly byte Reserved1;
+
+            private readonly ushort ErrorOpcode;
+            private readonly uint ErrorOffset;
+            private readonly ushort ErrorSelector;
+
+            private readonly ushort Reserved2;
+
+            private readonly uint DataOffset;
+            private readonly ushort DataSelector;
+
+            private readonly ushort Reserved3;
+
+            private readonly uint MxCsr;
+            private readonly uint MxCsr_Mask;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
+            private readonly M128A[] FloatRegisters;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+            private readonly M128A[] XmmRegisters;
+
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 96)]
+            private readonly byte[] Reserved4;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct UnicodeString
+        {
+            internal readonly ushort Length;
+
+            internal readonly ushort MaxLength;
+
+            internal IntPtr Buffer;
+        }
+        
+        #endregion
     }
 }

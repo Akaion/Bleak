@@ -104,9 +104,7 @@ namespace Bleak.Wrappers
             
             // Eject the dll
 
-            var result = extensionMethod.Eject(_process, _dllPath);
-
-            return result;
+            return extensionMethod.Eject(_process, _dllPath);
         }
 
         internal bool EraseHeaders()
@@ -115,9 +113,7 @@ namespace Bleak.Wrappers
             
             // Erase the dll headers
 
-            var result = extensionMethod.Erase(_process, _dllPath);
-
-            return result;
+            return extensionMethod.Erase(_process, _dllPath);
         }
 
         internal bool RandomiseHeaders()
@@ -126,9 +122,16 @@ namespace Bleak.Wrappers
             
             // Randomise the dll headers
 
-            var result = extensionMethod.Randomise(_process, _dllPath);
+            return extensionMethod.Randomise(_process, _dllPath);
+        }
 
-            return result;
-        }     
+        internal bool UnlinkFromPeb()
+        {
+            var extensionMethod = new UnlinkFromPeb();
+            
+            // Unlink the dll from the peb
+
+            return extensionMethod.Unlink(_process, _dllPath);
+        }
     }
 }

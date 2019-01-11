@@ -1,7 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using static Bleak.Etc.Native;
 
 namespace Bleak.Etc
 {
@@ -11,7 +10,6 @@ namespace Bleak.Etc
         {
             await Task.Delay(milliseconds);
         }
-        
         
         internal static TStructure PointerToStructure<TStructure>(IntPtr address)
         {
@@ -26,36 +24,24 @@ namespace Bleak.Etc
         {
             // Convert a relative virtual address to a virtual address
 
-            return ImageRvaToVa(baseAddress + eLfanew, baseAddress, rva, IntPtr.Zero);
+            return Native.ImageRvaToVa(baseAddress + eLfanew, baseAddress, rva, IntPtr.Zero);
         }
         
-        internal static byte[] StructureToBytes<TStructure>(TStructure structure)
+        internal static IntPtr StructureToPointer<TStructure>(TStructure structure)
         {
             // Get the size of the structure
             
-            var size = Marshal.SizeOf(structure);
+            var structureSize = Marshal.SizeOf(typeof(TStructure));
 
-            // Create an array to store the bytes of the structure            
+            // Allocate memory to store the structure
             
-            var structureBytes = new byte[size];
+            var pointer = Marshal.AllocHGlobal(structureSize);
+            
+            // Store the structure in memory
+            
+            Marshal.StructureToPtr(structure, pointer, true);
 
-            // Allocate memory for a buffer to store the structure
-            
-            var buffer = Marshal.AllocHGlobal(size);
-            
-            // Store the structure in the buffer
-            
-            Marshal.StructureToPtr(structure, buffer, true);
-            
-            // Copy the structure from the buffer to the array
-            
-            Marshal.Copy(buffer, structureBytes, 0, size);
-            
-            // Free the memory previously allocated for the buffer
-            
-            Marshal.FreeHGlobal(buffer);
-
-            return structureBytes;
+            return pointer;
         }
     }
 }
