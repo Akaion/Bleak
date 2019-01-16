@@ -75,7 +75,7 @@ namespace Bleak.Methods
             
             // Create a remote thread to call load library in the process
 
-            var remoteThreadHandle = Native.CreateRemoteThread(processHandle, IntPtr.Zero, 0, loadLibraryAddress,dllPathAddress, 0, 0);
+            var remoteThreadHandle = Native.CreateRemoteThread(processHandle, IntPtr.Zero, 0, loadLibraryAddress, dllPathAddress, 0, 0);
 
             if (remoteThreadHandle is null)
             {

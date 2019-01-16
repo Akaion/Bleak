@@ -18,9 +18,9 @@ namespace Bleak.Extensions
                 ExceptionHandler.ThrowWin32Exception("Failed to load kernel32.dll into the process");
             }
             
-            // Get the address of the FreeLibrary method in kernel32.dll
+            // Get the address of the FreeLibraryAndExitThread method in kernel32.dll
             
-            var freeLibraryAddress = Native.GetProcAddress(Native.GetModuleHandle("kernel32.dll"), "FreeLibrary");
+            var freeLibraryAddress = Native.GetProcAddress(Native.GetModuleHandle("kernel32.dll"), "FreeLibraryAndExitThread");
 
             if (freeLibraryAddress == IntPtr.Zero)
             {
@@ -43,12 +43,12 @@ namespace Bleak.Extensions
             // Get the base address of the dll
 
             var dllBaseAddress = module.BaseAddress;
-            
+
             // Open a handle to the process
 
             var processHandle = process.SafeHandle;
             
-            // Create a remote thread to call free library in the process
+            // Create a remote thread to call free library and exit thread in the process
             
             Native.RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, freeLibraryAddress, dllBaseAddress, out var remoteThreadHandle, 0);
 
