@@ -29,16 +29,30 @@ A Windows native DLL injection library written in C# that supports several metho
 
 You can overload any method with the processes id instead of the processes name
 
+#### Injection Methods
+
+All injection methods follow the same syntax as described below
+
 ```csharp
 using Bleak;
 
 var injector = new Injector();
 
-// Inject using the CreateRemoteThread method
+// Inject a dll into a process using the CreateRemoteThread method
 
 injector.CreateRemoteThread("processName", "pathToDll");
+```
 
-// Erase the PE Headers
+#### Extension Methods
+
+All extension methods follow the same syntax as described below
+
+```csharp
+using Bleak;
+
+var injector = new Injector();
+
+// Erase the PE Headers of a dll loaded into a process
 
 injector.EraseHeaders("processName", "pathToDll");
 ```
