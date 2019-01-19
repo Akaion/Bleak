@@ -17,6 +17,20 @@ namespace Bleak
         {
             var methodWrapper = new MethodWrapper(processId, dllPath);
 
+            return methodWrapper.CreateRemoteThread();   
+        }
+
+        public bool CreateRemoteThread(string processName, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllBytes);
+
+            return methodWrapper.CreateRemoteThread();
+        }
+        
+        public bool CreateRemoteThread(int processId, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllBytes);
+
             return methodWrapper.CreateRemoteThread();
         }
         
@@ -34,6 +48,20 @@ namespace Bleak
         public bool EjectDll(int processId, string dllPath)
         {
             var extensionWrapper = new ExtensionWrapper(processId, dllPath);
+
+            return extensionWrapper.EjectDll();
+        }
+        
+        public bool EjectDll(string processName, byte[] dllBytes)
+        {
+            var extensionWrapper = new ExtensionWrapper(processName, dllBytes);
+
+            return extensionWrapper.EjectDll();
+        }
+        
+        public bool EjectDll(int processId, byte[] dllBytes)
+        {
+            var extensionWrapper = new ExtensionWrapper(processId, dllBytes);
 
             return extensionWrapper.EjectDll();
         }
@@ -56,6 +84,20 @@ namespace Bleak
             return extensionWrapper.EraseHeaders();
         }
         
+        public bool EraseHeaders(string processName, byte[] dllBytes)
+        {
+            var extensionWrapper = new ExtensionWrapper(processName, dllBytes);
+
+            return extensionWrapper.EraseHeaders();
+        }
+        
+        public bool EraseHeaders(int processId, byte[] dllBytes)
+        {
+            var extensionWrapper = new ExtensionWrapper(processId, dllBytes);
+
+            return extensionWrapper.EraseHeaders();
+        }
+        
         #endregion
         
         #region ManualMap
@@ -70,6 +112,20 @@ namespace Bleak
         public bool ManualMap(int processId, string dllPath)
         {
             var methodWrapper = new MethodWrapper(processId, dllPath);
+
+            return methodWrapper.ManualMap();
+        }
+        
+        public bool ManualMap(string processName, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllBytes);
+
+            return methodWrapper.ManualMap();
+        }
+        
+        public bool ManualMap(int processId, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllBytes);
 
             return methodWrapper.ManualMap();
         }
@@ -92,6 +148,20 @@ namespace Bleak
             return methodWrapper.NtCreateThreadEx();
         }
         
+        public bool NtCreateThreadEx(string processName, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllBytes);
+
+            return methodWrapper.NtCreateThreadEx();
+        }
+        
+        public bool NtCreateThreadEx(int processId, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllBytes);
+
+            return methodWrapper.NtCreateThreadEx();
+        }
+        
         #endregion
         
         #region QueueUserApc
@@ -106,6 +176,20 @@ namespace Bleak
         public bool QueueUserApc(int processId, string dllPath)
         {
             var methodWrapper = new MethodWrapper(processId, dllPath);
+
+            return methodWrapper.QueueUserApc();
+        }
+        
+        public bool QueueUserApc(string processName, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllBytes);
+
+            return methodWrapper.QueueUserApc();
+        }
+        
+        public bool QueueUserApc(int processId, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllBytes);
 
             return methodWrapper.QueueUserApc();
         }
@@ -128,6 +212,20 @@ namespace Bleak
             return extensionWrapper.RandomiseHeaders();
         }
         
+        public bool RandomiseHeaders(string processName, byte[] dllBytes)
+        {
+            var extensionWrapper = new ExtensionWrapper(processName, dllBytes);
+
+            return extensionWrapper.RandomiseHeaders();
+        }
+        
+        public bool RandomiseHeaders(int processId, byte[] dllBytes)
+        {
+            var extensionWrapper = new ExtensionWrapper(processId, dllBytes);
+
+            return extensionWrapper.RandomiseHeaders();
+        }
+        
         #endregion
         
         #region RtlCreateUserThread
@@ -142,6 +240,20 @@ namespace Bleak
         public bool RtlCreateUserThread(int processId, string dllPath)
         {
             var methodWrapper = new MethodWrapper(processId, dllPath);
+
+            return methodWrapper.RtlCreateUserThread();
+        }
+        
+        public bool RtlCreateUserThread(string processName, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllBytes);
+
+            return methodWrapper.RtlCreateUserThread();
+        }
+        
+        public bool RtlCreateUserThread(int processId, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllBytes);
 
             return methodWrapper.RtlCreateUserThread();
         }
@@ -164,6 +276,20 @@ namespace Bleak
             return methodWrapper.SetThreadContext();
         }
         
+        public bool SetThreadContext(string processName, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllBytes);
+
+            return methodWrapper.SetThreadContext();
+        }
+        
+        public bool SetThreadContext(int processId, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllBytes);
+
+            return methodWrapper.SetThreadContext();
+        }
+        
         #endregion
         
         #region UnlinkFromPeb
@@ -182,6 +308,20 @@ namespace Bleak
             return extensionWrapper.UnlinkFromPeb();
         }
         
+        public bool UnlinkFromPeb(string processName, byte[] dllBytes)
+        {
+            var extensionWrapper = new ExtensionWrapper(processName, dllBytes);
+
+            return extensionWrapper.UnlinkFromPeb();
+        }
+        
+        public bool UnlinkFromPeb(int processId, byte[] dllBytes)
+        {
+            var extensionWrapper = new ExtensionWrapper(processId, dllBytes);
+
+            return extensionWrapper.UnlinkFromPeb();
+        }
+        
         #endregion
         
         #region ZwCreateThreadEx
@@ -196,6 +336,20 @@ namespace Bleak
         public bool ZwCreateThreadEx(int processId, string dllPath)
         {
             var methodWrapper = new MethodWrapper(processId, dllPath);
+
+            return methodWrapper.ZwCreateThreadEx();
+        }
+        
+        public bool ZwCreateThreadEx(string processName, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processName, dllBytes);
+
+            return methodWrapper.ZwCreateThreadEx();
+        }
+        
+        public bool ZwCreateThreadEx(int processId, byte[] dllBytes)
+        {
+            var methodWrapper = new MethodWrapper(processId, dllBytes);
 
             return methodWrapper.ZwCreateThreadEx();
         }

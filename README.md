@@ -4,6 +4,8 @@
 
 A Windows native DLL injection library written in C# that supports several methods of injection.
 
+----
+
 ### Supported Methods
 
 * CreateRemoteThread
@@ -21,17 +23,23 @@ A Windows native DLL injection library written in C# that supports several metho
 * Randomise PE Headers
 * Unlink DLL From PEB
 
+----
+
 ### Installation
 
 * Download and install Bleak using [NuGet](https://www.nuget.org/packages/Bleak)
 
+----
+
 ### Usage
 
-You can overload any method with the processes id instead of the processes name
+Any method can be overloaded with a process id instead of a process name
+
+You also have the option to overload the dll path with a byte array representing the dll
 
 #### Injection Methods
 
-All injection methods follow the same syntax as described below
+All injection methods follow the same syntax described below
 
 ```csharp
 using Bleak;
@@ -45,17 +53,18 @@ injector.CreateRemoteThread("processName", "pathToDll");
 
 #### Extension Methods
 
-All extension methods follow the same syntax as described below
+All extension methods follow the same syntax described below
 
 ```csharp
 using Bleak;
 
 var injector = new Injector();
 
-// Erase the PE Headers of a dll loaded into a process
+// Erase the PE headers of a dll loaded in the process
 
 injector.EraseHeaders("processName", "pathToDll");
 ```
+----
 
 ### Contributing
 Pull requests are welcome. 

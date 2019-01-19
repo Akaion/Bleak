@@ -98,6 +98,96 @@ namespace Bleak.Wrappers
             _dllPath = dllPath;
         }
 
+        internal ExtensionWrapper(string processName, byte[] dllBytes)
+        {
+            // Ensure the arguments passed in are valid
+
+            if (string.IsNullOrWhiteSpace(processName) || dllBytes is null || dllBytes.Length == 0)
+            {
+                throw new ArgumentException("One or more of the arguments provided was invalid");
+            }
+            
+            // Convert the dll bytes to a temporary file on disk
+
+            var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
+            
+            if (!File.Exists(temporaryDllPath))
+            {
+                File.WriteAllBytes(temporaryDllPath, dllBytes);
+            }
+            
+            // Get an instance of the process
+
+            Process process;
+            
+            try
+            {
+                process = Process.GetProcessesByName(processName)[0];
+            }
+
+            catch (IndexOutOfRangeException)
+            {
+                // The process isn't currently running
+                
+                throw new ArgumentException($"No process with name {processName} is currently running");
+            }
+            
+            // Ensure the process architecture matches the dll architecture
+            
+            ValidateArchitecture.Validate(process, temporaryDllPath);
+            
+            // Store the values
+
+            _process = process;
+
+            _dllPath = temporaryDllPath;
+        }
+
+        internal ExtensionWrapper(int processId, byte[] dllBytes)
+        {
+            // Ensure the arguments passed in are valid
+
+            if (processId <= 0 || dllBytes is null || dllBytes.Length == 0)
+            {
+                throw new ArgumentException("One or more of the arguments provided was invalid");
+            }
+            
+            // Convert the dll bytes to a temporary file on disk
+
+            var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
+            
+            if (!File.Exists(temporaryDllPath))
+            {
+                File.WriteAllBytes(temporaryDllPath, dllBytes);
+            }
+            
+            // Get an instance of the process
+
+            Process process;
+            
+            try
+            {
+                process = Process.GetProcessById(processId);
+            }
+
+            catch (ArgumentException)
+            {
+                // The process isn't currently running
+                
+                throw new ArgumentException($"No process with id {processId} is currently running");
+            }
+            
+            // Ensure the process architecture matches the dll architecture
+            
+            ValidateArchitecture.Validate(process, temporaryDllPath);
+            
+            // Store the values
+
+            _process = process;
+
+            _dllPath = temporaryDllPath;
+        }
+        
         internal bool EjectDll()
         {
             var extensionMethod = new EjectDll();
