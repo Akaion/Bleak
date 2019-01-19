@@ -43,6 +43,20 @@ var injector = new Injector();
 injector.CreateRemoteThread("processName", "pathToDll");
 ```
 
+You also have the option to overload the dll path with a byte array representing the dll
+
+```csharp
+using Bleak;
+
+var injector = new Injector();
+
+// Inject a dll into a process using the CreateRemoteThread method
+
+injector.CreateRemoteThread("processName", dllBytes);
+```
+
+#### Note that the injected dll will show up as Bleak.dll, however, this can be hidden with the extension methods as per usual
+
 #### Extension Methods
 
 All extension methods follow the same syntax as described below
@@ -56,6 +70,18 @@ var injector = new Injector();
 
 injector.EraseHeaders("processName", "pathToDll");
 ```
+
+You also have the option to overload the dll path with a byte array representing the dll
+
+```csharp
+using Bleak;
+
+var injector = new Injector();
+
+// Erase the PE Headers of a dll loaded into a process
+
+injector.EraseHeaders("processName", dllBytes);
+``` 
 
 ### Contributing
 Pull requests are welcome. 
