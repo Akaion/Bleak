@@ -6,74 +6,66 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using Bleak.Etc;
 using Bleak.Services;
-using Jupiter;
 
 namespace Bleak.Extensions
 {
-    internal class EraseHeaders
+    internal class EraseHeaders : IDisposable
     {
-        private readonly MemoryModule _memoryModule;
+        private readonly Properties _properties;
         
-        internal EraseHeaders()
+        internal EraseHeaders(Process process, string dllPath)
         {
-            _memoryModule = new MemoryModule();
+            _properties = new Properties(process, dllPath);
         }
         
-        internal bool Erase(Process process, string dllPath)
+        public void Dispose()
         {
-            // Get the id of the process
-
-            var processId = process.Id;
-            
+            _properties?.Dispose();
+        }
+        
+        internal bool Erase()
+        {
             // Get the name of the dll
-
-            var dllName = Path.GetFileName(dllPath);
+            
+            var dllName = Path.GetFileName(_properties.DllPath);
             
             // Get an instance of the dll in the process
-            
-            var module = process.Modules.Cast<ProcessModule>().SingleOrDefault(m => string.Equals(m.ModuleName, dllName, StringComparison.OrdinalIgnoreCase));
 
-            if (module is null)
+            var module = Tools.GetProcessModules(_properties.ProcessId).SingleOrDefault(m => string.Equals(m.Module, dllName, StringComparison.OrdinalIgnoreCase));
+            
+            if (module.Equals(default(Native.ModuleEntry)))
             {
                 throw new ArgumentException($"There is no module named {dllName} loaded in the process");
             }
             
             // Get the base address of the dll
-
+            
             var dllBaseAddress = module.BaseAddress;
-
-            // Open a handle to the process
-
-            var processHandle = process.SafeHandle;
             
             // Get the information about the header region of the dll
-
+            
             var memoryInformationSize = Marshal.SizeOf(typeof(Native.MemoryBasicInformation));
-
-            if (!Native.VirtualQueryEx(processHandle, dllBaseAddress, out var memoryInformation, memoryInformationSize))
+            
+            if (!Native.VirtualQueryEx(_properties.ProcessHandle, dllBaseAddress, out var memoryInformation, memoryInformationSize))
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to query the memory of the process");
             }
             
             // Create a buffer to write over the header region with
-
+            
             var buffer = new byte[(int) memoryInformation.RegionSize];
-
+            
             // Write over the header region with the buffer
-
+            
             try
             {
-                _memoryModule.WriteMemory(processId, dllBaseAddress, buffer);
+                _properties.MemoryModule.WriteMemory(_properties.ProcessId, dllBaseAddress, buffer);
             }
-
+            
             catch (Win32Exception)
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to write over the header region");
             }
-
-            // Close the handle opened to the process
-            
-            processHandle?.Close();
             
             return true;
         }

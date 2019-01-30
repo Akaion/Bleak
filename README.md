@@ -23,11 +23,16 @@ A Windows native DLL injection library written in C# that supports several metho
 * Randomise PE Headers
 * Unlink DLL From PEB
 
+### Features
+
+* x86 injection from an x64 process
+
 ----
 
 ### Installation
 
 * Download and install Bleak using [NuGet](https://www.nuget.org/packages/Bleak)
+* Compile as AnyCPU
 
 ----
 
@@ -64,9 +69,11 @@ var injector = new Injector();
 
 injector.EraseHeaders("processName", "pathToDll");
 ```
+
 ----
 
 ### Contributing
+
 Pull requests are welcome. 
 
 For large changes, please open an issue first to discuss what you would like to add.

@@ -9,34 +9,38 @@ namespace Bleak.Wrappers
     internal class ExtensionWrapper
     {
         private readonly Process _process;
-
+        
         private readonly string _dllPath;
-
+        
         internal ExtensionWrapper(string processName, string dllPath)
         {
-            // Ensure the arguments passed in are valid
+            // Ensure the operating system is Windows
 
+            ValidateOperatingSystem.Validate();
+            
+            // Ensure the arguments passed in are valid
+            
             if (string.IsNullOrWhiteSpace(processName) || string.IsNullOrWhiteSpace(dllPath))
             {
                 throw new ArgumentException("One or more of the arguments provided was invalid");
             }
             
             // Ensure the dll exists
-
+            
             if (!File.Exists(dllPath))
             {
                 throw new FileNotFoundException("No file exists at the provided location");
             }
             
             // Get an instance of the process
-
+            
             Process process;
             
             try
             {
                 process = Process.GetProcessesByName(processName)[0];
             }
-
+            
             catch (IndexOutOfRangeException)
             {
                 // The process isn't currently running
@@ -49,37 +53,41 @@ namespace Bleak.Wrappers
             ValidateArchitecture.Validate(process, dllPath);
             
             // Store the values
-
+            
             _process = process;
-
+            
             _dllPath = dllPath;
         }
-
+        
         internal ExtensionWrapper(int processId, string dllPath)
         {
-            // Ensure the arguments passed in are valid
+            // Ensure the operating system is Windows
 
+            ValidateOperatingSystem.Validate();
+            
+            // Ensure the arguments passed in are valid
+            
             if (processId <= 0|| string.IsNullOrWhiteSpace(dllPath))
             {
                 throw new ArgumentException("One or more of the arguments provided was invalid");
             }
             
             // Ensure the dll exists
-
+            
             if (!File.Exists(dllPath))
             {
                 throw new FileNotFoundException("No file exists at the provided location");
             }
             
             // Get an instance of the process
-
+            
             Process process;
             
             try
             {
                 process = Process.GetProcessById(processId);
             }
-
+            
             catch (ArgumentException)
             {
                 // The process isn't currently running
@@ -92,23 +100,27 @@ namespace Bleak.Wrappers
             ValidateArchitecture.Validate(process, dllPath);
             
             // Store the values
-
+            
             _process = process;
-
+            
             _dllPath = dllPath;
         }
-
+        
         internal ExtensionWrapper(string processName, byte[] dllBytes)
         {
-            // Ensure the arguments passed in are valid
+            // Ensure the operating system is Windows
 
+            ValidateOperatingSystem.Validate();
+            
+            // Ensure the arguments passed in are valid
+            
             if (string.IsNullOrWhiteSpace(processName) || dllBytes is null || dllBytes.Length == 0)
             {
                 throw new ArgumentException("One or more of the arguments provided was invalid");
             }
             
             // Convert the dll bytes to a temporary file on disk
-
+            
             var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
             
             if (!File.Exists(temporaryDllPath))
@@ -117,14 +129,14 @@ namespace Bleak.Wrappers
             }
             
             // Get an instance of the process
-
+            
             Process process;
             
             try
             {
                 process = Process.GetProcessesByName(processName)[0];
             }
-
+            
             catch (IndexOutOfRangeException)
             {
                 // The process isn't currently running
@@ -137,23 +149,27 @@ namespace Bleak.Wrappers
             ValidateArchitecture.Validate(process, temporaryDllPath);
             
             // Store the values
-
+            
             _process = process;
-
+            
             _dllPath = temporaryDllPath;
         }
-
+        
         internal ExtensionWrapper(int processId, byte[] dllBytes)
         {
-            // Ensure the arguments passed in are valid
+            // Ensure the operating system is Windows
 
+            ValidateOperatingSystem.Validate();
+            
+            // Ensure the arguments passed in are valid
+            
             if (processId <= 0 || dllBytes is null || dllBytes.Length == 0)
             {
                 throw new ArgumentException("One or more of the arguments provided was invalid");
             }
             
             // Convert the dll bytes to a temporary file on disk
-
+            
             var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
             
             if (!File.Exists(temporaryDllPath))
@@ -162,14 +178,14 @@ namespace Bleak.Wrappers
             }
             
             // Get an instance of the process
-
+            
             Process process;
             
             try
             {
                 process = Process.GetProcessById(processId);
             }
-
+            
             catch (ArgumentException)
             {
                 // The process isn't currently running
@@ -182,46 +198,50 @@ namespace Bleak.Wrappers
             ValidateArchitecture.Validate(process, temporaryDllPath);
             
             // Store the values
-
+            
             _process = process;
-
+            
             _dllPath = temporaryDllPath;
         }
         
         internal bool EjectDll()
         {
-            var extensionMethod = new EjectDll();
+            using (var extensionMethod = new EjectDll(_process, _dllPath))
+            {
+                // Eject the dll
             
-            // Eject the dll
-
-            return extensionMethod.Eject(_process, _dllPath);
+                return extensionMethod.Eject();
+            }
         }
-
+        
         internal bool EraseHeaders()
         {
-            var extensionMethod = new EraseHeaders();
+            using (var extensionMethod = new EraseHeaders(_process, _dllPath))
+            {
+                // Erase the dll headers
             
-            // Erase the dll headers
-
-            return extensionMethod.Erase(_process, _dllPath);
+                return extensionMethod.Erase();
+            }
         }
-
+        
         internal bool RandomiseHeaders()
         {
-            var extensionMethod = new RandomiseHeaders();
+            using (var extensionMethod = new RandomiseHeaders(_process, _dllPath))
+            {
+                // Randomise the dll headers
             
-            // Randomise the dll headers
-
-            return extensionMethod.Randomise(_process, _dllPath);
+                return extensionMethod.Randomise();
+            }
         }
-
+        
         internal bool UnlinkFromPeb()
         {
-            var extensionMethod = new UnlinkFromPeb();
+            using (var extensionMethod = new UnlinkFromPeb(_process, _dllPath))
+            {
+                // Unlink the dll from the peb
             
-            // Unlink the dll from the peb
-
-            return extensionMethod.Unlink(_process, _dllPath);
+                return extensionMethod.Unlink();
+            }
         }
     }
 }

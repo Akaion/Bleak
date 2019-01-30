@@ -4,36 +4,29 @@ using System.Diagnostics;
 using System.Text;
 using Bleak.Etc;
 using Bleak.Services;
-using Jupiter;
 
 namespace Bleak.Methods
 {
-    internal class ZwCreateThreadEx
+    internal class ZwCreateThreadEx : IDisposable
     {
-        private readonly MemoryModule _memoryModule;
+        private readonly Properties _properties;
 
-        internal ZwCreateThreadEx()
+        internal ZwCreateThreadEx(Process process, string dllPath)
         {
-            _memoryModule = new MemoryModule();
+            _properties = new Properties(process, dllPath);
         }
         
-        internal bool Inject(Process process, string dllPath)
+        public void Dispose()
         {
-            // Ensure the process has kernel32.dll loaded
-
-            if (Native.LoadLibrary("kernel32.dll") is null)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to load kernel32.dll into the process");
-            }
-            
-            // Get the id of the process
-
-            var processId = process.Id;
-            
+            _properties?.Dispose();
+        }
+        
+        internal bool Inject()
+        {   
             // Get the address of the LoadLibraryW method from kernel32.dll
-            
-            var loadLibraryAddress = Native.GetProcAddress(Native.GetModuleHandle("kernel32.dll"), "LoadLibraryW");
-            
+
+            var loadLibraryAddress = Tools.GetRemoteProcAddress(_properties, "kernel32.dll", "LoadLibraryW");
+
             if (loadLibraryAddress == IntPtr.Zero)
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to find the address of the LoadLibraryW method in kernel32.dll");
@@ -41,13 +34,11 @@ namespace Bleak.Methods
             
             // Allocate memory for the dll path in the process
             
-            var dllPathSize = dllPath.Length;
-
             var dllPathAddress = IntPtr.Zero;
 
             try
             {
-                dllPathAddress = _memoryModule.AllocateMemory(processId, dllPathSize);
+                dllPathAddress = _properties.MemoryModule.AllocateMemory(_properties.ProcessId, _properties.DllPath.Length);
             }
 
             catch (Win32Exception)
@@ -57,11 +48,11 @@ namespace Bleak.Methods
             
             // Write the dll path into the process
             
-            var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
+            var dllPathBytes = Encoding.Unicode.GetBytes(_properties.DllPath + "\0");
 
             try
             {
-                _memoryModule.WriteMemory(processId, dllPathAddress, dllPathBytes);
+                _properties.MemoryModule.WriteMemory(_properties.ProcessId, dllPathAddress, dllPathBytes);
             }
 
             catch (Win32Exception)
@@ -69,13 +60,9 @@ namespace Bleak.Methods
                 ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the process");   
             }
             
-            // Open a handle to the process
-
-            var processHandle = process.SafeHandle;
-            
             // Create a remote thread to call load library in the process
             
-            Native.ZwCreateThreadEx(out var remoteThreadHandle, Native.AccessMask.SpecificRightsAll | Native.AccessMask.StandardRightsAll, IntPtr.Zero, processHandle, loadLibraryAddress, dllPathAddress, Native.CreationFlags.HideFromDebugger, 0, 0, 0, IntPtr.Zero);
+            Native.ZwCreateThreadEx(out var remoteThreadHandle, Native.AccessMask.SpecificRightsAll | Native.AccessMask.StandardRightsAll, IntPtr.Zero, _properties.ProcessHandle, loadLibraryAddress, dllPathAddress, Native.CreationFlags.HideFromDebugger, 0, 0, 0, IntPtr.Zero);
             
             if (remoteThreadHandle is null)
             {
@@ -90,7 +77,7 @@ namespace Bleak.Methods
 
             try
             {
-                _memoryModule.FreeMemory(processId, dllPathAddress);
+                _properties.MemoryModule.FreeMemory(_properties.ProcessId, dllPathAddress);
             }
 
             catch (Win32Exception)
@@ -98,15 +85,9 @@ namespace Bleak.Methods
                 ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the dll path in the process");   
             }
             
-            // Close the handle opened to the process
-            
-            processHandle?.Close();
-            
-            // Close the handle opened to the remote thread
-            
             remoteThreadHandle?.Close();
             
             return true;
-        }
+        }  
     }
 }
