@@ -7,51 +7,52 @@ using Bleak.Services;
 
 namespace Bleak.Extensions
 {
-    internal class EjectDll
-    {
-        internal bool Eject(Process process, string dllPath)
+    internal class EjectDll : IDisposable
+    {   
+        private readonly Properties _properties;
+        
+        internal EjectDll(Process process, string dllPath)
         {
-            // Ensure the process has kernel32.dll loaded
+            _properties = new Properties(process, dllPath);
+        }
+        
+        public void Dispose()
+        {
+            _properties?.Dispose();
+        }
+        
+        internal bool Eject()
+        {   
+            // Get the address of the LoadLibraryW method from kernel32.dll
 
-            if (Native.LoadLibrary("kernel32.dll") is null)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to load kernel32.dll into the process");
-            }
-            
-            // Get the address of the FreeLibraryAndExitThread method in kernel32.dll
-            
-            var freeLibraryAndExitThread = Native.GetProcAddress(Native.GetModuleHandle("kernel32.dll"), "FreeLibraryAndExitThread");
+            var freeLibraryAndExitThread = Tools.GetRemoteProcAddress(_properties, "kernel32.dll", "FreeLibraryAndExitThread");
 
             if (freeLibraryAndExitThread == IntPtr.Zero)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to find the address of the FreeLibrary method in kernel32.dll");
+                ExceptionHandler.ThrowWin32Exception("Failed to find the address of the FreeLibraryAndExitThread method in kernel32.dll");
             }
             
             // Get the name of the dll
-
-            var dllName = Path.GetFileName(dllPath);
+            
+            var dllName = Path.GetFileName(_properties.DllPath);
             
             // Get an instance of the dll in the process
-            
-            var module = process.Modules.Cast<ProcessModule>().SingleOrDefault(m => string.Equals(m.ModuleName, dllName, StringComparison.OrdinalIgnoreCase));
 
-            if (module is null)
+            var module = Tools.GetProcessModules(_properties.ProcessId).SingleOrDefault(m => string.Equals(m.Module, dllName, StringComparison.OrdinalIgnoreCase));
+            
+            if (module.Equals(default(Native.ModuleEntry)))
             {
                 throw new ArgumentException($"There is no module named {dllName} loaded in the process");
             }
             
             // Get the base address of the dll
-
+            
             var dllBaseAddress = module.BaseAddress;
-
-            // Open a handle to the process
-
-            var processHandle = process.SafeHandle;
             
             // Create a remote thread to call free library and exit thread in the process
             
-            Native.RtlCreateUserThread(processHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, freeLibraryAndExitThread, dllBaseAddress, out var remoteThreadHandle, 0);
-
+            Native.RtlCreateUserThread(_properties.ProcessHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, freeLibraryAndExitThread, dllBaseAddress, out var remoteThreadHandle, 0);
+            
             if (remoteThreadHandle is null)
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call free library and exit thread in the process");
@@ -61,15 +62,11 @@ namespace Bleak.Extensions
             
             Native.WaitForSingleObject(remoteThreadHandle, int.MaxValue);
             
-            // Close the handle opened to the process
-            
-            processHandle?.Close();
-            
             // Close the handle opened to the remote thread
             
             remoteThreadHandle?.Close();
             
             return true;
-        }
+        }  
     }
 }

@@ -9,34 +9,38 @@ namespace Bleak.Wrappers
     internal class MethodWrapper
     {
         private readonly Process _process;
-
+        
         private readonly string _dllPath;
-
+        
         internal MethodWrapper(string processName, string dllPath)
         {
-            // Ensure the arguments passed in are valid
+            // Ensure the operating system is Windows
 
+            ValidateOperatingSystem.Validate();
+            
+            // Ensure the arguments passed in are valid
+            
             if (string.IsNullOrWhiteSpace(processName) || string.IsNullOrWhiteSpace(dllPath))
             {
                 throw new ArgumentException("One or more of the arguments provided was invalid");
             }
             
             // Ensure the dll exists
-
+            
             if (!File.Exists(dllPath))
             {
                 throw new FileNotFoundException("No file exists at the provided location");
             }
             
             // Get an instance of the process
-
+            
             Process process;
             
             try
             {
                 process = Process.GetProcessesByName(processName)[0];
             }
-
+            
             catch (IndexOutOfRangeException)
             {
                 // The process isn't currently running
@@ -49,37 +53,41 @@ namespace Bleak.Wrappers
             ValidateArchitecture.Validate(process, dllPath);
             
             // Store the values
-
+            
             _process = process;
-
+            
             _dllPath = dllPath;
         }
-
+        
         internal MethodWrapper(int processId, string dllPath)
         {
-            // Ensure the arguments passed in are valid
+            // Ensure the operating system is Windows
 
+            ValidateOperatingSystem.Validate();
+            
+            // Ensure the arguments passed in are valid
+            
             if (processId <= 0|| string.IsNullOrWhiteSpace(dllPath))
             {
                 throw new ArgumentException("One or more of the arguments provided was invalid");
             }
             
             // Ensure the dll exists
-
+            
             if (!File.Exists(dllPath))
             {
                 throw new FileNotFoundException("No file exists at the provided location");
             }
             
             // Get an instance of the process
-
+            
             Process process;
             
             try
             {
                 process = Process.GetProcessById(processId);
             }
-
+            
             catch (ArgumentException)
             {
                 // The process isn't currently running
@@ -92,23 +100,27 @@ namespace Bleak.Wrappers
             ValidateArchitecture.Validate(process, dllPath);
             
             // Store the values
-
+            
             _process = process;
-
+            
             _dllPath = dllPath;
         }
-
+        
         internal MethodWrapper(string processName, byte[] dllBytes)
         {
-            // Ensure the arguments passed in are valid
+            // Ensure the operating system is Windows
 
+            ValidateOperatingSystem.Validate();
+            
+            // Ensure the arguments passed in are valid
+            
             if (string.IsNullOrWhiteSpace(processName) || dllBytes is null || dllBytes.Length == 0)
             {
                 throw new ArgumentException("One or more of the arguments provided was invalid");
             }
             
             // Convert the dll bytes to a temporary file on disk
-
+            
             var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
             
             if (!File.Exists(temporaryDllPath))
@@ -117,14 +129,14 @@ namespace Bleak.Wrappers
             }
             
             // Get an instance of the process
-
+            
             Process process;
             
             try
             {
                 process = Process.GetProcessesByName(processName)[0];
             }
-
+            
             catch (IndexOutOfRangeException)
             {
                 // The process isn't currently running
@@ -137,23 +149,27 @@ namespace Bleak.Wrappers
             ValidateArchitecture.Validate(process, temporaryDllPath);
             
             // Store the values
-
+            
             _process = process;
-
+            
             _dllPath = temporaryDllPath;
         }
-
+        
         internal MethodWrapper(int processId, byte[] dllBytes)
         {
-            // Ensure the arguments passed in are valid
+            // Ensure the operating system is Windows
 
+            ValidateOperatingSystem.Validate();
+            
+            // Ensure the arguments passed in are valid
+            
             if (processId <= 0 || dllBytes is null || dllBytes.Length == 0)
             {
                 throw new ArgumentException("One or more of the arguments provided was invalid");
             }
             
             // Convert the dll bytes to a temporary file on disk
-
+            
             var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
             
             if (!File.Exists(temporaryDllPath))
@@ -162,14 +178,14 @@ namespace Bleak.Wrappers
             }
             
             // Get an instance of the process
-
+            
             Process process;
             
             try
             {
                 process = Process.GetProcessById(processId);
             }
-
+            
             catch (ArgumentException)
             {
                 // The process isn't currently running
@@ -182,73 +198,110 @@ namespace Bleak.Wrappers
             ValidateArchitecture.Validate(process, temporaryDllPath);
             
             // Store the values
-
+            
             _process = process;
-
+            
             _dllPath = temporaryDllPath;
         }
         
         internal bool CreateRemoteThread()
         {
-            var injectionMethod = new CreateRemoteThread();
+            using (var injectionMethod = new CreateRemoteThread(_process, _dllPath))
+            {
+                // Inject the dll
             
-            // Inject the dll
-            
-            return injectionMethod.Inject(_process, _dllPath);
+                return injectionMethod.Inject();
+            }  
         }
-
+        
         internal bool ManualMap()
         {
-            var injectionMethod = new ManualMap();
+            using (var injectionMethod = new ManualMap(_process, _dllPath))
+            {
+                // Inject the dll
             
-            // Inject the dll
-            
-            return injectionMethod.Inject(_process, _dllPath);
+                return injectionMethod.Inject();
+            }
         }
-
+        
         internal bool NtCreateThreadEx()
         {
-            var injectionMethod = new NtCreateThreadEx();
+            using (var injectionMethod = new NtCreateThreadEx(_process, _dllPath))
+            {
+                // Inject the dll
             
-            // Inject the dll
-
-            return injectionMethod.Inject(_process, _dllPath);
+                return injectionMethod.Inject();
+            }
         }
-
+        
         internal bool QueueUserApc()
         {
-            var injectionMethod = new QueueUserApc();
+            using (var injectionMethod = new QueueUserApc(_process, _dllPath))
+            {
+                // Inject the dll
             
-            // Inject the dll
-
-            return injectionMethod.Inject(_process, _dllPath);
+                return injectionMethod.Inject();
+            }
         }
-
+        
         internal bool RtlCreateUserThread()
         {
-            var injectionMethod = new RtlCreateUserThread();
+            // Ensure the operating system supports RtlCreateUserThread
             
-            // Inject the dll
+            var osVersion = Environment.Version;
+            
+            switch (osVersion.Major)
+            {
+                case 5:
+                {
+                    throw new PlatformNotSupportedException("RtlCreateUserThread is not supported on Windows XP");
+                }
 
-            return injectionMethod.Inject(_process, _dllPath);
+                case 6:
+                {
+                    switch (osVersion.Minor)
+                    {
+                        case 0:
+                        {
+                            throw new PlatformNotSupportedException("RtlCreateUserThread is not supported on Windows Vista");
+                        }
+
+                        case 1:
+                        {
+                            throw new PlatformNotSupportedException("RtlCreateUserThread is not supported on Windows 7");
+                        }
+                    }
+
+                    break;
+                }
+            }
+            
+            using (var injectionMethod = new RtlCreateUserThread(_process, _dllPath))
+            {
+                // Inject the dll
+            
+                return injectionMethod.Inject();
+            }
         }
-
+        
         internal bool SetThreadContext()
         {
-            var injectionMethod = new SetThreadContext();
+            using (var injectionMethod = new SetThreadContext(_process, _dllPath))
+            {
+                // Inject the dll
             
-            // Inject the dll
-            
-            return injectionMethod.Inject(_process, _dllPath);
+                return injectionMethod.Inject();
+            }
         }
-
+        
         internal bool ZwCreateThreadEx()
         {
-            var injectionMethod = new ZwCreateThreadEx();
-
-            // Inject the dll
+            using (var injectionMethod = new ZwCreateThreadEx(_process, _dllPath))
+            {
+                // Inject the dll
             
-            return injectionMethod.Inject(_process, _dllPath);
+                return injectionMethod.Inject();
+            }
         }
     }
 }

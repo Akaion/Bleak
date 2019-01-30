@@ -2,38 +2,44 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 using Bleak.Etc;
 using Bleak.Services;
-using Jupiter;
 
 namespace Bleak.Methods
 {
-    internal class SetThreadContext
+    internal class SetThreadContext : IDisposable
     {
-        private readonly MemoryModule _memoryModule;
+        private readonly int _firstThreadId;
+        
+        private readonly IntPtr _mainWindowHandle;
+        
+        private readonly Properties _properties;
 
-        internal SetThreadContext()
+        internal SetThreadContext(Process process, string dllPath)
         {
-            _memoryModule = new MemoryModule();
+            // Get the id of the first thread of the process
+            
+            _firstThreadId = process.Threads[0].Id;
+            
+            // Get the handle to the main window of the process
+            
+            _mainWindowHandle = process.MainWindowHandle;
+            
+            _properties = new Properties(process, dllPath);
         }
         
-        internal bool Inject(Process process, string dllPath)
+        public void Dispose()
         {
-            // Ensure the process has kernel32.dll loaded
-
-            if (Native.LoadLibrary("kernel32.dll") is null)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to load kernel32.dll into the process");
-            }
-            
-            // Get the id of the process
-
-            var processId = process.Id;
-            
+            _properties?.Dispose();
+        }
+        
+        internal bool Inject()
+        {   
             // Get the address of the LoadLibraryW method from kernel32.dll
-            
-            var loadLibraryAddress = Native.GetProcAddress(Native.GetModuleHandle("kernel32.dll"), "LoadLibraryW");
-            
+
+            var loadLibraryAddress = Tools.GetRemoteProcAddress(_properties, "kernel32.dll", "LoadLibraryW");
+
             if (loadLibraryAddress == IntPtr.Zero)
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to find the address of the LoadLibraryW method in kernel32.dll");
@@ -41,13 +47,11 @@ namespace Bleak.Methods
             
             // Allocate memory for the dll path in the process
             
-            var dllPathSize = dllPath.Length;
-
             var dllPathAddress = IntPtr.Zero;
 
             try
             {
-                dllPathAddress = _memoryModule.AllocateMemory(processId, dllPathSize);
+                dllPathAddress = _properties.MemoryModule.AllocateMemory(_properties.ProcessId, _properties.DllPath.Length);
             }
 
             catch (Win32Exception)
@@ -57,11 +61,11 @@ namespace Bleak.Methods
             
             // Write the dll path into the process
             
-            var dllPathBytes = Encoding.Unicode.GetBytes(dllPath + "\0");
+            var dllPathBytes = Encoding.Unicode.GetBytes(_properties.DllPath + "\0");
 
             try
             {
-                _memoryModule.WriteMemory(processId, dllPathAddress, dllPathBytes);
+                _properties.MemoryModule.WriteMemory(_properties.ProcessId, dllPathAddress, dllPathBytes);
             }
 
             catch (Win32Exception)
@@ -69,53 +73,41 @@ namespace Bleak.Methods
                 ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the process");   
             }
             
-            // Open a handle to the process
-            
-            var processHandle = process.SafeHandle;
-            
-            // Determine if the process is running under WOW64
-
-            Native.IsWow64Process(processHandle, out var isWow64);
-            
             // Allocate memory for the shellcode in the process
 
-            var shellcodeSize = isWow64 ? 22 : 87;
+            var shellcodeSize = _properties.IsWow64 ? 22 : 87;
 
             var shellcodeAddress = IntPtr.Zero;
 
             try
             {
-                shellcodeAddress = _memoryModule.AllocateMemory(processId, shellcodeSize);
+                shellcodeAddress = _properties.MemoryModule.AllocateMemory(_properties.ProcessId, shellcodeSize);
             }
 
             catch (Win32Exception)
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the shellcode in the process");              
             }
-
-            // Get the id of the first thread in the process
-
-            var threadId = process.Threads[0].Id;
             
-            // Open a handle to the thread
+            // Open a handle to the first thread of the process
 
-            var threadHandle = Native.OpenThread(Native.ThreadAccess.AllAccess, false, threadId);
+            var threadHandle = Native.OpenThread(Native.ThreadAccess.AllAccess, false, _firstThreadId);
 
             if (threadHandle is null)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to open a handle to the first thread in the process");
+                ExceptionHandler.ThrowWin32Exception("Failed to open a handle to a thread in the process");
             }
             
             // Suspend the thread
 
             if (Native.SuspendThread(threadHandle) == -1)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to suspend the first thread in the process");
+                ExceptionHandler.ThrowWin32Exception("Failed to suspend a thread in the process");
             }
             
             // If the process is x86
             
-            if (isWow64)
+            if (_properties.IsWow64)
             {
                 var threadContext = new Native.Context {Flags = Native.ContextFlags.ContextControl};
 
@@ -127,7 +119,7 @@ namespace Bleak.Methods
                 
                 if (!Native.GetThreadContext(threadHandle, threadContextBuffer))
                 {    
-                    ExceptionHandler.ThrowWin32Exception("Failed to get the context of the first thread in the process");
+                    ExceptionHandler.ThrowWin32Exception("Failed to get the context of a thread in the process");
                 }
                 
                 // Read the new thread context structure from the buffer
@@ -144,7 +136,7 @@ namespace Bleak.Methods
 
                 try
                 {
-                    _memoryModule.WriteMemory(processId, shellcodeAddress, shellcodeBytes);
+                    _properties.MemoryModule.WriteMemory(_properties.ProcessId, shellcodeAddress, shellcodeBytes);
                 }
 
                 catch (Win32Exception)
@@ -164,7 +156,7 @@ namespace Bleak.Methods
 
                 if (!Native.SetThreadContext(threadHandle, threadContextBuffer))
                 {
-                    ExceptionHandler.ThrowWin32Exception("Failed to set the context of the first thread in the process");
+                    ExceptionHandler.ThrowWin32Exception("Failed to set the context of a thread in the process");
                 }
             }
 
@@ -182,7 +174,7 @@ namespace Bleak.Methods
                 
                 if (!Native.GetThreadContext(threadHandle, threadContextBuffer))
                 {    
-                    ExceptionHandler.ThrowWin32Exception("Failed to get the context of the first thread in the process");
+                    ExceptionHandler.ThrowWin32Exception("Failed to get the context of a thread in the process");
                 }
 
                 // Read the new thread context structure from the buffer
@@ -199,7 +191,7 @@ namespace Bleak.Methods
 
                 try
                 {
-                    _memoryModule.WriteMemory(processId, shellcodeAddress, shellcodeBytes);
+                    _properties.MemoryModule.WriteMemory(_properties.ProcessId, shellcodeAddress, shellcodeBytes);
                 }
 
                 catch (Win32Exception)
@@ -219,7 +211,7 @@ namespace Bleak.Methods
 
                 if (!Native.SetThreadContext(threadHandle, threadContextBuffer))
                 {
-                    ExceptionHandler.ThrowWin32Exception("Failed to set the context of the first thread in the process");
+                    ExceptionHandler.ThrowWin32Exception("Failed to set the context of a thread in the process");
                 }
             }
             
@@ -227,26 +219,22 @@ namespace Bleak.Methods
 
             if (Native.ResumeThread(threadHandle) == -1)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to resume the first thread in the process");
-            }
-            
-            // Open a handle to the main window of the process
-            
-            var windowHandle = new SafeWindowHandle(process.MainWindowHandle);
+                ExceptionHandler.ThrowWin32Exception("Failed to resume a thread in the process");
+            }   
             
             // Switch to the process to load the dll
             
-            Native.SwitchToThisWindow(windowHandle, true);
+            Native.SwitchToThisWindow(_mainWindowHandle, true);
 
             // Buffer the execution by 10 milliseconds to avoid freeing memory before it has been referenced
             
-            Tools.AsyncWait(10);
+            Thread.Sleep(10);
             
             // Free the memory previously allocated for the dll path
 
             try
             {
-                _memoryModule.FreeMemory(processId, dllPathAddress);
+                _properties.MemoryModule.FreeMemory(_properties.ProcessId, dllPathAddress);
             }
 
             catch (Win32Exception)
@@ -258,19 +246,13 @@ namespace Bleak.Methods
 
             try
             {
-                _memoryModule.FreeMemory(processId, shellcodeAddress);
+                _properties.MemoryModule.FreeMemory(_properties.ProcessId, shellcodeAddress);
             }
 
             catch (Win32Exception)
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the shellcode in the process");   
             }
-            
-            // Close the handle opened to the process
-            
-            processHandle?.Close();
-            
-            // Close the handle opened to the thread
             
             threadHandle?.Close();
             

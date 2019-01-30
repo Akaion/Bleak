@@ -7,36 +7,40 @@ namespace Bleak.Tests
 {
     public class ExtensionTests : IDisposable
     {
-        private readonly Injector _injector;
-
-        private readonly Process _process;
-
         private readonly string _dllPath;
+        
+        private readonly Injector _injector;
+        
+        private readonly Process _process;
 
         public ExtensionTests()
         {
-            _injector = new Injector();
-            
-            // Get the root directory 
+            // Get the root directory
             
             var rootDirectory = Path.GetFullPath(@"..\..\..\Etc\");
-            
-            // Initialize a test process
-            
-            _process = new Process { StartInfo = {CreateNoWindow = true, FileName = "notepad.exe" } };
-
-            _process.Start();
             
             // Get the path to the test dll
             
             _dllPath = Path.Combine(rootDirectory, "TestDll.dll");
+            
+            // Initialize an injector instance
+            
+            _injector = new Injector();
+            
+            // Initialize a test process
+            
+            _process = new Process { StartInfo = {CreateNoWindow = true, FileName = "notepad.exe", UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden} };
+
+            _process.Start();
+
+            _process.WaitForInputIdle();
         }
         
         public void Dispose()
         {
-            // Terminate the test process
+            // Close the test process
 
-            _process.Kill();
+            _process?.CloseMainWindow();
         }
 
         [Fact]
@@ -44,7 +48,7 @@ namespace Bleak.Tests
         {
             // Inject the test dll
 
-            _injector.RtlCreateUserThread(_process.Id, _dllPath);
+            _injector.NtCreateThreadEx(_process.Id, _dllPath);
             
             // Eject the test dll
             
@@ -56,7 +60,7 @@ namespace Bleak.Tests
         {
             // Inject the test dll
 
-            _injector.RtlCreateUserThread(_process.Id, _dllPath);
+            _injector.NtCreateThreadEx(_process.Id, _dllPath);
             
             // Erase the test dll headers
             
@@ -68,7 +72,7 @@ namespace Bleak.Tests
         {
             // Inject the test dll
 
-            _injector.RtlCreateUserThread(_process.Id, _dllPath);
+            _injector.NtCreateThreadEx(_process.Id, _dllPath);
             
             // Erase the test dll headers
             
@@ -80,7 +84,7 @@ namespace Bleak.Tests
         {
             // Inject the test dll
 
-            _injector.RtlCreateUserThread(_process.Id, _dllPath);
+            _injector.NtCreateThreadEx(_process.Id, _dllPath);
             
             // Unlink the dll from the peb
             
