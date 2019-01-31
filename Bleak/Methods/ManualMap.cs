@@ -230,11 +230,6 @@ namespace Bleak.Methods
                     // Get the address of the imported function
                     
                     var procAddress = Tools.GetRemoteProcAddress(_properties, tempDllName, importedFunction.Name);
-
-                    if (importedFunction.Name == "InitializeSListHead")
-                    {
-                        procAddress = Tools.GetRemoteProcAddress(_properties, "ntdll.dll", "RtlInitializeSListHead");
-                    }
                     
                     // If the dll isn't already loaded into the process
                     
