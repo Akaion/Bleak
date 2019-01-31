@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using PeNet;
 
 namespace Bleak.Etc
@@ -58,7 +59,7 @@ namespace Bleak.Etc
             var modules = GetProcessModules(properties.ProcessId).Where(m => string.Equals(m.Module, moduleName, StringComparison.OrdinalIgnoreCase));
 
             Native.ModuleEntry module;
-
+            
             // If the process ix x86
 
             if (properties.IsWow64)
@@ -91,17 +92,52 @@ namespace Bleak.Etc
             // Look for the function in the exported functions
             
             var function = peHeaders.ExportedFunctions.SingleOrDefault(f => string.Equals(f.Name, procName, StringComparison.OrdinalIgnoreCase));
-            
+
             if (function is null)
             {
                 // Failed to find the function in the dll
                 
                 return IntPtr.Zero;
             }
+
+            // Get the virtual address of the function
             
-            // Add the function offset onto the base address of the module
+            var functionVirtualAddress = (ulong) module.BaseAddress + function.Address;
+
+            // Get the start and end virtual address of the export table
             
-            return (IntPtr) ((ulong) module.BaseAddress + function.Address);
+            var startExportTableVirtualAddress = (ulong) module.BaseAddress + peHeaders.ImageNtHeaders.OptionalHeader.DataDirectory[0].VirtualAddress;
+
+            var endExportTableVirtualAddress = startExportTableVirtualAddress + peHeaders.ImageNtHeaders.OptionalHeader.DataDirectory[0].Size;
+
+            // Check if the function is forwarded
+            
+            if (functionVirtualAddress >= startExportTableVirtualAddress && functionVirtualAddress <= endExportTableVirtualAddress)
+            {
+                const int maximumStringSize = 255;
+
+                // Read the forwarded function from memory and store it in a buffer
+                
+                var forwardedFunctionNameBuffer = properties.MemoryModule.ReadMemory(properties.ProcessId, (IntPtr) functionVirtualAddress, maximumStringSize);
+
+                // Read the forwarded function from the buffer
+                
+                var forwardedFunction = Encoding.Default.GetString(forwardedFunctionNameBuffer).Split('\0').First().Split('.');
+
+                // Get the dll of the forwarded function
+                
+                var forwardedFunctionDll = forwardedFunction[0] + ".dll";
+
+                // Get the name of the forwarded function
+                
+                var forwardedFunctionName = forwardedFunction[1];
+
+                // Get the forwarded function address
+                
+                return GetRemoteProcAddress(properties, forwardedFunctionDll, forwardedFunctionName);
+            }
+            
+            return (IntPtr) functionVirtualAddress;
         }
         
         internal static TStructure PointerToStructure<TStructure>(IntPtr address)

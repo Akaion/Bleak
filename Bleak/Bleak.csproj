@@ -3,7 +3,7 @@
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
         <LangVersion>latest</LangVersion>
-        <PackageVersion>1.6.0</PackageVersion>
+        <PackageVersion>1.6.1</PackageVersion>
         <Authors>Akaion</Authors>
         <Description>A Windows native DLL injection library written in C# that supports several methods of injection.</Description>
         <RepositoryUrl>https://github.com/Akaion/Bleak</RepositoryUrl>
