@@ -17,7 +17,7 @@ namespace Bleak.Methods
         {
             _properties = new Properties(process, dllPath);
         }
-
+        
         public void Dispose()
         {
             _properties?.Dispose();
@@ -30,35 +30,35 @@ namespace Bleak.Methods
             var dllBytes = File.ReadAllBytes(_properties.DllPath);
             
             // Pin the dll bytes in the memory of the host process
-
+            
             var baseAddress = GCHandle.Alloc(dllBytes, GCHandleType.Pinned);
-         
+            
             // Allocate memory for the dll in the remote process
-
+            
             var dllSize = _properties.PeHeaders.ImageNtHeaders.OptionalHeader.SizeOfImage;
-
+            
             var remoteDllAddress = _properties.MemoryModule.AllocateMemory(_properties.ProcessId, (int) dllSize);
             
             // Map the imports of the dll into the host process
-
+            
             MapImports(baseAddress.AddrOfPinnedObject());
             
             // Perform the relocations needed in the host process
-
+            
             PerformRelocations(baseAddress.AddrOfPinnedObject(), remoteDllAddress);
             
             // Map the sections of the dll into the remote process
-
+            
             MapSections(baseAddress.AddrOfPinnedObject(), remoteDllAddress);
             
             // Map the tls entries of the dll into the remote process
-
+            
             MapTlsEntries(baseAddress.AddrOfPinnedObject());
             
             // Call the entry point of the dll in the remote process
-
+            
             var dllEntryPointAddress = remoteDllAddress + (int) _properties.PeHeaders.ImageNtHeaders.OptionalHeader.AddressOfEntryPoint;
-
+            
             CallEntryPoint(remoteDllAddress, dllEntryPointAddress);
             
             // Unpin the dll bytes from the memory of the host process
@@ -67,7 +67,7 @@ namespace Bleak.Methods
             
             return true;
         }
-
+        
         private void CallEntryPoint(IntPtr baseAddress, IntPtr entryPoint)
         {
             // Initialize shellcode to call the entry of the dll in the process
@@ -138,7 +138,7 @@ namespace Bleak.Methods
             
             if (characteristics.HasFlag(Native.DataSectionFlags.MemoryNotCached))
             {
-                protection |= (int) Native.MemoryProtection.PageNoCache;
+                protection |= (int) Native.MemoryProtection.NoCache;
             }
             
             if (characteristics.HasFlag(Native.DataSectionFlags.MemoryExecute))
@@ -147,23 +147,23 @@ namespace Bleak.Methods
                 {
                     if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
                     {
-                        protection |= (int) Native.MemoryProtection.PageExecuteReadWrite;
+                        protection |= (int) Native.MemoryProtection.ExecuteReadWrite;
                     }
                     
                     else
                     {
-                        protection |= (int) Native.MemoryProtection.PageExecuteRead;
+                        protection |= (int) Native.MemoryProtection.ExecuteRead;
                     }
                 }
                 
                 else if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
                 {
-                    protection |= (int) Native.MemoryProtection.PageExecuteWriteCopy;
+                    protection |= (int) Native.MemoryProtection.ExecuteWriteCopy;
                 }
                 
                 else
                 {
-                    protection |= (int) Native.MemoryProtection.PageExecute;
+                    protection |= (int) Native.MemoryProtection.Execute;
                 }
             }
             
@@ -171,23 +171,23 @@ namespace Bleak.Methods
             {
                 if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
                 {
-                    protection |= (int) Native.MemoryProtection.PageReadWrite;
+                    protection |= (int) Native.MemoryProtection.ReadWrite;
                 }
-
+                
                 else
                 {
-                    protection |= (int) Native.MemoryProtection.PageReadOnly;
+                    protection |= (int) Native.MemoryProtection.ReadOnly;
                 }
             }
             
             else if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
             {
-                protection |= (int) Native.MemoryProtection.PageWriteCopy;
+                protection |= (int) Native.MemoryProtection.WriteCopy;
             }
-
+            
             else
             {
-                protection |= (int) Native.MemoryProtection.PageNoAccess;
+                protection |= (int) Native.MemoryProtection.NoAccess;
             }
             
             return protection;
@@ -211,7 +211,7 @@ namespace Bleak.Methods
             var groupedImportedFunctions = _properties.PeHeaders.ImportedFunctions.GroupBy(importedFunction => importedFunction.DLL);
             
             var importDescriptorIndex = 0;
-
+            
             foreach (var dll in groupedImportedFunctions)
             {
                 // Get the virtual address of the imported function
@@ -221,7 +221,7 @@ namespace Bleak.Methods
                 foreach (var importedFunction in dll)
                 {
                     var tempDllName = importedFunction.DLL;
-
+                    
                     if (importedFunction.DLL.Contains("-ms-win-crt-"))
                     {
                         tempDllName = "ucrtbase.dll";
@@ -245,18 +245,18 @@ namespace Bleak.Methods
                          
                         procAddress = Tools.GetRemoteProcAddress(_properties, tempDllName, importedFunction.Name);
                     }
-
+                    
                     // Map the imported function into the host process
                     
                     Marshal.WriteInt64(functionVirtualAddress, (long) procAddress);
                     
                     // Jump to the next functions virtual address
-
+                    
                     if (_properties.IsWow64)
                     {
                         functionVirtualAddress += sizeof(int);
                     }
-
+                    
                     else
                     {
                         functionVirtualAddress += sizeof(long);
@@ -266,7 +266,7 @@ namespace Bleak.Methods
                 importDescriptorIndex += 1;
             }
         }
-
+        
         private void MapSections(IntPtr baseAddress, IntPtr remoteAddress)
         {
             // Get the section headers of the dll from the pe headers
@@ -347,51 +347,51 @@ namespace Bleak.Methods
         private void PerformRelocations(IntPtr baseAddress, IntPtr remoteAddress)
         {
             // Determine if any relocations need to be performed
-
+            
             if (_properties.PeHeaders.ImageNtHeaders.FileHeader.Characteristics % 2 == 1)
             {
                 return;
             }
             
             // Determine the image delta
-
+            
             var imageDelta = (long) remoteAddress - (long) _properties.PeHeaders.ImageNtHeaders.OptionalHeader.ImageBase;
             
             // Get the relocation directory of the dll from the pe headers
-
+            
             var relocationDirectory = _properties.PeHeaders.ImageRelocationDirectory;
-
+            
             foreach (var relocation in relocationDirectory)
             {
                 // Get the base address of the relocations
-
+                
                 var relocationsBaseAddress = Tools.RvaToVa(baseAddress, (int) _properties.PeHeaders.ImageDosHeader.e_lfanew, (IntPtr) relocation.VirtualAddress);
-
+                
                 foreach (var offset in relocation.TypeOffsets)
                 {
                     // Get the address of the relocation
-
+                    
                     var relocationAddress = relocationsBaseAddress + offset.Offset;
-
+                    
                     switch (offset.Type)
                     {
                         case 3:
                         {
                             // If the relocation is High Low
-
+                            
                             var value = Tools.PointerToStructure<int>(relocationAddress) + (int) imageDelta;
                             
                             // Perform the relocation
                             
                             Marshal.WriteInt32(relocationAddress, value);
-
+                            
                             break;
                         }
-
+                        
                         case 10:
                         {
                             // If the relocation is Dir64
-
+                            
                             var value = Tools.PointerToStructure<long>(relocationAddress) + imageDelta;
                             
                             // Perform the relocation

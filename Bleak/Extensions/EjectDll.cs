@@ -23,11 +23,11 @@ namespace Bleak.Extensions
         
         internal bool Eject()
         {   
-            // Get the address of the LoadLibraryW method from kernel32.dll
+            // Get the address of the FreeLibraryAndExitThread method from kernel32.dll
 
-            var freeLibraryAndExitThread = Tools.GetRemoteProcAddress(_properties, "kernel32.dll", "FreeLibraryAndExitThread");
+            var freeLibraryAndExitThreadAddress = Tools.GetRemoteProcAddress(_properties, "kernel32.dll", "FreeLibraryAndExitThread");
 
-            if (freeLibraryAndExitThread == IntPtr.Zero)
+            if (freeLibraryAndExitThreadAddress == IntPtr.Zero)
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to find the address of the FreeLibraryAndExitThread method in kernel32.dll");
             }
@@ -51,7 +51,7 @@ namespace Bleak.Extensions
             
             // Create a remote thread to call free library and exit thread in the process
             
-            Native.RtlCreateUserThread(_properties.ProcessHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, freeLibraryAndExitThread, dllBaseAddress, out var remoteThreadHandle, 0);
+            Native.NtCreateThreadEx(out var remoteThreadHandle, Native.AccessMask.SpecificRightsAll | Native.AccessMask.StandardRightsAll, IntPtr.Zero, _properties.ProcessHandle, freeLibraryAndExitThreadAddress, dllBaseAddress, Native.CreationFlags.HideFromDebugger, 0, 0, 0, IntPtr.Zero);
             
             if (remoteThreadHandle is null)
             {

@@ -25,7 +25,7 @@ A Windows native DLL injection library written in C# that supports several metho
 
 ### Features
 
-* x86 injection from an x64 process
+* x86 and x64 injection
 
 ----
 

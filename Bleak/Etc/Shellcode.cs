@@ -20,9 +20,9 @@ namespace Bleak.Etc
             };
             
             // Get the byte representation of each pointer
-
+            
             var instructionPointerBytes = BitConverter.GetBytes((int) instructionPointer);
-
+            
             var dllPathAddressBytes = BitConverter.GetBytes((int) dllPathAddress);
             
             var loadLibraryAddressBytes = BitConverter.GetBytes((int) loadLibraryAddress);
@@ -30,14 +30,14 @@ namespace Bleak.Etc
             // Write the pointers into the shellcode
             
             Buffer.BlockCopy(instructionPointerBytes, 0, shellcode, 1, 4);
-
+            
             Buffer.BlockCopy(dllPathAddressBytes, 0, shellcode, 8, 4);
-
+            
             Buffer.BlockCopy(loadLibraryAddressBytes, 0, shellcode, 13, 4);
                         
             return shellcode;
         }
-
+        
         internal static byte[] CallLoadLibraryx64(IntPtr instructionPointer, IntPtr dllPathAddress, IntPtr loadLibraryAddress)
         {
             var shellcode = new byte[]
@@ -86,22 +86,22 @@ namespace Bleak.Etc
             // Get the byte representation of each pointer
             
             var instructionPointerBytes = BitConverter.GetBytes((long) instructionPointer);
-
+            
             var dllPathAddressBytes = BitConverter.GetBytes((long) dllPathAddress);
-
+            
             var loadLibraryAddressBytes = BitConverter.GetBytes((long) loadLibraryAddress);
-
+            
             // Write the pointers into the shellcode
-
+            
             Buffer.BlockCopy(instructionPointerBytes, 0, shellcode, 3, 8);
-
+            
             Buffer.BlockCopy(dllPathAddressBytes, 0, shellcode, 41, 8);
             
             Buffer.BlockCopy(loadLibraryAddressBytes, 0, shellcode, 51, 8);
             
             return shellcode;
         }
-
+        
         internal static byte[] CallDllMainx86(IntPtr baseAddress, IntPtr entryPointAddress)
         {
             var shellcode = new byte[]
@@ -116,20 +116,20 @@ namespace Bleak.Etc
             };
             
             // Get the byte representation of each pointer
-
+            
             var baseAddressBytes = BitConverter.GetBytes((int) baseAddress);
-
+            
             var entryPointAddressBytes = BitConverter.GetBytes((int) entryPointAddress);
-
+            
             // Write the pointers into the shellcode
-
+            
             Buffer.BlockCopy(baseAddressBytes, 0, shellcode, 1, 4);
-
+            
             Buffer.BlockCopy(entryPointAddressBytes, 0, shellcode, 16, 4);
-
+            
             return shellcode;
         }
-
+        
         internal static byte[] CallDllMainx64(IntPtr baseAddress, IntPtr entryPointAddress)
         {
             var shellcode = new byte[]
@@ -144,19 +144,19 @@ namespace Bleak.Etc
                 0x31, 0xC0,                                                 // xor eax, eax
                 0xC3                                                        // ret
             };
-
+            
             // Get the byte representation of each pointer
-
+            
             var baseAddressBytes = BitConverter.GetBytes((long) baseAddress);
-
+            
             var entryPointAddressBytes = BitConverter.GetBytes((long) entryPointAddress);
-
+            
             // Write the pointers into the shellcode
-
+            
             Buffer.BlockCopy(baseAddressBytes, 0, shellcode, 6, 8);
-
+            
             Buffer.BlockCopy(entryPointAddressBytes, 0, shellcode, 26, 8);
-
+            
             return shellcode;
         }
     }
