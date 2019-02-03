@@ -38,9 +38,9 @@ namespace Bleak.Tests
         
         public void Dispose()
         {
-            // Close the test process
+            // Terminate the test process
 
-            _process?.CloseMainWindow();
+            _process?.Kill();
         }
 
         [Fact]
