@@ -36,26 +36,26 @@ namespace Bleak.Extensions
             
             var dllName = Path.GetFileName(_properties.DllPath);
             
-            // Get an instance of the dll in the process
+            // Get an instance of the dll in the remote process
 
             var module = Tools.GetProcessModules(_properties.ProcessId).SingleOrDefault(m => string.Equals(m.Module, dllName, StringComparison.OrdinalIgnoreCase));
             
             if (module.Equals(default(Native.ModuleEntry)))
             {
-                throw new ArgumentException($"There is no module named {dllName} loaded in the process");
+                throw new ArgumentException($"There is no module named {dllName} loaded in the remote process");
             }
             
             // Get the base address of the dll
             
             var dllBaseAddress = module.BaseAddress;
             
-            // Create a remote thread to call free library and exit thread in the process
+            // Create a remote thread to call free library and exit thread in the remote process
             
             Native.NtCreateThreadEx(out var remoteThreadHandle, Native.AccessMask.SpecificRightsAll | Native.AccessMask.StandardRightsAll, IntPtr.Zero, _properties.ProcessHandle, freeLibraryAndExitThreadAddress, dllBaseAddress, Native.CreationFlags.HideFromDebugger, 0, 0, 0, IntPtr.Zero);
             
             if (remoteThreadHandle is null)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call free library and exit thread in the process");
+                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call free library and exit thread in the remote process");
             }
             
             // Wait for the remote thread to finish its task

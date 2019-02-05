@@ -32,7 +32,7 @@ namespace Bleak.Methods
                 ExceptionHandler.ThrowWin32Exception("Failed to find the address of the LoadLibraryW method in kernel32.dll");
             }
             
-            // Allocate memory for the dll path in the process
+            // Allocate memory for the dll path in the remote process
             
             var dllPathAddress = IntPtr.Zero;
             
@@ -43,10 +43,10 @@ namespace Bleak.Methods
             
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the dll path in the process");
+                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the dll path in the remote process");
             }
             
-            // Write the dll path into the process
+            // Write the dll path into the memory of the remote process
             
             var dllPathBytes = Encoding.Unicode.GetBytes(_properties.DllPath + "\0");
             
@@ -57,23 +57,23 @@ namespace Bleak.Methods
             
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the process");   
+                ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the remote process");   
             }
             
-            // Create a remote thread to call load library in the process
+            // Create a remote thread to call load library in the remote process
             
             Native.RtlCreateUserThread(_properties.ProcessHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryAddress, dllPathAddress, out var remoteThreadHandle, 0);
             
             if (remoteThreadHandle is null)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call load library in the process");
+                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call load library in the remote process");
             }
             
             // Wait for the remote thread to finish its task
             
             Native.WaitForSingleObject(remoteThreadHandle, int.MaxValue);
             
-            // Free the memory previously allocated for the dll path
+            // Free the memory previously allocated for the dll path in the remote process
             
             try
             {
@@ -82,7 +82,7 @@ namespace Bleak.Methods
             
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the dll path in the process");   
+                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the dll path in the remote process");   
             }
             
             remoteThreadHandle?.Close();

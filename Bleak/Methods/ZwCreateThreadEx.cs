@@ -32,7 +32,7 @@ namespace Bleak.Methods
                 ExceptionHandler.ThrowWin32Exception("Failed to find the address of the LoadLibraryW method in kernel32.dll");
             }
             
-            // Allocate memory for the dll path in the process
+            // Allocate memory for the dll path in the remote process
             
             var dllPathAddress = IntPtr.Zero;
 
@@ -43,10 +43,10 @@ namespace Bleak.Methods
 
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the dll path in the process");
+                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the dll path in the remote process");
             }
             
-            // Write the dll path into the process
+            // Write the dll path into the remote process
             
             var dllPathBytes = Encoding.Unicode.GetBytes(_properties.DllPath + "\0");
 
@@ -57,7 +57,7 @@ namespace Bleak.Methods
 
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the process");   
+                ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the remote process");   
             }
             
             // Create a remote thread to call load library in the process

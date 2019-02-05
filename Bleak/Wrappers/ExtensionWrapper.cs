@@ -32,7 +32,7 @@ namespace Bleak.Wrappers
                 throw new FileNotFoundException("No file exists at the provided location");
             }
             
-            // Get an instance of the process
+            // Get an instance of the remote process
             
             Process process;
             
@@ -43,12 +43,12 @@ namespace Bleak.Wrappers
             
             catch (IndexOutOfRangeException)
             {
-                // The process isn't currently running
+                // The remote process isn't currently running
                 
                 throw new ArgumentException($"No process with name {processName} is currently running");
             }
             
-            // Ensure the process architecture matches the dll architecture
+            // Ensure the remote process architecture matches the dll architecture
             
             ValidateArchitecture.Validate(process, dllPath);
             
@@ -79,7 +79,7 @@ namespace Bleak.Wrappers
                 throw new FileNotFoundException("No file exists at the provided location");
             }
             
-            // Get an instance of the process
+            // Get an instance of the remote process
             
             Process process;
             
@@ -90,12 +90,12 @@ namespace Bleak.Wrappers
             
             catch (ArgumentException)
             {
-                // The process isn't currently running
+                // The remote process isn't currently running
                 
                 throw new ArgumentException($"No process with id {processId} is currently running");
             }
             
-            // Ensure the process architecture matches the dll architecture
+            // Ensure the remote process architecture matches the dll architecture
             
             ValidateArchitecture.Validate(process, dllPath);
             
@@ -128,7 +128,7 @@ namespace Bleak.Wrappers
                 File.WriteAllBytes(temporaryDllPath, dllBytes);
             }
             
-            // Get an instance of the process
+            // Get an instance of the remote process
             
             Process process;
             
@@ -139,12 +139,12 @@ namespace Bleak.Wrappers
             
             catch (IndexOutOfRangeException)
             {
-                // The process isn't currently running
+                // The remote process isn't currently running
                 
                 throw new ArgumentException($"No process with name {processName} is currently running");
             }
             
-            // Ensure the process architecture matches the dll architecture
+            // Ensure the remote process architecture matches the dll architecture
             
             ValidateArchitecture.Validate(process, temporaryDllPath);
             
@@ -177,7 +177,7 @@ namespace Bleak.Wrappers
                 File.WriteAllBytes(temporaryDllPath, dllBytes);
             }
             
-            // Get an instance of the process
+            // Get an instance of the remote process
             
             Process process;
             
@@ -188,12 +188,12 @@ namespace Bleak.Wrappers
             
             catch (ArgumentException)
             {
-                // The process isn't currently running
+                // The remote process isn't currently running
                 
                 throw new ArgumentException($"No process with id {processId} is currently running");
             }
             
-            // Ensure the process architecture matches the dll architecture
+            // Ensure the remote process architecture matches the dll architecture
             
             ValidateArchitecture.Validate(process, temporaryDllPath);
             

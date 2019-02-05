@@ -29,13 +29,13 @@ namespace Bleak.Extensions
             
             var dllName = Path.GetFileName(_properties.DllPath);
             
-            // Get an instance of the dll in the process
+            // Get an instance of the dll in the remote process
 
             var module = Tools.GetProcessModules(_properties.ProcessId).SingleOrDefault(m => string.Equals(m.Module, dllName, StringComparison.OrdinalIgnoreCase));
             
             if (module.Equals(default(Native.ModuleEntry)))
             {
-                throw new ArgumentException($"There is no module named {dllName} loaded in the process");
+                throw new ArgumentException($"There is no module named {dllName} loaded in the remote process");
             }
             
             // Get the base address of the dll
@@ -48,7 +48,7 @@ namespace Bleak.Extensions
             
             if (!Native.VirtualQueryEx(_properties.ProcessHandle, dllBaseAddress, out var memoryInformation, memoryInformationSize))
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to query the memory of the process");
+                ExceptionHandler.ThrowWin32Exception("Failed to query the memory of the remote process");
             }
             
             // Create a buffer to write over the header region with
@@ -64,7 +64,7 @@ namespace Bleak.Extensions
             
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to write over the header region");
+                ExceptionHandler.ThrowWin32Exception("Failed to write over the header region of the dll in the remote process");
             }
             
             return true;

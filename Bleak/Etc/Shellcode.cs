@@ -21,11 +21,11 @@ namespace Bleak.Etc
             
             // Get the byte representation of each pointer
             
-            var instructionPointerBytes = BitConverter.GetBytes((int) instructionPointer);
+            var instructionPointerBytes = BitConverter.GetBytes((uint) instructionPointer);
             
-            var dllPathAddressBytes = BitConverter.GetBytes((int) dllPathAddress);
+            var dllPathAddressBytes = BitConverter.GetBytes((uint) dllPathAddress);
             
-            var loadLibraryAddressBytes = BitConverter.GetBytes((int) loadLibraryAddress);
+            var loadLibraryAddressBytes = BitConverter.GetBytes((uint) loadLibraryAddress);
             
             // Write the pointers into the shellcode
             
@@ -85,11 +85,11 @@ namespace Bleak.Etc
             
             // Get the byte representation of each pointer
             
-            var instructionPointerBytes = BitConverter.GetBytes((long) instructionPointer);
+            var instructionPointerBytes = BitConverter.GetBytes((ulong) instructionPointer);
             
-            var dllPathAddressBytes = BitConverter.GetBytes((long) dllPathAddress);
+            var dllPathAddressBytes = BitConverter.GetBytes((ulong) dllPathAddress);
             
-            var loadLibraryAddressBytes = BitConverter.GetBytes((long) loadLibraryAddress);
+            var loadLibraryAddressBytes = BitConverter.GetBytes((ulong) loadLibraryAddress);
             
             // Write the pointers into the shellcode
             
@@ -117,9 +117,9 @@ namespace Bleak.Etc
             
             // Get the byte representation of each pointer
             
-            var baseAddressBytes = BitConverter.GetBytes((int) baseAddress);
+            var baseAddressBytes = BitConverter.GetBytes((uint) baseAddress);
             
-            var entryPointAddressBytes = BitConverter.GetBytes((int) entryPointAddress);
+            var entryPointAddressBytes = BitConverter.GetBytes((uint) entryPointAddress);
             
             // Write the pointers into the shellcode
             
@@ -147,9 +147,9 @@ namespace Bleak.Etc
             
             // Get the byte representation of each pointer
             
-            var baseAddressBytes = BitConverter.GetBytes((long) baseAddress);
+            var baseAddressBytes = BitConverter.GetBytes((ulong) baseAddress);
             
-            var entryPointAddressBytes = BitConverter.GetBytes((long) entryPointAddress);
+            var entryPointAddressBytes = BitConverter.GetBytes((ulong) entryPointAddress);
             
             // Write the pointers into the shellcode
             

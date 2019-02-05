@@ -37,7 +37,7 @@ namespace Bleak.Methods
                 ExceptionHandler.ThrowWin32Exception("Failed to find the address of the LoadLibraryW method in kernel32.dll");
             }
             
-            // Allocate memory for the dll path in the process
+            // Allocate memory for the dll path in the remote process
             
             var dllPathAddress = IntPtr.Zero;
 
@@ -48,10 +48,10 @@ namespace Bleak.Methods
 
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the dll path in the process");
+                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the dll path in the remote process");
             }
             
-            // Write the dll path into the process
+            // Write the dll path into the memory of the remote process
             
             var dllPathBytes = Encoding.Unicode.GetBytes(_properties.DllPath + "\0");
 
@@ -62,9 +62,9 @@ namespace Bleak.Methods
 
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the process");   
+                ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the remote process");   
             }
-
+            
             foreach (var thread in _processThreads.Cast<ProcessThread>())
             {
                 // Open a handle to the thread
@@ -80,13 +80,13 @@ namespace Bleak.Methods
 
                 if (!Native.QueueUserAPC(loadLibraryAddress, threadHandle, dllPathAddress))
                 {
-                    ExceptionHandler.ThrowWin32Exception("Failed to queue a user-mode apc to the apc queue of a thread in the process");
+                    ExceptionHandler.ThrowWin32Exception("Failed to queue a user-mode apc to the apc queue of a thread in the remote process");
                 }
                 
                 threadHandle?.Close();
             }
             
-            // Free the memory previously allocated for the dll path
+            // Free the memory previously allocated for the dll path in the remote process
 
             try
             {
@@ -95,7 +95,7 @@ namespace Bleak.Methods
 
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the dll path in the process");   
+                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the dll path in the remote process");   
             }
 
             return true;

@@ -41,7 +41,7 @@ namespace Bleak.Extensions
 
                 var pebBaseAddress = (IntPtr) Tools.PointerToStructure<ulong>(pebBaseAddressBuffer);
 
-                // Read the process environment block from the process
+                // Read the process environment block from the remote process
                 
                 var peb = default(Native.Peb);
                 
@@ -52,10 +52,10 @@ namespace Bleak.Extensions
                 
                 catch (Win32Exception)
                 {
-                    ExceptionHandler.ThrowWin32Exception("Failed to read the process environment block of the process");
+                    ExceptionHandler.ThrowWin32Exception("Failed to read the process environment block of the remote process");
                 }
                 
-                // Read the process environment block loader data from the process
+                // Read the process environment block loader data from the remote process
                 
                 var pebLoaderData = default(Native.PebLdrData);
                 
@@ -66,14 +66,14 @@ namespace Bleak.Extensions
                 
                 catch (Win32Exception)
                 {
-                    ExceptionHandler.ThrowWin32Exception("Failed to read the process environment block loader data of the process");
+                    ExceptionHandler.ThrowWin32Exception("Failed to read the process environment block's loader data of the remote process");
                 }
                 
-                // Get the address of the first dll entry in the processes module list
+                // Get the address of the first dll entry in the remote processes module list
                 
                 var currentEntry = pebLoaderData.InLoadOrderModuleList.Flink;
                 
-                // Get the address of the last dll entry in the processes module list
+                // Get the address of the last dll entry in the remote processes module list
                 
                 var lastEntry = pebLoaderData.InLoadOrderModuleList.Blink;
                 
@@ -211,10 +211,10 @@ namespace Bleak.Extensions
                 
                 if (pbi.Equals(default(Native.ProcessBasicInformation)))
                 {
-                    ExceptionHandler.ThrowWin32Exception("Failed to query the memory of the process");
+                    ExceptionHandler.ThrowWin32Exception("Failed to query the memory of the remote process");
                 }
                 
-                // Read the process environment block from the process
+                // Read the process environment block from the remote process
                 
                 var peb = default(Native.Peb64);
                 
@@ -225,10 +225,10 @@ namespace Bleak.Extensions
                 
                 catch (Win32Exception)
                 {
-                    ExceptionHandler.ThrowWin32Exception("Failed to read the process environment block of the process");
+                    ExceptionHandler.ThrowWin32Exception("Failed to read the process environment block of the remote process");
                 }
                 
-                // Read the process environment block loader data from the process
+                // Read the process environment block loader data from the remote process
                 
                 var pebLoaderData = default(Native.PebLdrData64);
                 
@@ -239,14 +239,14 @@ namespace Bleak.Extensions
                 
                 catch (Win32Exception)
                 {
-                    ExceptionHandler.ThrowWin32Exception("Failed to read the process environment block loader data of the process");
+                    ExceptionHandler.ThrowWin32Exception("Failed to read the process environment block's loader data of the remote process");
                 }
                 
-                // Get the address of the first dll entry in the processes module list
+                // Get the address of the first dll entry in the remote processes module list
                 
                 var currentEntry = pebLoaderData.InLoadOrderModuleList.Flink;
                 
-                // Get the address of the last dll entry in the processes module list
+                // Get the address of the last dll entry in the remote processes module list
                 
                 var lastEntry = pebLoaderData.InLoadOrderModuleList.Blink;
                 

@@ -70,11 +70,11 @@ namespace Bleak.Methods
         
         private void CallEntryPoint(IntPtr baseAddress, IntPtr entryPoint)
         {
-            // Initialize shellcode to call the entry of the dll in the process
+            // Initialize shellcode to call the entry of the dll in the remote process
             
             var shellcodeBytes = _properties.IsWow64 ? Shellcode.CallDllMainx86(baseAddress, entryPoint) : Shellcode.CallDllMainx64(baseAddress, entryPoint);
             
-            // Allocate memory for the shellcode in the process
+            // Allocate memory for the shellcode in the remote process
             
             var shellcodeAddress = IntPtr.Zero;
             
@@ -85,10 +85,10 @@ namespace Bleak.Methods
             
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the shellcode in the process");
+                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the shellcode in the remote process");
             }
             
-            // Write the shellcode into the memory of the process
+            // Write the shellcode into the memory of the remote process
             
             try
             {
@@ -97,23 +97,23 @@ namespace Bleak.Methods
             
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to write the shellcode into the memory of the process");   
+                ExceptionHandler.ThrowWin32Exception("Failed to write the shellcode into the memory of the remote process");   
             }
             
-            // Create a remote thread to call the entry point in the process
+            // Create a remote thread to call the entry point in the remote process
             
             Native.NtCreateThreadEx(out var remoteThreadHandle, Native.AccessMask.SpecificRightsAll | Native.AccessMask.StandardRightsAll, IntPtr.Zero, _properties.ProcessHandle, shellcodeAddress, IntPtr.Zero, Native.CreationFlags.HideFromDebugger, 0, 0, 0, IntPtr.Zero);
             
             if (remoteThreadHandle is null)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call the entry point in the process");
+                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call the entry point in the remote process");
             }
             
             // Wait for the remote thread to finish its task
             
             Native.WaitForSingleObject(remoteThreadHandle, int.MaxValue);
             
-            // Free the memory previously allocated for the shellcode
+            // Free the memory previously allocated for the shellcode in the remote process
             
             try
             {
@@ -122,7 +122,7 @@ namespace Bleak.Methods
             
             catch (Win32Exception)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the shellcode in the process");   
+                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the shellcode in the remote process");   
             }
             
             // Close the handle opened to the remote thread
@@ -231,7 +231,7 @@ namespace Bleak.Methods
                     
                     var procAddress = Tools.GetRemoteProcAddress(_properties, tempDllName, importedFunction.Name);
                     
-                    // If the dll isn't already loaded into the process
+                    // If the dll isn't already loaded into the remote process
                     
                     if (procAddress == IntPtr.Zero)
                     {
@@ -279,7 +279,7 @@ namespace Bleak.Methods
                     
                 var sectionProtection = GetSectionProtection((Native.DataSectionFlags) section.Characteristics);
                 
-                // Determine the address to map the section to in the process
+                // Determine the address to map the section to in the remote process
                 
                 var sectionAddress = remoteAddress + (int) section.VirtualAddress;
                 
@@ -297,7 +297,7 @@ namespace Bleak.Methods
                 
                 Marshal.Copy(rawDataAddress, rawData, 0, rawDataSize);
                 
-                // Map the section into the process
+                // Map the section into the remote process
                 
                 try
                 {
@@ -306,10 +306,10 @@ namespace Bleak.Methods
                 
                 catch (Win32Exception)
                 {
-                    ExceptionHandler.ThrowWin32Exception("Failed to write a section into the process");
+                    ExceptionHandler.ThrowWin32Exception("Failed to write a section into the remote process");
                 }
                 
-                // Adjust the protection of the section in the process
+                // Adjust the protection of the section in the remote process
                 
                 try
                 {
@@ -318,7 +318,7 @@ namespace Bleak.Methods
                 
                 catch (Win32Exception)
                 {
-                    ExceptionHandler.ThrowWin32Exception("Failed to adjust the protection of a section in the process"); 
+                    ExceptionHandler.ThrowWin32Exception("Failed to adjust the protection of a section in the remote process"); 
                 }
             }
         }
@@ -336,7 +336,7 @@ namespace Bleak.Methods
                 return;
             }
             
-            // Call the entry point for each tls callback in the process
+            // Call the entry point for each tls callback in the remote process
             
             foreach (var tlsCallback in tlsDirectory.TlsCallbacks)
             {
