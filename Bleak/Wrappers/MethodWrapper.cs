@@ -216,6 +216,15 @@ namespace Bleak.Wrappers
         
         internal bool ManualMap()
         {
+            // Ensure the operating system supports ManualMap
+            
+            var osVersion = Environment.Version;
+
+            if (osVersion.Major == 5)
+            {
+                throw new PlatformNotSupportedException("ManualMap is not supported on Windows XP");
+            }
+            
             using (var injectionMethod = new ManualMap(_process, _dllPath))
             {
                 // Inject the dll
@@ -226,6 +235,15 @@ namespace Bleak.Wrappers
         
         internal bool NtCreateThreadEx()
         {
+            // Ensure the operating system supports NtCreateThreadEx
+            
+            var osVersion = Environment.Version;
+
+            if (osVersion.Major == 5)
+            {
+                throw new PlatformNotSupportedException("NtCreateThreadEx is not supported on Windows XP");
+            }
+            
             using (var injectionMethod = new NtCreateThreadEx(_process, _dllPath))
             {
                 // Inject the dll
@@ -286,6 +304,15 @@ namespace Bleak.Wrappers
         
         internal bool SetThreadContext()
         {
+            // Ensure the operating system supports SetThreadContext
+            
+            var osVersion = Environment.Version;
+
+            if (osVersion.Major == 5)
+            {
+                throw new PlatformNotSupportedException("SetThreadContext is not supported on Windows XP");
+            }
+            
             using (var injectionMethod = new SetThreadContext(_process, _dllPath))
             {
                 // Inject the dll
@@ -296,6 +323,15 @@ namespace Bleak.Wrappers
         
         internal bool ZwCreateThreadEx()
         {
+            // Ensure the operating system supports ZwCreateThreadEx
+            
+            var osVersion = Environment.Version;
+
+            if (osVersion.Major == 5)
+            {
+                throw new PlatformNotSupportedException("ZwCreateThreadEx is not supported on Windows XP");
+            }
+            
             using (var injectionMethod = new ZwCreateThreadEx(_process, _dllPath))
             {
                 // Inject the dll

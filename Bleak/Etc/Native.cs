@@ -14,7 +14,7 @@ namespace Bleak.Etc
         internal static extern bool CloseHandle(IntPtr handle);
         
         [DllImport("kernel32.dll", SetLastError = true)]
-        internal static extern SafeThreadHandle CreateRemoteThread(SafeProcessHandle processHandle, IntPtr threadAttributes, int stackSize, IntPtr startAddress, IntPtr parameter, int creationFlags, int threadId);
+        internal static extern SafeThreadHandle CreateRemoteThread(SafeProcessHandle processHandle, IntPtr threadAttributes, int stackSize, IntPtr startAddress, IntPtr parameter, int creationFlags, IntPtr threadId);
         
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern IntPtr CreateToolhelp32Snapshot(SnapshotFlags flags, uint processId);        
@@ -158,7 +158,7 @@ namespace Bleak.Etc
         #region Structures
         
         [StructLayout(LayoutKind.Sequential)]
-        internal struct Wow64Context
+        internal struct Context
         {
             internal ContextFlags Flags;
             
@@ -169,7 +169,7 @@ namespace Bleak.Etc
             private readonly uint Dr6;
             private readonly uint Dr7;
             
-            private readonly Wow64FloatingSaveArea FloatingSave;
+            private readonly FloatingSaveArea FloatingSave;
             
             private readonly uint SegGs;
             private readonly uint SegFs;
@@ -193,9 +193,9 @@ namespace Bleak.Etc
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 512)]
             private readonly byte[] ExtendedRegisters;
         }
-                
+        
         [StructLayout(LayoutKind.Sequential, Pack = 16)]
-        internal struct Context
+        internal struct Context64
         {
             private readonly ulong P1Home;
             private readonly ulong P2Home;
@@ -255,7 +255,7 @@ namespace Bleak.Etc
         }
         
         [StructLayout(LayoutKind.Sequential)]
-        private struct Wow64FloatingSaveArea
+        private struct FloatingSaveArea
         {
             private readonly uint ControlWord;
             private readonly uint StatusWord;
@@ -558,6 +558,62 @@ namespace Bleak.Etc
             internal readonly ushort MaxLength;
             
             internal readonly ulong Buffer;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct Wow64Context
+        {
+            internal ContextFlags Flags;
+            
+            private readonly uint Dr0;
+            private readonly uint Dr1;
+            private readonly uint Dr2;
+            private readonly uint Dr3;
+            private readonly uint Dr6;
+            private readonly uint Dr7;
+            
+            private readonly Wow64FloatingSaveArea FloatingSave;
+            
+            private readonly uint SegGs;
+            private readonly uint SegFs;
+            private readonly uint SegEs;
+            private readonly uint SegDs;
+            
+            private readonly uint Edi;
+            private readonly uint Esi;
+            private readonly uint Ebx;
+            private readonly uint Edx;
+            private readonly uint Ecx;
+            private readonly uint Eax;
+            
+            private readonly uint Ebp;
+            internal uint Eip;
+            private readonly uint SegCs;
+            private readonly uint EFlags;
+            private readonly uint Esp;
+            private readonly uint SegSs;
+            
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 512)]
+            private readonly byte[] ExtendedRegisters;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        private struct Wow64FloatingSaveArea
+        {
+            private readonly uint ControlWord;
+            private readonly uint StatusWord;
+            private readonly uint TagWord;
+            
+            private readonly uint ErrorOffset;
+            private readonly uint ErrorSelector;
+            
+            private readonly uint DataOffset;
+            private readonly uint DataSelector;
+            
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 80)]
+            private readonly byte[] RegisterArea;
+            
+            private readonly uint Cr0NpxState;
         }
         
         #endregion
