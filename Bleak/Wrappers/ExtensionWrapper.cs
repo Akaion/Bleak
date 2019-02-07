@@ -14,7 +14,7 @@ namespace Bleak.Wrappers
         
         internal ExtensionWrapper(string processName, string dllPath)
         {
-            // Ensure the operating system is Windows
+            // Ensure the operating system is valid
 
             ValidateOperatingSystem.Validate();
             
@@ -61,7 +61,7 @@ namespace Bleak.Wrappers
         
         internal ExtensionWrapper(int processId, string dllPath)
         {
-            // Ensure the operating system is Windows
+            // Ensure the operating system is valid
 
             ValidateOperatingSystem.Validate();
             
@@ -108,7 +108,7 @@ namespace Bleak.Wrappers
         
         internal ExtensionWrapper(string processName, byte[] dllBytes)
         {
-            // Ensure the operating system is Windows
+            // Ensure the operating system is valid
 
             ValidateOperatingSystem.Validate();
             
@@ -123,7 +123,14 @@ namespace Bleak.Wrappers
             
             var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
             
-            if (!File.Exists(temporaryDllPath))
+            if (File.Exists(temporaryDllPath))
+            {
+                File.Delete(temporaryDllPath);
+                
+                File.WriteAllBytes(temporaryDllPath, dllBytes);
+            }
+            
+            else
             {
                 File.WriteAllBytes(temporaryDllPath, dllBytes);
             }
@@ -157,7 +164,7 @@ namespace Bleak.Wrappers
         
         internal ExtensionWrapper(int processId, byte[] dllBytes)
         {
-            // Ensure the operating system is Windows
+            // Ensure the operating system is valid
 
             ValidateOperatingSystem.Validate();
             
@@ -172,7 +179,14 @@ namespace Bleak.Wrappers
             
             var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
             
-            if (!File.Exists(temporaryDllPath))
+            if (File.Exists(temporaryDllPath))
+            {
+                File.Delete(temporaryDllPath);
+                
+                File.WriteAllBytes(temporaryDllPath, dllBytes);
+            }
+            
+            else
             {
                 File.WriteAllBytes(temporaryDllPath, dllBytes);
             }
