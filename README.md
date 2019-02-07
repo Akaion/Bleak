@@ -13,7 +13,7 @@ A Windows native DLL injection library written in C# that supports several metho
 * NtCreateThreadEx
 * QueueUserAPC
 * RtlCreateUserThread
-* SetThreadContext (Thread Hijack)
+* SetThreadContext
 * ZwCreateThreadEx
 
 ### Extensions
@@ -32,19 +32,12 @@ A Windows native DLL injection library written in C# that supports several metho
 ### Installation
 
 * Download and install Bleak using [NuGet](https://www.nuget.org/packages/Bleak)
-* Compile as AnyCPU
 
 ----
 
-### Usage
+### Usage Example
 
-Any method can be overloaded with a process id instead of a process name
-
-You also have the option to overload the dll path with a byte array representing the dll
-
-#### Injection Methods
-
-All injection methods follow the same syntax described below
+The example below describes a basic implementation of the library.
 
 ```csharp
 using Bleak;
@@ -54,21 +47,12 @@ var injector = new Injector();
 // Inject a dll into a process using the CreateRemoteThread method
 
 injector.CreateRemoteThread("processName", "pathToDll");
-```
-
-#### Extension Methods
-
-All extension methods follow the same syntax described below
-
-```csharp
-using Bleak;
-
-var injector = new Injector();
 
 // Erase the PE headers of a dll loaded in the process
 
 injector.EraseHeaders("processName", "pathToDll");
 ```
+Full documentation of the library, including examples can be found here (documentation currently being created) 
 
 ----
 

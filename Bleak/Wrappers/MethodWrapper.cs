@@ -14,7 +14,7 @@ namespace Bleak.Wrappers
         
         internal MethodWrapper(string processName, string dllPath)
         {
-            // Ensure the operating system is Windows
+            // Ensure the operating system is valid
 
             ValidateOperatingSystem.Validate();
             
@@ -61,7 +61,7 @@ namespace Bleak.Wrappers
         
         internal MethodWrapper(int processId, string dllPath)
         {
-            // Ensure the operating system is Windows
+            // Ensure the operating system is valid
 
             ValidateOperatingSystem.Validate();
             
@@ -108,7 +108,7 @@ namespace Bleak.Wrappers
         
         internal MethodWrapper(string processName, byte[] dllBytes)
         {
-            // Ensure the operating system is Windows
+            // Ensure the operating system is valid
 
             ValidateOperatingSystem.Validate();
             
@@ -123,12 +123,19 @@ namespace Bleak.Wrappers
             
             var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
             
-            if (!File.Exists(temporaryDllPath))
+            if (File.Exists(temporaryDllPath))
+            {
+                File.Delete(temporaryDllPath);
+                
+                File.WriteAllBytes(temporaryDllPath, dllBytes);
+            }
+            
+            else
             {
                 File.WriteAllBytes(temporaryDllPath, dllBytes);
             }
             
-            // Get an instance of the process
+            // Get an instance of the remote process
             
             Process process;
             
@@ -157,7 +164,7 @@ namespace Bleak.Wrappers
         
         internal MethodWrapper(int processId, byte[] dllBytes)
         {
-            // Ensure the operating system is Windows
+            // Ensure the operating system is valid
 
             ValidateOperatingSystem.Validate();
             
@@ -172,12 +179,19 @@ namespace Bleak.Wrappers
             
             var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
             
-            if (!File.Exists(temporaryDllPath))
+            if (File.Exists(temporaryDllPath))
+            {
+                File.Delete(temporaryDllPath);
+                
+                File.WriteAllBytes(temporaryDllPath, dllBytes);
+            }
+            
+            else
             {
                 File.WriteAllBytes(temporaryDllPath, dllBytes);
             }
             
-            // Get an instance of the process
+            // Get an instance of the remote process
             
             Process process;
             
