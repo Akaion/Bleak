@@ -16,7 +16,7 @@
 
     <ItemGroup>
       <PackageReference Include="Jupiter" Version="1.5.1" />
-      <PackageReference Include="PeNet" Version="0.8.2" />
+      <PackageReference Include="PeNet" Version="0.9.1" />
     </ItemGroup>
 
 </Project>
