@@ -52,7 +52,7 @@ injector.CreateRemoteThread("processName", "pathToDll");
 
 injector.EraseHeaders("processName", "pathToDll");
 ```
-Full documentation of the library, including examples can be found here (documentation currently being created) 
+Full documentation for the library can be found [here](https://akaion.github.io/repositories/bleak.html) 
 
 ----
 

@@ -72,7 +72,7 @@ namespace Bleak.Methods
         {
             // Initialize shellcode to call the entry of the dll in the remote process
             
-            var shellcodeBytes = _properties.IsWow64 ? Shellcode.CallDllMainx86(baseAddress, entryPoint) : Shellcode.CallDllMainx64(baseAddress, entryPoint);
+            var shellcodeBytes = _properties.IsWow64 ? Shellcode.CallDllMainX86(baseAddress, entryPoint) : Shellcode.CallDllMainX64(baseAddress, entryPoint);
             
             // Allocate memory for the shellcode in the remote process
             

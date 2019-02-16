@@ -68,16 +68,16 @@ namespace Bleak.Methods
             foreach (var thread in _processThreads.Cast<ProcessThread>())
             {
                 // Open a handle to the thread
-
+                
                 var threadHandle = Native.OpenThread(Native.ThreadAccess.SetContext, false, thread.Id);
-
+                                
                 if (threadHandle is null)
                 {
                     ExceptionHandler.ThrowWin32Exception("Failed to open a handle to a thread in the process");
                 }
                 
                 // Add a user-mode APC to the APC queue of the thread
-
+                
                 if (!Native.QueueUserAPC(loadLibraryAddress, threadHandle, dllPathAddress))
                 {
                     ExceptionHandler.ThrowWin32Exception("Failed to queue a user-mode apc to the apc queue of a thread in the remote process");

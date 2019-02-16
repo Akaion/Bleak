@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using PeNet;
 
@@ -9,6 +10,27 @@ namespace Bleak.Etc
 {
     internal static class Tools
     {
+        internal static string ComputeHash(byte[] bytes)
+        {
+            using (var hasher = SHA256.Create())
+            {
+                // Hash the bytes
+                
+                var hash = hasher.ComputeHash(bytes);
+                
+                // Convert the hashed bytes into a string
+                
+                var stringBuilder = new StringBuilder();
+                
+                foreach (var b in hash)
+                {
+                    stringBuilder.Append(b.ToString("X2"));
+                }
+                
+                return stringBuilder.ToString();
+            }
+        }
+        
         internal static IEnumerable<Native.ModuleEntry> GetProcessModules(int processId)
         {
             var processModules = new List<Native.ModuleEntry>();

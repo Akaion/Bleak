@@ -97,7 +97,7 @@ namespace Bleak.Methods
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to open a handle to a thread in the remote process");
             }
-            
+                        
             // Suspend the thread
             
             if (Native.SuspendThread(threadHandle) == -1)
@@ -132,7 +132,7 @@ namespace Bleak.Methods
                 
                 // Write the shellcode into the memory of the remote process
                 
-                var shellcodeBytes = Shellcode.CallLoadLibraryx86((IntPtr) instructionPointer, dllPathAddress, loadLibraryAddress);
+                var shellcodeBytes = Shellcode.CallLoadLibraryX86((IntPtr) instructionPointer, dllPathAddress, loadLibraryAddress);
                 
                 try
                 {
@@ -187,7 +187,7 @@ namespace Bleak.Methods
                 
                 // Write the shellcode into the memory of the process
                 
-                var shellcodeBytes = Shellcode.CallLoadLibraryx86((IntPtr) instructionPointer, dllPathAddress, loadLibraryAddress);
+                var shellcodeBytes = Shellcode.CallLoadLibraryX86((IntPtr) instructionPointer, dllPathAddress, loadLibraryAddress);
                 
                 try
                 {
@@ -242,7 +242,7 @@ namespace Bleak.Methods
                 
                 // Write the shellcode into the memory of the remote process
                 
-                var shellcodeBytes = Shellcode.CallLoadLibraryx64((IntPtr) instructionPointer, dllPathAddress, loadLibraryAddress);
+                var shellcodeBytes = Shellcode.CallLoadLibraryX64((IntPtr) instructionPointer, dllPathAddress, loadLibraryAddress);
                 
                 try
                 {
@@ -308,7 +308,7 @@ namespace Bleak.Methods
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the shellcode in the remote process");   
             }
-            
+                        
             threadHandle?.Close();
             
             return true;
