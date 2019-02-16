@@ -9,7 +9,7 @@ namespace Bleak.Etc
     internal class Properties : IDisposable
     {
         internal readonly string DllPath;
-
+        
         internal readonly bool IsWow64;
         
         internal readonly MemoryModule MemoryModule;
@@ -17,7 +17,7 @@ namespace Bleak.Etc
         internal readonly PeFile PeHeaders;
         
         internal readonly int ProcessId;
-
+        
         internal readonly SafeProcessHandle ProcessHandle;
         
         internal Properties(Process process, string dllPath)
@@ -40,7 +40,7 @@ namespace Bleak.Etc
             
             ProcessHandle = process.SafeHandle;
         }
-
+        
         public void Dispose()
         {
             // Close the handle opened to the process

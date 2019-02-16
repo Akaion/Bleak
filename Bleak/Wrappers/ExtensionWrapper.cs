@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using Bleak.Etc;
 using Bleak.Extensions;
 using Bleak.Services;
 
@@ -119,23 +120,44 @@ namespace Bleak.Wrappers
                 throw new ArgumentException("One or more of the arguments provided was invalid");
             }
             
+            // Ensure the temporary directory exists on disk
+            
+            var temporaryDllFolderPath = Path.Combine(Path.GetTempPath(), "Bleak");
+            
+            var temporaryDirectoryInfo = Directory.CreateDirectory(temporaryDllFolderPath);
+            
+            // Clear the temporary directory if necessary
+            
+            foreach (var file in temporaryDirectoryInfo.GetFiles())
+            {
+                try
+                {
+                    file.Delete();
+                }
+                
+                catch (Exception)
+                {
+                    // The file is open in a process - Ignore
+                }
+            }
+            
+            // Create a temporary dll name for the dll using a hash of its bytes
+            
+            var temporaryDllName = Tools.ComputeHash(dllBytes).Substring(0, 14) + ".dll";
+            
             // Convert the dll bytes to a temporary file on disk
             
-            var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
-            
-            if (File.Exists(temporaryDllPath))
-            {
-                File.Delete(temporaryDllPath);
-                
-                File.WriteAllBytes(temporaryDllPath, dllBytes);
-            }
-            
-            else
+            var temporaryDllPath = Path.Combine(temporaryDllFolderPath, temporaryDllName);
+
+            try
             {
                 File.WriteAllBytes(temporaryDllPath, dllBytes);
             }
             
-            // Get an instance of the remote process
+            catch (Exception)
+            {
+                // The file is open in a process - Ignore
+            }
             
             Process process;
             
@@ -175,20 +197,43 @@ namespace Bleak.Wrappers
                 throw new ArgumentException("One or more of the arguments provided was invalid");
             }
             
+            // Ensure the temporary directory exists on disk
+            
+            var temporaryDllFolderPath = Path.Combine(Path.GetTempPath(), "Bleak");
+            
+            var temporaryDirectoryInfo = Directory.CreateDirectory(temporaryDllFolderPath);
+            
+            // Clear the temporary directory if necessary
+            
+            foreach (var file in temporaryDirectoryInfo.GetFiles())
+            {
+                try
+                {
+                    file.Delete();
+                }
+                
+                catch (Exception)
+                {
+                    // The file is open in a process - Ignore
+                }
+            }
+            
+            // Create a temporary dll name for the dll using a hash of its bytes
+            
+            var temporaryDllName = Tools.ComputeHash(dllBytes).Substring(0, 14) + ".dll";
+            
             // Convert the dll bytes to a temporary file on disk
             
-            var temporaryDllPath = Path.Combine(Path.GetTempPath(), "Bleak.dll");
-            
-            if (File.Exists(temporaryDllPath))
+            var temporaryDllPath = Path.Combine(temporaryDllFolderPath, temporaryDllName);
+
+            try
             {
-                File.Delete(temporaryDllPath);
-                
                 File.WriteAllBytes(temporaryDllPath, dllBytes);
             }
             
-            else
+            catch (Exception)
             {
-                File.WriteAllBytes(temporaryDllPath, dllBytes);
+                // The file is open in a process - Ignore
             }
             
             // Get an instance of the remote process

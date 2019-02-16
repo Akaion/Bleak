@@ -4,7 +4,7 @@ namespace Bleak.Etc
 {
     internal static class Shellcode
     {
-        internal static byte[] CallLoadLibraryx86(IntPtr instructionPointer, IntPtr dllPathAddress, IntPtr loadLibraryAddress)
+        internal static byte[] CallLoadLibraryX86(IntPtr instructionPointer, IntPtr dllPathAddress, IntPtr loadLibraryAddress)
         {
             var shellcode = new byte[]
             {
@@ -38,7 +38,7 @@ namespace Bleak.Etc
             return shellcode;
         }
         
-        internal static byte[] CallLoadLibraryx64(IntPtr instructionPointer, IntPtr dllPathAddress, IntPtr loadLibraryAddress)
+        internal static byte[] CallLoadLibraryX64(IntPtr instructionPointer, IntPtr dllPathAddress, IntPtr loadLibraryAddress)
         {
             var shellcode = new byte[]
             {
@@ -60,8 +60,8 @@ namespace Bleak.Etc
                 0x41, 0x56,                                                 // push r14
                 0x41, 0x57,                                                 // push r15
                 0x68, 0x00, 0x00, 0x00, 0x00,                               // push 0x00
-                0x48, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rcx, 0x00 (dll path)
-                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rax, 0x00 (load library address)
+                0x48, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rcx, 0x00 (dll path)
+                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rax, 0x00 (load library address)
                 0xFF, 0xD0,                                                 // call rax
                 0x58,                                                       // pop rax
                 0x41, 0x5F,                                                 // pop r15
@@ -102,7 +102,7 @@ namespace Bleak.Etc
             return shellcode;
         }
         
-        internal static byte[] CallDllMainx86(IntPtr baseAddress, IntPtr entryPointAddress)
+        internal static byte[] CallDllMainX86(IntPtr baseAddress, IntPtr entryPointAddress)
         {
             var shellcode = new byte[]
             {
@@ -130,15 +130,15 @@ namespace Bleak.Etc
             return shellcode;
         }
         
-        internal static byte[] CallDllMainx64(IntPtr baseAddress, IntPtr entryPointAddress)
+        internal static byte[] CallDllMainX64(IntPtr baseAddress, IntPtr entryPointAddress)
         {
             var shellcode = new byte[]
             {
                 0x48, 0x83, 0xEC, 0x28,                                     // sub rsp, 0x28
-                0x48, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rcx, 0x00 (dll base address)
-                0x48, 0xC7, 0xC2, 0x01, 0x00, 0x00, 0x00,                   // mov rdx, 0x01 (dll process attach)
+                0x48, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rcx, 0x00 (dll base address)
+                0x48, 0xC7, 0xC2, 0x01, 0x00, 0x00, 0x00,                   // movabs rdx, 0x01 (dll process attach)
                 0x4D, 0x31, 0xC0,                                           // xor r8, r8 
-                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rax, 0x00 (entry point address)
+                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rax, 0x00 (entry point address)
                 0xFF, 0xD0,                                                 // call rax
                 0x48, 0x83, 0xC4, 0x28,                                     // add rsp, 0x28
                 0x31, 0xC0,                                                 // xor eax, eax
