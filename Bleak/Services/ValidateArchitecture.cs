@@ -28,7 +28,7 @@ namespace Bleak.Services
             
             // Ensure that x64 injection is not being attempted from an x86 process
 
-            if (!Environment.Is64BitProcess && isWow64)
+            if (Environment.Is64BitOperatingSystem && !Environment.Is64BitProcess && !isWow64)
             {
                 throw new ApplicationException("x64 injection is not supported when compiled as x86");
             }
