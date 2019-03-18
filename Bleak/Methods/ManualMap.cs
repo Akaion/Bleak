@@ -1,403 +1,278 @@
+﻿using Bleak.Methods.Interfaces;
+using Bleak.Methods.Shellcode;
+using Bleak.Native;
+using Bleak.SafeHandle;
+using Bleak.Tools;
+using Bleak.Wrappers;
 using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
-using Bleak.Etc;
-using Bleak.Services;
+using System.Linq;
+using System.IO;
 
 namespace Bleak.Methods
 {
-    internal class ManualMap : IDisposable
+    internal class ManualMap : IInjectionMethod
     {
-        private readonly Properties _properties;
-        
-        internal ManualMap(Process process, string dllPath)
+        private readonly PropertyWrapper PropertyWrapper;
+
+        internal ManualMap(PropertyWrapper propertyWrapper)
         {
-            _properties = new Properties(process, dllPath);
+            PropertyWrapper = propertyWrapper;
         }
-        
-        public void Dispose()
+
+        public bool Call()
         {
-            _properties?.Dispose();
-        }
-        
-        internal bool Inject()
-        {
-            // Get the bytes of the dll
-            
-            var dllBytes = File.ReadAllBytes(_properties.DllPath);
-            
-            // Pin the dll bytes in the memory of the host process
-            
-            var baseAddress = GCHandle.Alloc(dllBytes, GCHandleType.Pinned);
-            
-            // Allocate memory for the dll in the remote process
-            
-            var dllSize = _properties.PeHeaders.ImageNtHeaders.OptionalHeader.SizeOfImage;
-            
-            var remoteDllAddress = _properties.MemoryModule.AllocateMemory(_properties.ProcessId, (int) dllSize);
-            
-            // Map the imports of the dll into the host process
-            
-            MapImports(baseAddress.AddrOfPinnedObject());
-            
-            // Perform the relocations needed in the host process
-            
-            PerformRelocations(baseAddress.AddrOfPinnedObject(), remoteDllAddress);
-            
-            // Map the sections of the dll into the remote process
-            
-            MapSections(baseAddress.AddrOfPinnedObject(), remoteDllAddress);
-            
-            // Map the tls entries of the dll into the remote process
-            
-            MapTlsEntries(baseAddress.AddrOfPinnedObject());
-            
-            // Call the entry point of the dll in the remote process
-            
-            var dllEntryPointAddress = remoteDllAddress + (int) _properties.PeHeaders.ImageNtHeaders.OptionalHeader.AddressOfEntryPoint;
-            
-            CallEntryPoint(remoteDllAddress, dllEntryPointAddress);
-            
-            // Unpin the dll bytes from the memory of the host process
-            
-            baseAddress.Free();
-            
+            // Store the DLL bytes in a buffer
+
+            var dllBaseAddress = GCHandle.Alloc(PropertyWrapper.DllBytes, GCHandleType.Pinned);
+
+            var peHeaders = PropertyWrapper.PeParser.GetPeHeaders();
+
+            // Map the imports the DLL into the local process
+
+            MapImports(dllBaseAddress.AddrOfPinnedObject());
+
+            // Allocate memory for the DLL in the target process
+
+            var dllSize = PropertyWrapper.IsWow64Process.Value ? peHeaders.NtHeaders32.OptionalHeader.SizeOfImage : peHeaders.NtHeaders64.OptionalHeader.SizeOfImage;
+
+            var remoteDllAddress = PropertyWrapper.MemoryManager.Value.AllocateMemory((int) dllSize, Enumerations.MemoryProtectionType.ExecuteReadWrite);
+
+            // Perform the needed relocations in the local process
+
+            PerformRelocations(dllBaseAddress.AddrOfPinnedObject(), remoteDllAddress);
+
+            // Map the sections of the DLL into the target process
+
+            MapSections(dllBaseAddress.AddrOfPinnedObject(), remoteDllAddress);
+
+            // Calculate the entry point of the DLL in the target process
+
+            var dllEntryPointAddress = PropertyWrapper.IsWow64Process.Value ? (uint) remoteDllAddress + peHeaders.NtHeaders32.OptionalHeader.AddressOfEntryPoint : (ulong) remoteDllAddress + peHeaders.NtHeaders64.OptionalHeader.AddressOfEntryPoint;
+
+            // Call the entry point of the DLL in the target process
+
+            CallDllEntryPoint(remoteDllAddress, (IntPtr) dllEntryPointAddress);
+
+            dllBaseAddress.Free();
+
             return true;
         }
-        
-        private void CallEntryPoint(IntPtr baseAddress, IntPtr entryPoint)
+
+        private void CallDllEntryPoint(IntPtr remoteDllAddress, IntPtr dllEntryPointAddress)
         {
-            // Initialize shellcode to call the entry of the dll in the remote process
-            
-            var shellcodeBytes = _properties.IsWow64 ? Shellcode.CallDllMainX86(baseAddress, entryPoint) : Shellcode.CallDllMainX64(baseAddress, entryPoint);
-            
-            // Allocate memory for the shellcode in the remote process
-            
-            var shellcodeAddress = IntPtr.Zero;
-            
-            try
-            {
-                shellcodeAddress = _properties.MemoryModule.AllocateMemory(_properties.ProcessId, shellcodeBytes.Length);
-            }
-            
-            catch (Win32Exception)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the shellcode in the remote process");
-            }
-            
-            // Write the shellcode into the memory of the remote process
-            
-            try
-            {
-                _properties.MemoryModule.WriteMemory(_properties.ProcessId, shellcodeAddress, shellcodeBytes);
-            }
-            
-            catch (Win32Exception)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to write the shellcode into the memory of the remote process");   
-            }
-            
-            // Create a remote thread to call the entry point in the remote process
-            
-            Native.NtCreateThreadEx(out var remoteThreadHandle, Native.AccessMask.SpecificRightsAll | Native.AccessMask.StandardRightsAll, IntPtr.Zero, _properties.ProcessHandle, shellcodeAddress, IntPtr.Zero, Native.CreationFlags.HideFromDebugger, 0, 0, 0, IntPtr.Zero);
-            
-            if (remoteThreadHandle is null)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call the entry point in the remote process");
-            }
+            // Create the shellcode used to call the entry point of the dll
+
+            var shellcode = PropertyWrapper.IsWow64Process.Value ? CallDllMainX86.GetShellcode(remoteDllAddress, dllEntryPointAddress) : CallDllMainX64.GetShellcode(remoteDllAddress, dllEntryPointAddress);
+
+            // Store the shellcode in a buffer in the target process
+
+            var shellcodeBuffer = PropertyWrapper.MemoryManager.Value.AllocateMemory(shellcode.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
+
+            PropertyWrapper.MemoryManager.Value.WriteMemory(shellcodeBuffer, shellcode);
+
+            // Create a remote thread in the target process to call the shellcode
+
+            var threadHandle = (SafeThreadHandle) PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtCreateThreadEx>(PropertyWrapper.ProcessHandle.Value, shellcodeBuffer, IntPtr.Zero);
             
             // Wait for the remote thread to finish its task
-            
-            Native.WaitForSingleObject(remoteThreadHandle, int.MaxValue);
-            
-            // Free the memory previously allocated for the shellcode in the remote process
-            
-            try
-            {
-                _properties.MemoryModule.FreeMemory(_properties.ProcessId, shellcodeAddress);
-            }
-            
-            catch (Win32Exception)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the shellcode in the remote process");   
-            }
-            
-            // Close the handle opened to the remote thread
-            
-            remoteThreadHandle?.Close();
+
+            PInvoke.WaitForSingleObject(threadHandle, uint.MaxValue);
+
+            // Free the memory allocated for the buffer
+
+            PropertyWrapper.MemoryManager.Value.FreeMemory(shellcodeBuffer);
+
+            threadHandle.Dispose();
         }
-        
-        private int GetSectionProtection(Native.DataSectionFlags characteristics)
+
+        private static Enumerations.MemoryProtectionType GetSectionProtection(Enumerations.SectionCharacteristics sectionCharacteristics)
         {
-            var protection = 0;
-            
             // Determine the protection of the section
             
-            if (characteristics.HasFlag(Native.DataSectionFlags.MemoryNotCached))
+            var sectionProtection = (Enumerations.MemoryProtectionType) 0;
+
+            if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryNotCached))
             {
-                protection |= (int) Native.MemoryProtection.NoCache;
+                sectionProtection |= Enumerations.MemoryProtectionType.NoCache;
             }
-            
-            if (characteristics.HasFlag(Native.DataSectionFlags.MemoryExecute))
+
+            if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryExecute))
             {
-                if (characteristics.HasFlag(Native.DataSectionFlags.MemoryRead))
+                if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryRead))
                 {
-                    if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
+                    if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryWrite))
                     {
-                        protection |= (int) Native.MemoryProtection.ExecuteReadWrite;
+                        sectionProtection |= Enumerations.MemoryProtectionType.ExecuteReadWrite;
                     }
-                    
+
                     else
                     {
-                        protection |= (int) Native.MemoryProtection.ExecuteRead;
+                        sectionProtection |= Enumerations.MemoryProtectionType.ExecuteRead;
                     }
                 }
-                
-                else if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
+
+                else if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryWrite))
                 {
-                    protection |= (int) Native.MemoryProtection.ExecuteWriteCopy;
+                    sectionProtection |= Enumerations.MemoryProtectionType.ExecuteWriteCopy;
                 }
-                
+
                 else
                 {
-                    protection |= (int) Native.MemoryProtection.Execute;
+                    sectionProtection |= Enumerations.MemoryProtectionType.Execute;
                 }
             }
-            
-            else if (characteristics.HasFlag(Native.DataSectionFlags.MemoryRead))
+
+            else if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryRead))
             {
-                if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
+                if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryWrite))
                 {
-                    protection |= (int) Native.MemoryProtection.ReadWrite;
+                    sectionProtection |= Enumerations.MemoryProtectionType.ReadWrite;
                 }
-                
+
                 else
                 {
-                    protection |= (int) Native.MemoryProtection.ReadOnly;
+                    sectionProtection |= Enumerations.MemoryProtectionType.ReadOnly;
                 }
             }
-            
-            else if (characteristics.HasFlag(Native.DataSectionFlags.MemoryWrite))
+
+            else if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryWrite))
             {
-                protection |= (int) Native.MemoryProtection.WriteCopy;
+                sectionProtection |= Enumerations.MemoryProtectionType.WriteCopy;
             }
-            
+
             else
             {
-                protection |= (int) Native.MemoryProtection.NoAccess;
+                sectionProtection |= Enumerations.MemoryProtectionType.NoAccess;
             }
-            
-            return protection;
+
+            return sectionProtection;
         }
-        
-        private void MapImports(IntPtr baseAddress)
+
+        private void MapImports(IntPtr dllBaseAddress)
         {
-            // Get the import descriptors from the pe headers of the dll
-            
-            var importDescriptors = _properties.PeHeaders.ImageImportDescriptors;
-            
-            if (importDescriptors is null)
+            // Group the imported functions by the DLL they reside in
+
+            var groupedImports = PropertyWrapper.PeParser.GetImportedFunctions().GroupBy(importedFunction => importedFunction.DllName);
+
+            foreach (var importedFunction in groupedImports.SelectMany(dll => dll.Select(importedFunction => importedFunction)))
             {
-                // No dll imports
-                
-                return;
-            }
-            
-            // Group the imported functions by the dll they reside in
-            
-            var groupedImportedFunctions = _properties.PeHeaders.ImportedFunctions.GroupBy(importedFunction => importedFunction.DLL);
-            
-            var importDescriptorIndex = 0;
-            
-            foreach (var dll in groupedImportedFunctions)
-            {
-                // Get the virtual address of the imported function
-                
-                var functionVirtualAddress = Tools.RvaToVa(baseAddress, (int) _properties.PeHeaders.ImageDosHeader.e_lfanew, (IntPtr) importDescriptors[importDescriptorIndex].FirstThunk);
-                
-                foreach (var importedFunction in dll)
+                var dllName = importedFunction.DllName;
+
+                if (dllName.Contains("-ms-win-crt-"))
                 {
-                    var tempDllName = importedFunction.DLL;
-                    
-                    if (importedFunction.DLL.Contains("-ms-win-crt-"))
-                    {
-                        tempDllName = "ucrtbase.dll";
-                    }
-                    
-                    // Get the address of the imported function
-                    
-                    var procAddress = Tools.GetRemoteProcAddress(_properties, tempDllName, importedFunction.Name);
-                    
-                    // If the dll isn't already loaded into the remote process
-                    
-                    if (procAddress == IntPtr.Zero)
-                    {
-                        // Get the path of the system dll
-                        
-                        var dllPath = Path.Combine(Environment.GetFolderPath(_properties.IsWow64 ? Environment.SpecialFolder.SystemX86 : Environment.SpecialFolder.System), tempDllName);
-                        
-                        // Get the proc address of the imported function
-                        
-                        new Injector().NtCreateThreadEx(_properties.ProcessId, dllPath);
-                         
-                        procAddress = Tools.GetRemoteProcAddress(_properties, tempDllName, importedFunction.Name);
-                    }
-                    
-                    // Map the imported function into the host process
-                    
-                    Marshal.WriteInt64(functionVirtualAddress, (long) procAddress);
-                    
-                    // Jump to the next functions virtual address
-                    
-                    if (_properties.IsWow64)
-                    {
-                        functionVirtualAddress += sizeof(int);
-                    }
-                    
-                    else
-                    {
-                        functionVirtualAddress += sizeof(long);
-                    }
+                    dllName = "ucrtbase.dll";
                 }
-                
-                importDescriptorIndex += 1;
+
+                // Get the address of the imported function in the target process
+
+                var importedFunctionAddress = NativeTools.GetFunctionAddress(PropertyWrapper, dllName, importedFunction.Name);
+
+                if (importedFunctionAddress == IntPtr.Zero)
+                {
+                    // Get the path of the system DLL
+
+                    var systemFolderPath = PropertyWrapper.IsWow64Process.Value ? Environment.GetFolderPath(Environment.SpecialFolder.SystemX86) : Environment.GetFolderPath(Environment.SpecialFolder.System);
+
+                    var systemDllPath = Path.Combine(systemFolderPath, dllName);
+                    
+                    // Load the system DLL into the target process
+
+                    new Injector().NtCreateThreadEx(PropertyWrapper.Process.Id, systemDllPath);
+
+                    // Get the address of the imported function in the target process
+
+                    importedFunctionAddress = NativeTools.GetFunctionAddress(PropertyWrapper, dllName, importedFunction.Name);
+                }
+
+                // Calculate the address of the import
+
+                var importAddress = (ulong) dllBaseAddress + importedFunction.Offset;
+
+                // Map the imported function into the local process
+
+                Marshal.WriteIntPtr((IntPtr) importAddress, importedFunctionAddress);
             }
         }
-        
-        private void MapSections(IntPtr baseAddress, IntPtr remoteAddress)
+
+        private void MapSections(IntPtr dllBaseAddress, IntPtr remoteDllAddress)
         {
-            // Get the section headers of the dll from the pe headers
-            
-            var sectionHeaders = _properties.PeHeaders.ImageSectionHeaders;
-            
-            foreach (var section in sectionHeaders)
+            foreach (var section in PropertyWrapper.PeParser.GetPeHeaders().SectionHeaders)
             {
                 // Get the protection of the section
-                    
-                var sectionProtection = GetSectionProtection((Native.DataSectionFlags) section.Characteristics);
-                
-                // Determine the address to map the section to in the remote process
-                
-                var sectionAddress = remoteAddress + (int) section.VirtualAddress;
-                
-                // Get the address of the raw data of the section in the host process
-                
-                var rawDataAddress = baseAddress + (int) section.PointerToRawData;
-                
-                // Get the size of the raw data of the section
-                
-                var rawDataSize = (int) section.SizeOfRawData;
-                
+
+                var sectionProtection = GetSectionProtection(section.Characteristics);
+
+                // Calculate the address to map the section to in the target process
+
+                var sectionAddress = (ulong) remoteDllAddress + section.VirtualAddress;
+
                 // Get the raw data of the section
-                
-                var rawData = new byte[rawDataSize];
-                
-                Marshal.Copy(rawDataAddress, rawData, 0, rawDataSize);
-                
-                // Map the section into the remote process
-                
-                try
-                {
-                    _properties.MemoryModule.WriteMemory(_properties.ProcessId, sectionAddress, rawData);
-                }
-                
-                catch (Win32Exception)
-                {
-                    ExceptionHandler.ThrowWin32Exception("Failed to write a section into the remote process");
-                }
-                
-                // Adjust the protection of the section in the remote process
-                
-                try
-                {
-                    _properties.MemoryModule.ProtectMemory(_properties.ProcessId, sectionAddress, rawDataSize, sectionProtection);
-                }
-                
-                catch (Win32Exception)
-                {
-                    ExceptionHandler.ThrowWin32Exception("Failed to adjust the protection of a section in the remote process"); 
-                }
+
+                var rawDataAddress = (ulong) dllBaseAddress + section.PointerToRawData;
+
+                var rawData = new byte[section.SizeOfRawData];
+
+                Marshal.Copy((IntPtr) rawDataAddress, rawData, 0, (int) section.SizeOfRawData);
+
+                // Map the section into the target process
+
+                PropertyWrapper.MemoryManager.Value.WriteMemory((IntPtr) sectionAddress, rawData);
+
+                // Adjust the protection of the section in the target process
+
+                PropertyWrapper.MemoryManager.Value.ProtectMemory((IntPtr) sectionAddress, (int) section.SizeOfRawData, sectionProtection);
             }
         }
-        
-        private void MapTlsEntries(IntPtr baseAddress)
+
+        private void PerformRelocations(IntPtr dllBaseAddress, IntPtr remoteDllAddress)
         {
-            // Get the tls directory of the dll from the pe headers
-            
-            var tlsDirectory = _properties.PeHeaders?.ImageTlsDirectory;
-            
-            if (tlsDirectory is null)
+            var peHeaders = PropertyWrapper.PeParser.GetPeHeaders();
+
+            if ((peHeaders.FileHeader.Characteristics & (ushort) Enumerations.FileCharacteristics.RelocationsStripped) > 0)
             {
-                // No tls directory
-                
+                // No relocations need to be performed
+
                 return;
             }
+
+            // Calculate the delta of the DLL in the target process
+
+            var imageDelta = PropertyWrapper.IsWow64Process.Value ? (long) remoteDllAddress - peHeaders.NtHeaders32.OptionalHeader.ImageBase : (long) remoteDllAddress - (long) peHeaders.NtHeaders64.OptionalHeader.ImageBase;
             
-            // Call the entry point for each tls callback in the remote process
-            
-            foreach (var tlsCallback in tlsDirectory.TlsCallbacks)
+            foreach (var relocation in PropertyWrapper.PeParser.GetBaseRelocations())
             {
-                CallEntryPoint(baseAddress, (IntPtr) tlsCallback.Callback);
-            }
-        }        
-        
-        private void PerformRelocations(IntPtr baseAddress, IntPtr remoteAddress)
-        {
-            // Determine if any relocations need to be performed
-            
-            if (_properties.PeHeaders.ImageNtHeaders.FileHeader.Characteristics % 2 == 1)
-            {
-                return;
-            }
-            
-            // Determine the image delta
-            
-            var imageDelta = (long) remoteAddress - (long) _properties.PeHeaders.ImageNtHeaders.OptionalHeader.ImageBase;
-            
-            // Get the relocation directory of the dll from the pe headers
-            
-            var relocationDirectory = _properties.PeHeaders.ImageRelocationDirectory;
-            
-            foreach (var relocation in relocationDirectory)
-            {
-                // Get the base address of the relocations
-                
-                var relocationsBaseAddress = Tools.RvaToVa(baseAddress, (int) _properties.PeHeaders.ImageDosHeader.e_lfanew, (IntPtr) relocation.VirtualAddress);
-                
-                foreach (var offset in relocation.TypeOffsets)
+                // Calculate the base address of the relocation
+
+                var relocationBaseAddress = (ulong) dllBaseAddress + relocation.Offset;
+
+                foreach (var typeOffset in relocation.TypeOffsets)
                 {
-                    // Get the address of the relocation
-                    
-                    var relocationAddress = relocationsBaseAddress + offset.Offset;
-                    
-                    switch (offset.Type)
+                    // Calculate the address of relocation
+
+                    var relocationAddress = relocationBaseAddress + typeOffset.Offset;
+
+                    switch (typeOffset.Type)
                     {
-                        case 3:
+                        case Enumerations.RelocationType.HighLow:
                         {
-                            // If the relocation is High Low
-                            
-                            var value = Tools.PointerToStructure<int>(relocationAddress) + (int) imageDelta;
+                            var relocationValue = Marshal.PtrToStructure<int>((IntPtr) relocationAddress) + (int) imageDelta;
                             
                             // Perform the relocation
-                            
-                            Marshal.WriteInt32(relocationAddress, value);
-                            
+
+                            Marshal.WriteInt32((IntPtr) relocationAddress, relocationValue);
+
                             break;
                         }
                         
-                        case 10:
+                        case Enumerations.RelocationType.Dir64:
                         {
-                            // If the relocation is Dir64
-                            
-                            var value = Tools.PointerToStructure<long>(relocationAddress) + imageDelta;
+                            var relocationValue = Marshal.PtrToStructure<long>((IntPtr) relocationAddress) + imageDelta;
                             
                             // Perform the relocation
-                            
-                            Marshal.WriteInt64(relocationAddress, value);
-                            
+
+                            Marshal.WriteInt64((IntPtr) relocationAddress, relocationValue);
+
                             break;
                         }
                     }

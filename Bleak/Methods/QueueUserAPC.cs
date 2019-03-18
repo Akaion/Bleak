@@ -1,102 +1,55 @@
-using System;
-using System.ComponentModel;
+﻿using Bleak.Methods.Interfaces;
+using Bleak.Native;
+using Bleak.SafeHandle;
+using Bleak.Tools;
+using Bleak.Wrappers;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using Bleak.Etc;
-using Bleak.Services;
 
 namespace Bleak.Methods
 {
-    internal class QueueUserApc : IDisposable
+    internal class QueueUserApc : IInjectionMethod
     {
-        private readonly ProcessThreadCollection _processThreads;
-        
-        private readonly Properties _properties;
-        
-        internal QueueUserApc(Process process, string dllPath)
+        private readonly PropertyWrapper PropertyWrapper;
+
+        internal QueueUserApc(PropertyWrapper propertyWrapper)
         {
-            _processThreads = process.Threads;
-            
-            _properties = new Properties(process, dllPath);
+            PropertyWrapper = propertyWrapper;
         }
-        
-        public void Dispose()
+
+        public bool Call()
         {
-            _properties?.Dispose();
-        }
-        
-        internal bool Inject()
-        {   
-            // Get the address of the LoadLibraryW method from kernel32.dll
+            // Get the address of LoadLibraryW in the target process
 
-            var loadLibraryAddress = Tools.GetRemoteProcAddress(_properties, "kernel32.dll", "LoadLibraryW");
+            var loadLibraryAddress = NativeTools.GetFunctionAddress(PropertyWrapper, "kernel32.dll", "LoadLibraryW");
 
-            if (loadLibraryAddress == IntPtr.Zero)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to find the address of the LoadLibraryW method in kernel32.dll");
-            }
-            
-            // Allocate memory for the dll path in the remote process
-            
-            var dllPathAddress = IntPtr.Zero;
+            // Allocate a buffer for the DLL path in the target process
 
-            try
-            {
-                dllPathAddress = _properties.MemoryModule.AllocateMemory(_properties.ProcessId, _properties.DllPath.Length);
-            }
+            var dllPathBuffer = PropertyWrapper.MemoryManager.Value.AllocateMemory(PropertyWrapper.DllPath.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
 
-            catch (Win32Exception)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the dll path in the remote process");
-            }
-            
-            // Write the dll path into the memory of the remote process
-            
-            var dllPathBytes = Encoding.Unicode.GetBytes(_properties.DllPath + "\0");
+            // Write the DLL path into the buffer
 
-            try
-            {
-                _properties.MemoryModule.WriteMemory(_properties.ProcessId, dllPathAddress, dllPathBytes);
-            }
+            var dllPathBytes = Encoding.Unicode.GetBytes(PropertyWrapper.DllPath + "\0");
 
-            catch (Win32Exception)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the remote process");   
-            }
-            
-            foreach (var thread in _processThreads.Cast<ProcessThread>())
+            PropertyWrapper.MemoryManager.Value.WriteMemory(dllPathBuffer, dllPathBytes);
+
+            foreach (var thread in PropertyWrapper.Process.Threads.Cast<ProcessThread>())
             {
                 // Open a handle to the thread
-                
-                var threadHandle = Native.OpenThread(Native.ThreadAccess.SetContext, false, thread.Id);
-                                
-                if (threadHandle is null)
-                {
-                    ExceptionHandler.ThrowWin32Exception("Failed to open a handle to a thread in the process");
-                }
-                
-                // Add a user-mode APC to the APC queue of the thread
-                
-                if (!Native.QueueUserAPC(loadLibraryAddress, threadHandle, dllPathAddress))
-                {
-                    ExceptionHandler.ThrowWin32Exception("Failed to queue a user-mode apc to the apc queue of a thread in the remote process");
-                }
-                
-                threadHandle?.Close();
-            }
-            
-            // Free the memory previously allocated for the dll path in the remote process
 
-            try
-            {
-                _properties.MemoryModule.FreeMemory(_properties.ProcessId, dllPathAddress);
+                var threadHandle = (SafeThreadHandle) PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtOpenThread>(thread.Id);
+
+                // Add an apc to call LoadLibraryW to the apc queue of the thread
+
+                PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtQueueApcThread>(threadHandle, loadLibraryAddress, dllPathBuffer);
+
+                threadHandle.Dispose();
             }
 
-            catch (Win32Exception)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the dll path in the remote process");   
-            }
+            // Free the memory allocated for the buffer
+
+            PropertyWrapper.MemoryManager.Value.FreeMemory(dllPathBuffer);
 
             return true;
         }

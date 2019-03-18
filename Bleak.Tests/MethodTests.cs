@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using Xunit;
@@ -7,96 +7,68 @@ namespace Bleak.Tests
 {
     public class MethodTests : IDisposable
     {
-        private readonly string _dllPath;
-        
-        private readonly Injector _injector;
-        
-        private readonly Process _process;
-        
+        private readonly string DllPath;
+
+        private readonly Injector Injector;
+
+        private readonly Process Process;
+
         public MethodTests()
         {
-            // Get the root directory
-            
-            var rootDirectory = Path.GetFullPath(@"..\..\..\Etc\");
-            
-            // Get the path to the test dll
-            
-            _dllPath = Path.Combine(rootDirectory, "TestDll.dll");
-            
-            // Initialize an injector instance
-            
-            _injector = new Injector();
-            
-            // Initialize a test process
-            
-            _process = new Process { StartInfo = {CreateNoWindow = true, FileName = "notepad.exe", UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden} };
+            var etcDirectory = Path.GetFullPath(@"..\..\..\Etc\");
 
-            _process.Start();
+            DllPath = Path.Combine(etcDirectory, "TestDll.dll");
 
-            _process.WaitForInputIdle();
+            Injector = new Injector();
+
+            Process = new Process { StartInfo = { CreateNoWindow = true, FileName = "notepad.exe", UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden } };
+
+            Process.Start();
+
+            Process.WaitForInputIdle();
         }
 
         public void Dispose()
         {
-            // Terminate the test process
-
-            _process?.Kill();
+            Process.Kill();
+        
+            Process.Dispose();
         }
 
         [Fact]
         public void TestCreateRemoteThread()
         {
-            // Inject the test dll
-            
-            Assert.True(_injector.CreateRemoteThread(_process.Id, _dllPath));
+            Assert.True(Injector.CreateRemoteThread(Process.Id, DllPath));
         }
 
         [Fact]
         public void TestManualMap()
         {
-            // Inject the test dll
-            
-            Assert.True(_injector.ManualMap(_process.Id, _dllPath));
+            Assert.True(Injector.ManualMap(Process.Id, DllPath));
         }
 
         [Fact]
         public void TestNtCreateThreadEx()
         {
-            // Inject the test dll
-            
-            Assert.True(_injector.NtCreateThreadEx(_process.Id, _dllPath));
+            Assert.True(Injector.NtCreateThreadEx(Process.Id, DllPath));
         }
 
         [Fact]
         public void TestQueueUserApc()
         {
-            // Inject the test dll
-            
-            Assert.True(_injector.QueueUserApc(_process.Id, _dllPath));
+            Assert.True(Injector.QueueUserApc(Process.Id, DllPath));
         }
 
         [Fact]
         public void TestRtlCreateUserThread()
         {
-            // Inject the test dll
-            
-            Assert.True(_injector.RtlCreateUserThread(_process.Id, _dllPath));
+            Assert.True(Injector.RtlCreateUserThread(Process.Id, DllPath));
         }
 
         [Fact]
         public void TestSetThreadContext()
         {
-            // Inject the test dll
-            
-            Assert.True(_injector.SetThreadContext(_process.Id, _dllPath));
-        }
-
-        [Fact]
-        public void TestZwCreateThreadEx()
-        {
-            // Inject the test dll
-            
-            Assert.True(_injector.ZwCreateThreadEx(_process.Id, _dllPath));
+            Assert.True(Injector.SetThreadContext(Process.Id, DllPath));
         }
     }
 }

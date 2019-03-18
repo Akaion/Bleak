@@ -1,306 +1,132 @@
+﻿using Bleak.Handlers;
+using Bleak.Tools;
 using System;
-using System.Diagnostics;
-using System.IO;
-using Bleak.Etc;
-using Bleak.Extensions;
-using Bleak.Services;
 
 namespace Bleak.Wrappers
 {
-    internal class ExtensionWrapper
+    internal class ExtensionWrapper : IDisposable
     {
-        private readonly Process _process;
-        
-        private readonly string _dllPath;
-        
-        internal ExtensionWrapper(string processName, string dllPath)
+        private readonly PropertyWrapper PropertyWrapper;
+
+        internal ExtensionWrapper(string targetProcessName, byte[] dllBytes)
         {
-            // Ensure the operating system is valid
+            // Ensure the users operating system is supported
 
-            ValidateOperatingSystem.Validate();
-            
+            ValidationHandler.ValidateOperatingSystem();
+
             // Ensure the arguments passed in are valid
-            
-            if (string.IsNullOrWhiteSpace(processName) || string.IsNullOrWhiteSpace(dllPath))
+
+            if (string.IsNullOrWhiteSpace(targetProcessName) || dllBytes is null || dllBytes.Length == 0)
             {
-                throw new ArgumentException("One or more of the arguments provided was invalid");
+                throw new ArgumentException("One or more of the arguments provided were invalid");
             }
-            
-            // Ensure the dll exists
-            
-            if (!File.Exists(dllPath))
-            {
-                throw new FileNotFoundException("No file exists at the provided location");
-            }
-            
-            // Get an instance of the remote process
-            
-            Process process;
-            
-            try
-            {
-                process = Process.GetProcessesByName(processName)[0];
-            }
-            
-            catch (IndexOutOfRangeException)
-            {
-                // The remote process isn't currently running
-                
-                throw new ArgumentException($"No process with name {processName} is currently running");
-            }
-            
-            // Ensure the remote process architecture matches the dll architecture
-            
-            ValidateArchitecture.Validate(process, dllPath);
-            
-            // Store the values
-            
-            _process = process;
-            
-            _dllPath = dllPath;
+
+            // Generate a name for a temporary DLL
+
+            var temporaryDllName =  WrapperTools.GenerateDllName(dllBytes);
+
+            // Create a temporary DLL on disk
+
+            var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, dllBytes);
+
+            PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), temporaryDllPath);
+
+            // Ensure the architecture of the DLL is valid
+
+            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
         }
-        
-        internal ExtensionWrapper(int processId, string dllPath)
+
+        internal ExtensionWrapper(int targetProcessId, byte[] dllBytes)
         {
-            // Ensure the operating system is valid
+            // Ensure the users operating system is supported
 
-            ValidateOperatingSystem.Validate();
-            
+            ValidationHandler.ValidateOperatingSystem();
+
             // Ensure the arguments passed in are valid
-            
-            if (processId <= 0|| string.IsNullOrWhiteSpace(dllPath))
+
+            if (targetProcessId <= 0 || dllBytes is null || dllBytes.Length == 0)
             {
-                throw new ArgumentException("One or more of the arguments provided was invalid");
+                throw new ArgumentException("One or more of the arguments provided were invalid");
             }
-            
-            // Ensure the dll exists
-            
-            if (!File.Exists(dllPath))
-            {
-                throw new FileNotFoundException("No file exists at the provided location");
-            }
-            
-            // Get an instance of the remote process
-            
-            Process process;
-            
-            try
-            {
-                process = Process.GetProcessById(processId);
-            }
-            
-            catch (ArgumentException)
-            {
-                // The remote process isn't currently running
-                
-                throw new ArgumentException($"No process with id {processId} is currently running");
-            }
-            
-            // Ensure the remote process architecture matches the dll architecture
-            
-            ValidateArchitecture.Validate(process, dllPath);
-            
-            // Store the values
-            
-            _process = process;
-            
-            _dllPath = dllPath;
+
+            // Generate a name for a temporary DLL
+
+            var temporaryDllName = WrapperTools.GenerateDllName(dllBytes);
+
+            // Create a temporary DLL on disk
+
+            var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, dllBytes);
+
+            PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), temporaryDllPath);
+
+            // Ensure the architecture of the DLL is valid
+
+            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
         }
-        
-        internal ExtensionWrapper(string processName, byte[] dllBytes)
+
+        internal ExtensionWrapper(string targetProcessName, string dllPath)
         {
-            // Ensure the operating system is valid
+            // Ensure the users operating system is supported
 
-            ValidateOperatingSystem.Validate();
-            
+            ValidationHandler.ValidateOperatingSystem();
+
             // Ensure the arguments passed in are valid
-            
-            if (string.IsNullOrWhiteSpace(processName) || dllBytes is null || dllBytes.Length == 0)
-            {
-                throw new ArgumentException("One or more of the arguments provided was invalid");
-            }
-            
-            // Ensure the temporary directory exists on disk
-            
-            var temporaryDllFolderPath = Path.Combine(Path.GetTempPath(), "Bleak");
-            
-            var temporaryDirectoryInfo = Directory.CreateDirectory(temporaryDllFolderPath);
-            
-            // Clear the temporary directory if necessary
-            
-            foreach (var file in temporaryDirectoryInfo.GetFiles())
-            {
-                try
-                {
-                    file.Delete();
-                }
-                
-                catch (Exception)
-                {
-                    // The file is open in a process - Ignore
-                }
-            }
-            
-            // Create a temporary dll name for the dll using a hash of its bytes
-            
-            var temporaryDllName = Tools.ComputeHash(dllBytes).Substring(0, 14) + ".dll";
-            
-            // Convert the dll bytes to a temporary file on disk
-            
-            var temporaryDllPath = Path.Combine(temporaryDllFolderPath, temporaryDllName);
 
-            try
+            if (string.IsNullOrWhiteSpace(targetProcessName) || string.IsNullOrWhiteSpace(dllPath))
             {
-                File.WriteAllBytes(temporaryDllPath, dllBytes);
+                throw new ArgumentException("One or more of the arguments provided were invalid");
             }
-            
-            catch (Exception)
-            {
-                // The file is open in a process - Ignore
-            }
-            
-            Process process;
-            
-            try
-            {
-                process = Process.GetProcessesByName(processName)[0];
-            }
-            
-            catch (IndexOutOfRangeException)
-            {
-                // The remote process isn't currently running
-                
-                throw new ArgumentException($"No process with name {processName} is currently running");
-            }
-            
-            // Ensure the remote process architecture matches the dll architecture
-            
-            ValidateArchitecture.Validate(process, temporaryDllPath);
-            
-            // Store the values
-            
-            _process = process;
-            
-            _dllPath = temporaryDllPath;
+
+            PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), dllPath);
+
+            // Ensure the architecture of the DLL is valid
+
+            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
         }
-        
-        internal ExtensionWrapper(int processId, byte[] dllBytes)
+
+        internal ExtensionWrapper(int targetProcessId, string dllPath)
         {
-            // Ensure the operating system is valid
+            // Ensure the users operating system is supported
 
-            ValidateOperatingSystem.Validate();
-            
+            ValidationHandler.ValidateOperatingSystem();
+
             // Ensure the arguments passed in are valid
-            
-            if (processId <= 0 || dllBytes is null || dllBytes.Length == 0)
-            {
-                throw new ArgumentException("One or more of the arguments provided was invalid");
-            }
-            
-            // Ensure the temporary directory exists on disk
-            
-            var temporaryDllFolderPath = Path.Combine(Path.GetTempPath(), "Bleak");
-            
-            var temporaryDirectoryInfo = Directory.CreateDirectory(temporaryDllFolderPath);
-            
-            // Clear the temporary directory if necessary
-            
-            foreach (var file in temporaryDirectoryInfo.GetFiles())
-            {
-                try
-                {
-                    file.Delete();
-                }
-                
-                catch (Exception)
-                {
-                    // The file is open in a process - Ignore
-                }
-            }
-            
-            // Create a temporary dll name for the dll using a hash of its bytes
-            
-            var temporaryDllName = Tools.ComputeHash(dllBytes).Substring(0, 14) + ".dll";
-            
-            // Convert the dll bytes to a temporary file on disk
-            
-            var temporaryDllPath = Path.Combine(temporaryDllFolderPath, temporaryDllName);
 
-            try
+            if (targetProcessId <= 0 || string.IsNullOrWhiteSpace(dllPath))
             {
-                File.WriteAllBytes(temporaryDllPath, dllBytes);
+                throw new ArgumentException("One or more of the arguments provided were invalid");
             }
-            
-            catch (Exception)
-            {
-                // The file is open in a process - Ignore
-            }
-            
-            // Get an instance of the remote process
-            
-            Process process;
-            
-            try
-            {
-                process = Process.GetProcessById(processId);
-            }
-            
-            catch (ArgumentException)
-            {
-                // The remote process isn't currently running
-                
-                throw new ArgumentException($"No process with id {processId} is currently running");
-            }
-            
-            // Ensure the remote process architecture matches the dll architecture
-            
-            ValidateArchitecture.Validate(process, temporaryDllPath);
-            
-            // Store the values
-            
-            _process = process;
-            
-            _dllPath = temporaryDllPath;
+
+            PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), dllPath);
+
+            // Ensure the architecture of the DLL is valid
+
+            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
         }
-        
+
+        public void Dispose()
+        {
+            PropertyWrapper.Dispose();
+        }
+
         internal bool EjectDll()
         {
-            using (var extensionMethod = new EjectDll(_process, _dllPath))
-            {
-                // Eject the dll
-            
-                return extensionMethod.Eject();
-            }
+            return new Extensions.EjectDll(PropertyWrapper).Call();
         }
-        
+
         internal bool EraseHeaders()
         {
-            using (var extensionMethod = new EraseHeaders(_process, _dllPath))
-            {
-                // Erase the dll headers
-            
-                return extensionMethod.Erase();
-            }
+            return new Extensions.EraseHeaders(PropertyWrapper).Call();
         }
-        
+
         internal bool RandomiseHeaders()
         {
-            using (var extensionMethod = new RandomiseHeaders(_process, _dllPath))
-            {
-                // Randomise the dll headers
-            
-                return extensionMethod.Randomise();
-            }
+            return new Extensions.RandomiseHeaders(PropertyWrapper).Call();
         }
-        
+
         internal bool UnlinkFromPeb()
         {
-            using (var extensionMethod = new UnlinkFromPeb(_process, _dllPath))
-            {
-                // Unlink the dll from the peb
-            
-                return extensionMethod.Unlink();
-            }
+            return new Extensions.UnlinkFromPeb(PropertyWrapper).Call();
         }
     }
 }

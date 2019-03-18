@@ -1,12 +1,12 @@
 ## Bleak 
 
-[![Build status](https://ci.appveyor.com/api/projects/status/f19i6yj053atkn4h?svg=true)](https://ci.appveyor.com/project/Akaion/bleak)
+[![Build status](https://ci.appveyor.com/api/projects/status/5avg8vtr9kep050a?svg=true)](https://ci.appveyor.com/project/Akaion/bleak)
 
 A Windows native DLL injection library written in C# that supports several methods of injection.
 
 ----
 
-### Supported Methods
+### Injection Methods
 
 * CreateRemoteThread
 * ManualMap
@@ -14,18 +14,20 @@ A Windows native DLL injection library written in C# that supports several metho
 * QueueUserAPC
 * RtlCreateUserThread
 * SetThreadContext
-* ZwCreateThreadEx
 
-### Extensions
+### Injection Extensions
 
 * Eject DLL
 * Erase PE Headers
 * Randomise PE Headers
 * Unlink DLL From PEB
 
+
 ### Features
 
 * x86 and x64 injection
+* Syscalls used in place of most Windows API calls
+* Ability to Randomise the name of the DLL before injection
 
 ----
 
@@ -44,11 +46,11 @@ using Bleak;
 
 var injector = new Injector();
 
-// Inject a dll into a process using the CreateRemoteThread method
+// Inject a DLL into a process using the CreateRemoteThread method
 
 injector.CreateRemoteThread("processName", "pathToDll");
 
-// Erase the PE headers of a dll loaded in the process
+// Erase the PE headers of a DLL loaded in the process
 
 injector.EraseHeaders("processName", "pathToDll");
 ```

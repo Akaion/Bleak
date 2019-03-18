@@ -1,404 +1,191 @@
+﻿using Bleak.Handlers;
+using Bleak.Tools;
 using System;
-using System.Diagnostics;
 using System.IO;
-using Bleak.Etc;
-using Bleak.Methods;
-using Bleak.Services;
 
 namespace Bleak.Wrappers
 {
-    internal class MethodWrapper
+    internal class MethodWrapper : IDisposable
     {
-        private readonly Process _process;
-        
-        private readonly string _dllPath;
-        
-        internal MethodWrapper(string processName, string dllPath)
+        private readonly PropertyWrapper PropertyWrapper;
+
+        internal MethodWrapper(string targetProcessName, byte[] dllBytes, bool randomiseDllName, bool methodIsManualMap)
         {
-            // Ensure the operating system is valid
+            // Ensure the users operating system is supported
 
-            ValidateOperatingSystem.Validate();
-            
+            ValidationHandler.ValidateOperatingSystem();
+
             // Ensure the arguments passed in are valid
-            
-            if (string.IsNullOrWhiteSpace(processName) || string.IsNullOrWhiteSpace(dllPath))
+
+            if (string.IsNullOrWhiteSpace(targetProcessName) || dllBytes is null || dllBytes.Length == 0)
             {
-                throw new ArgumentException("One or more of the arguments provided was invalid");
+                throw new ArgumentException("One or more of the arguments provided were invalid");
             }
-            
-            // Ensure the dll exists
-            
-            if (!File.Exists(dllPath))
+
+            if (methodIsManualMap)
             {
-                throw new FileNotFoundException("No file exists at the provided location");
+                PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), dllBytes);
             }
-            
-            // Get an instance of the process
-            
-            Process process;
-            
-            try
+
+            else
             {
-                process = Process.GetProcessesByName(processName)[0];
+                // Generate a name for a temporary DLL
+
+                var temporaryDllName = randomiseDllName ? WrapperTools.GenerateRandomDllName() : WrapperTools.GenerateDllName(dllBytes);
+
+                // Create a temporary DLL on disk
+
+                var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, dllBytes);
+
+                PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), temporaryDllPath);
             }
-            
-            catch (IndexOutOfRangeException)
-            {
-                // The process isn't currently running
-                
-                throw new ArgumentException($"No process with name {processName} is currently running");
-            }
-            
-            // Ensure the process architecture matches the dll architecture
-            
-            ValidateArchitecture.Validate(process, dllPath);
-            
-            // Store the values
-            
-            _process = process;
-            
-            _dllPath = dllPath;
+
+            // Ensure the architecture of the DLL is valid
+
+            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
         }
-        
-        internal MethodWrapper(int processId, string dllPath)
+
+        internal MethodWrapper(int targetProcessId, byte[] dllBytes, bool randomiseDllName, bool methodIsManualMap)
         {
-            // Ensure the operating system is valid
+            // Ensure the users operating system is supported
 
-            ValidateOperatingSystem.Validate();
-            
+            ValidationHandler.ValidateOperatingSystem();
+
             // Ensure the arguments passed in are valid
-            
-            if (processId <= 0|| string.IsNullOrWhiteSpace(dllPath))
+
+            if (targetProcessId <= 0 || dllBytes is null || dllBytes.Length == 0)
             {
-                throw new ArgumentException("One or more of the arguments provided was invalid");
+                throw new ArgumentException("One or more of the arguments provided were invalid");
             }
-            
-            // Ensure the dll exists
-            
-            if (!File.Exists(dllPath))
+
+            if (methodIsManualMap)
             {
-                throw new FileNotFoundException("No file exists at the provided location");
+                PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), dllBytes);
             }
-            
-            // Get an instance of the process
-            
-            Process process;
-            
-            try
+
+            else
             {
-                process = Process.GetProcessById(processId);
+                // Generate a name for a temporary DLL
+
+                var temporaryDllName = randomiseDllName ? WrapperTools.GenerateRandomDllName() : WrapperTools.GenerateDllName(dllBytes);
+
+                // Create a temporary DLL on disk
+
+                var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, dllBytes);
+
+                PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), temporaryDllPath);
             }
-            
-            catch (ArgumentException)
-            {
-                // The process isn't currently running
-                
-                throw new ArgumentException($"No process with id {processId} is currently running");
-            }
-            
-            // Ensure the process architecture matches the dll architecture
-            
-            ValidateArchitecture.Validate(process, dllPath);
-            
-            // Store the values
-            
-            _process = process;
-            
-            _dllPath = dllPath;
+
+            // Ensure the architecture of the DLL is valid
+
+            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
         }
-        
-        internal MethodWrapper(string processName, byte[] dllBytes)
+
+        internal MethodWrapper(string targetProcessName, string dllPath, bool randomiseDllName, bool methodIsManualMap)
         {
-            // Ensure the operating system is valid
+            // Ensure the users operating system is supported
 
-            ValidateOperatingSystem.Validate();
-            
+            ValidationHandler.ValidateOperatingSystem();
+
             // Ensure the arguments passed in are valid
-            
-            if (string.IsNullOrWhiteSpace(processName) || dllBytes is null || dllBytes.Length == 0)
-            {
-                throw new ArgumentException("One or more of the arguments provided was invalid");
-            }
-            
-            // Ensure the temporary directory exists on disk
-            
-            var temporaryDllFolderPath = Path.Combine(Path.GetTempPath(), "Bleak");
-            
-            var temporaryDirectoryInfo = Directory.CreateDirectory(temporaryDllFolderPath);
-            
-            // Clear the temporary directory if necessary
-            
-            foreach (var file in temporaryDirectoryInfo.GetFiles())
-            {
-                try
-                {
-                    file.Delete();
-                }
-                
-                catch (Exception)
-                {
-                    // The file is open in a process - Ignore
-                }
-            }
-            
-            // Create a temporary dll name for the dll using a hash of its bytes
-            
-            var temporaryDllName = Tools.ComputeHash(dllBytes).Substring(0, 14) + ".dll";
-            
-            // Convert the dll bytes to a temporary file on disk
-            
-            var temporaryDllPath = Path.Combine(temporaryDllFolderPath, temporaryDllName);
 
-            try
+            if (string.IsNullOrWhiteSpace(targetProcessName) || string.IsNullOrWhiteSpace(dllPath))
             {
-                File.WriteAllBytes(temporaryDllPath, dllBytes);
+                throw new ArgumentException("One or more of the arguments provided were invalid");
             }
-            
-            catch (Exception)
+
+            if (randomiseDllName)
             {
-                // The file is open in a process - Ignore
+                // Generate a name for a temporary DLL
+
+                var temporaryDllName = WrapperTools.GenerateRandomDllName();
+
+                // Create a temporary DLL on disk
+
+                var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, File.ReadAllBytes(dllPath));
+
+                PropertyWrapper = methodIsManualMap ? new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), File.ReadAllBytes(temporaryDllPath)) : new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), temporaryDllPath);
             }
-            
-            // Get an instance of the remote process
-            
-            Process process;
-            
-            try
+
+            else
             {
-                process = Process.GetProcessesByName(processName)[0];
+                PropertyWrapper = methodIsManualMap ? new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), File.ReadAllBytes(dllPath)) : new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), dllPath);
             }
-            
-            catch (IndexOutOfRangeException)
-            {
-                // The process isn't currently running
-                
-                throw new ArgumentException($"No process with name {processName} is currently running");
-            }
-            
-            // Ensure the process architecture matches the dll architecture
-            
-            ValidateArchitecture.Validate(process, temporaryDllPath);
-            
-            // Store the values
-            
-            _process = process;
-            
-            _dllPath = temporaryDllPath;
+
+            // Ensure the architecture of the DLL is valid
+
+            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
         }
-        
-        internal MethodWrapper(int processId, byte[] dllBytes)
+
+        internal MethodWrapper(int targetProcessId, string dllPath, bool randomiseDllName, bool methodIsManualMap)
         {
-            // Ensure the operating system is valid
+            // Ensure the users operating system is supported
 
-            ValidateOperatingSystem.Validate();
-            
+            ValidationHandler.ValidateOperatingSystem();
+
             // Ensure the arguments passed in are valid
-            
-            if (processId <= 0 || dllBytes is null || dllBytes.Length == 0)
-            {
-                throw new ArgumentException("One or more of the arguments provided was invalid");
-            }
-            
-            // Ensure the temporary directory exists on disk
-            
-            var temporaryDllFolderPath = Path.Combine(Path.GetTempPath(), "Bleak");
-            
-            var temporaryDirectoryInfo = Directory.CreateDirectory(temporaryDllFolderPath);
-            
-            // Clear the temporary directory if necessary
-            
-            foreach (var file in temporaryDirectoryInfo.GetFiles())
-            {
-                try
-                {
-                    file.Delete();
-                }
-                
-                catch (Exception)
-                {
-                    // The file is open in a process - Ignore
-                }
-            }
-            
-            // Create a temporary dll name for the dll using a hash of its bytes
-            
-            var temporaryDllName = Tools.ComputeHash(dllBytes).Substring(0, 14) + ".dll";
-            
-            // Convert the dll bytes to a temporary file on disk
-            
-            var temporaryDllPath = Path.Combine(temporaryDllFolderPath, temporaryDllName);
 
-            try
+            if (targetProcessId <= 0 || string.IsNullOrWhiteSpace(dllPath))
             {
-                File.WriteAllBytes(temporaryDllPath, dllBytes);
+                throw new ArgumentException("One or more of the arguments provided were invalid");
             }
-            
-            catch (Exception)
+
+            if (randomiseDllName)
             {
-                // The file is open in a process - Ignore
+                // Generate a name for a temporary DLL
+
+                var temporaryDllName = WrapperTools.GenerateRandomDllName();
+
+                // Create a temporary DLL on disk
+
+                var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, File.ReadAllBytes(dllPath));
+
+                PropertyWrapper = methodIsManualMap ? new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), File.ReadAllBytes(temporaryDllPath)) : new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), temporaryDllPath);
             }
-            
-            // Get an instance of the remote process
-            
-            Process process;
-            
-            try
+
+            else
             {
-                process = Process.GetProcessById(processId);
+                PropertyWrapper = methodIsManualMap ? new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), File.ReadAllBytes(dllPath)) : new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), dllPath);
             }
-            
-            catch (ArgumentException)
-            {
-                // The process isn't currently running
-                
-                throw new ArgumentException($"No process with id {processId} is currently running");
-            }
-            
-            // Ensure the process architecture matches the dll architecture
-            
-            ValidateArchitecture.Validate(process, temporaryDllPath);
-            
-            // Store the values
-            
-            _process = process;
-            
-            _dllPath = temporaryDllPath;
+
+            // Ensure the architecture of the DLL is valid
+
+            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
         }
-        
+
+        public void Dispose()
+        {
+            PropertyWrapper.Dispose();
+        }
+
         internal bool CreateRemoteThread()
         {
-            using (var injectionMethod = new CreateRemoteThread(_process, _dllPath))
-            {
-                // Inject the dll
-            
-                return injectionMethod.Inject();
-            }  
+            return new Methods.CreateRemoteThread(PropertyWrapper).Call();
         }
-        
-        internal bool ManualMap()
-        {
-            // Ensure the operating system supports ManualMap
-            
-            var osVersion = Environment.Version;
 
-            if (osVersion.Major == 5)
-            {
-                throw new PlatformNotSupportedException("ManualMap is not supported on Windows XP");
-            }
-            
-            using (var injectionMethod = new ManualMap(_process, _dllPath))
-            {
-                // Inject the dll
-            
-                return injectionMethod.Inject();
-            }
-        }
-        
         internal bool NtCreateThreadEx()
         {
-            // Ensure the operating system supports NtCreateThreadEx
-            
-            var osVersion = Environment.Version;
-
-            if (osVersion.Major == 5)
-            {
-                throw new PlatformNotSupportedException("NtCreateThreadEx is not supported on Windows XP");
-            }
-            
-            using (var injectionMethod = new NtCreateThreadEx(_process, _dllPath))
-            {
-                // Inject the dll
-            
-                return injectionMethod.Inject();
-            }
+            return new Methods.NtCreateThreadEx(PropertyWrapper).Call();
         }
-        
+
+        internal bool ManualMap()
+        {
+            return new Methods.ManualMap(PropertyWrapper).Call();
+        }
+
         internal bool QueueUserApc()
         {
-            using (var injectionMethod = new QueueUserApc(_process, _dllPath))
-            {
-                // Inject the dll
-            
-                return injectionMethod.Inject();
-            }
+            return new Methods.QueueUserApc(PropertyWrapper).Call();
         }
-        
+
         internal bool RtlCreateUserThread()
         {
-            // Ensure the operating system supports RtlCreateUserThread
-            
-            var osVersion = Environment.Version;
-            
-            switch (osVersion.Major)
-            {
-                case 5:
-                {
-                    throw new PlatformNotSupportedException("RtlCreateUserThread is not supported on Windows XP");
-                }
-
-                case 6:
-                {
-                    switch (osVersion.Minor)
-                    {
-                        case 0:
-                        {
-                            throw new PlatformNotSupportedException("RtlCreateUserThread is not supported on Windows Vista");
-                        }
-
-                        case 1:
-                        {
-                            throw new PlatformNotSupportedException("RtlCreateUserThread is not supported on Windows 7");
-                        }
-                    }
-
-                    break;
-                }
-            }
-            
-            using (var injectionMethod = new RtlCreateUserThread(_process, _dllPath))
-            {
-                // Inject the dll
-            
-                return injectionMethod.Inject();
-            }
+            return new Methods.RtlCreateUserThread(PropertyWrapper).Call();
         }
-        
+
         internal bool SetThreadContext()
         {
-            // Ensure the operating system supports SetThreadContext
-            
-            var osVersion = Environment.Version;
-
-            if (osVersion.Major == 5)
-            {
-                throw new PlatformNotSupportedException("SetThreadContext is not supported on Windows XP");
-            }
-            
-            using (var injectionMethod = new SetThreadContext(_process, _dllPath))
-            {
-                // Inject the dll
-            
-                return injectionMethod.Inject();
-            }
-        }
-        
-        internal bool ZwCreateThreadEx()
-        {
-            // Ensure the operating system supports ZwCreateThreadEx
-            
-            var osVersion = Environment.Version;
-
-            if (osVersion.Major == 5)
-            {
-                throw new PlatformNotSupportedException("ZwCreateThreadEx is not supported on Windows XP");
-            }
-            
-            using (var injectionMethod = new ZwCreateThreadEx(_process, _dllPath))
-            {
-                // Inject the dll
-            
-                return injectionMethod.Inject();
-            }
+            return new Methods.SetThreadContext(PropertyWrapper).Call();
         }
     }
 }

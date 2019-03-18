@@ -1,72 +1,51 @@
+﻿using Bleak.Extensions.Interfaces;
+using Bleak.Native;
+using Bleak.SafeHandle;
+using Bleak.Tools;
+using Bleak.Wrappers;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Bleak.Etc;
-using Bleak.Services;
 
 namespace Bleak.Extensions
 {
-    internal class EjectDll : IDisposable
-    {   
-        private readonly Properties _properties;
-        
-        internal EjectDll(Process process, string dllPath)
+    internal class EjectDll : IExtensionMethod
+    {
+        private readonly PropertyWrapper PropertyWrapper;
+
+        internal EjectDll(PropertyWrapper propertyWrapper)
         {
-            _properties = new Properties(process, dllPath);
+            PropertyWrapper = propertyWrapper;
         }
-        
-        public void Dispose()
+
+        public bool Call()
         {
-            _properties?.Dispose();
-        }
-        
-        internal bool Eject()
-        {   
-            // Get the address of the FreeLibraryAndExitThread method from kernel32.dll
+            // Get the address of the FreeLibraryAndExitThread function in the target process
 
-            var freeLibraryAndExitThreadAddress = Tools.GetRemoteProcAddress(_properties, "kernel32.dll", "FreeLibraryAndExitThread");
+            var freeLibraryAndExitThreadAddress = NativeTools.GetFunctionAddress(PropertyWrapper, "kernel32.dll", "FreeLibraryAndExitThread");
 
-            if (freeLibraryAndExitThreadAddress == IntPtr.Zero)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to find the address of the FreeLibraryAndExitThread method in kernel32.dll");
-            }
-            
-            // Get the name of the dll
-            
-            var dllName = Path.GetFileName(_properties.DllPath);
-            
-            // Get an instance of the dll in the remote process
+            var dllName = Path.GetFileName(PropertyWrapper.DllPath);
 
-            var module = Tools.GetProcessModules(_properties.ProcessId).SingleOrDefault(m => string.Equals(m.Module, dllName, StringComparison.OrdinalIgnoreCase));
-            
-            if (module.Equals(default(Native.ModuleEntry)))
+            // Get an instance of the DLL in the target process
+
+            var module = NativeTools.GetProcessModules(PropertyWrapper.Process.Id).FirstOrDefault(m => m.Module.Equals(dllName, StringComparison.OrdinalIgnoreCase));
+
+            if (module.Equals(default))
             {
-                throw new ArgumentException($"There is no module named {dllName} loaded in the remote process");
+                throw new ArgumentException($"Failed to find {dllName} in the target processes module list");
             }
-            
-            // Get the base address of the dll
-            
-            var dllBaseAddress = module.BaseAddress;
-            
-            // Create a remote thread to call free library and exit thread in the remote process
-            
-            Native.NtCreateThreadEx(out var remoteThreadHandle, Native.AccessMask.SpecificRightsAll | Native.AccessMask.StandardRightsAll, IntPtr.Zero, _properties.ProcessHandle, freeLibraryAndExitThreadAddress, dllBaseAddress, Native.CreationFlags.HideFromDebugger, 0, 0, 0, IntPtr.Zero);
-            
-            if (remoteThreadHandle is null)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call free library and exit thread in the remote process");
-            }
-            
+
+            // Create a remote thread to call FreeLibraryAndExitThread in the target process
+
+            var remoteThreadHandle = (SafeThreadHandle) PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtCreateThreadEx>(PropertyWrapper.ProcessHandle.Value, freeLibraryAndExitThreadAddress, module.BaseAddress);
+
             // Wait for the remote thread to finish its task
-            
-            Native.WaitForSingleObject(remoteThreadHandle, int.MaxValue);
-            
-            // Close the handle opened to the remote thread
-            
-            remoteThreadHandle?.Close();
-            
+
+            PInvoke.WaitForSingleObject(remoteThreadHandle, uint.MaxValue);
+
+            remoteThreadHandle.Dispose();
+
             return true;
-        }  
+        }
     }
 }

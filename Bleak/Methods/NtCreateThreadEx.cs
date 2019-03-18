@@ -1,92 +1,51 @@
-using System;
-using System.ComponentModel;
-using System.Diagnostics;
+﻿using Bleak.Methods.Interfaces;
+using Bleak.Native;
+using Bleak.SafeHandle;
+using Bleak.Tools;
+using Bleak.Wrappers;
 using System.Text;
-using Bleak.Etc;
-using Bleak.Services;
 
 namespace Bleak.Methods
 {
-    internal class NtCreateThreadEx : IDisposable
+    internal class NtCreateThreadEx : IInjectionMethod
     {
-        private readonly Properties _properties;
-        
-        internal NtCreateThreadEx(Process process, string dllPath)
-        {
-            _properties = new Properties(process, dllPath);
-        }
-        
-        public void Dispose()
-        {
-            _properties?.Dispose();
-        }
-        
-        internal bool Inject()
-        {
-            // Get the address of the LoadLibraryW method from kernel32.dll
+        private readonly PropertyWrapper PropertyWrapper;
 
-            var loadLibraryAddress = Tools.GetRemoteProcAddress(_properties, "kernel32.dll", "LoadLibraryW");
+        internal NtCreateThreadEx(PropertyWrapper propertyWrapper)
+        {
+            PropertyWrapper = propertyWrapper;
+        }
 
-            if (loadLibraryAddress == IntPtr.Zero)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to find the address of the LoadLibraryW method in kernel32.dll");
-            }
-            
-            // Allocate memory for the dll path in the remote process
-            
-            var dllPathAddress = IntPtr.Zero;
-            
-            try
-            {
-                dllPathAddress = _properties.MemoryModule.AllocateMemory(_properties.ProcessId, _properties.DllPath.Length);
-            }
-            
-            catch (Win32Exception)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for the dll path in the remote process");
-            }
-            
-            // Write the dll path into the memory of the remote process
-            
-            var dllPathBytes = Encoding.Unicode.GetBytes(_properties.DllPath + "\0");
-            
-            try
-            {
-                _properties.MemoryModule.WriteMemory(_properties.ProcessId, dllPathAddress, dllPathBytes);
-            }
-            
-            catch (Win32Exception)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to write the dll path into the memory of the remote process");   
-            }
-            
-            // Create a remote thread to call load library in the remote process
-            
-            Native.NtCreateThreadEx(out var remoteThreadHandle, Native.AccessMask.SpecificRightsAll | Native.AccessMask.StandardRightsAll, IntPtr.Zero, _properties.ProcessHandle, loadLibraryAddress, dllPathAddress, Native.CreationFlags.HideFromDebugger, 0, 0, 0, IntPtr.Zero);
-            
-            if (remoteThreadHandle is null)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to create a remote thread to call load library in the remote process");
-            }
-             
+        public bool Call()
+        {
+            // Get the address of LoadLibraryW in the target process
+
+            var loadLibraryAddress = NativeTools.GetFunctionAddress(PropertyWrapper, "kernel32.dll", "LoadLibraryW");
+
+            // Allocate a buffer for the DLL path in the target process
+
+            var dllPathBuffer = PropertyWrapper.MemoryManager.Value.AllocateMemory(PropertyWrapper.DllPath.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
+
+            // Write the DLL path into the buffer
+
+            var dllPathBytes = Encoding.Unicode.GetBytes(PropertyWrapper.DllPath + "\0");
+
+            PropertyWrapper.MemoryManager.Value.WriteMemory(dllPathBuffer, dllPathBytes);
+
+            // Create a remote thread to call LoadLibraryW in the target process
+
+            var remoteThreadHandle = (SafeThreadHandle) PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtCreateThreadEx>(PropertyWrapper.ProcessHandle.Value, loadLibraryAddress, dllPathBuffer);
+
             // Wait for the remote thread to finish its task
-            
-            Native.WaitForSingleObject(remoteThreadHandle, int.MaxValue);
-            
-            // Free the memory previously allocated for the dll path in the remote process
-            
-            try
-            {
-                _properties.MemoryModule.FreeMemory(_properties.ProcessId, dllPathAddress);
-            }
-            
-            catch (Win32Exception)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to free the memory allocated for the dll path in the remote process");   
-            }
-            
-            remoteThreadHandle?.Close();
-            
+
+            PInvoke.WaitForSingleObject(remoteThreadHandle, uint.MaxValue);
+
+            // Free the memory allocated for the buffer
+
+            PropertyWrapper.MemoryManager.Value.FreeMemory(dllPathBuffer);
+
+            remoteThreadHandle.Dispose();
+
             return true;
         }
     }
