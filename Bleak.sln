@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.28701.123
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bleak", "Bleak\Bleak.csproj", "{25DF707E-2012-4B96-8782-9D535237F0AA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bleak", "Bleak\Bleak.csproj", "{25DF707E-2012-4B96-8782-9D535237F0AA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bleak.Tests", "Bleak.Tests\Bleak.Tests.csproj", "{A7F338F0-28A1-400A-9B2B-F7946E28C246}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bleak.Tests", "Bleak.Tests\Bleak.Tests.csproj", "{A7F338F0-28A1-400A-9B2B-F7946E28C246}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

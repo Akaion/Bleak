@@ -8,7 +8,6 @@ using Bleak.Wrappers;
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
 
 namespace Bleak.Methods
 {
@@ -143,14 +142,6 @@ namespace Bleak.Methods
             // Alt tab to the process to load the DLL
 
             PInvoke.SwitchToThisWindow(PropertyWrapper.Process.MainWindowHandle, true);
-
-            // Buffer the execution by 10 milliseconds to avoid freeing memory before it has been referenced
-
-            Thread.Sleep(10);
-
-            // Free the memory allocated for the shellcode
-
-            PropertyWrapper.MemoryManager.Value.FreeMemory(shellcodeBuffer);
 
             threadHandle.Dispose();
 

@@ -80,7 +80,7 @@ namespace Bleak.Tools
 
             var function = peInstance.ExportedFunctions.FirstOrDefault(f => f.Name.Equals(functionName, StringComparison.OrdinalIgnoreCase));
 
-            if (function.Equals(default))
+            if (function.Equals(default(PortableExecutable.Objects.ExportedFunction)))
             {
                 throw new ApplicationException($"Failed to find the function {functionName} in the exported functions of {moduleName}");
             }
