@@ -4,6 +4,7 @@ using Bleak.Tools.Objects;
 using Bleak.Wrappers;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -12,46 +13,6 @@ namespace Bleak.Tools
 {
     internal static class NativeTools
     {
-        internal static IEnumerable<Structures.ModuleEntry> GetProcessModules(int processId)
-        {
-            // Create a toolhelp snapshot for the target process
-
-            var snapshotHandle = PInvoke.CreateToolhelp32Snapshot(Enumerations.ToolHelpSnapshotType.Module | Enumerations.ToolHelpSnapshotType.Module32, (uint) processId);
-
-            if (snapshotHandle is null)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to create a toolhelp snapshot for the target process");
-            }
-
-            // Store a module entry structure in a buffer
-
-            var moduleEntry = new Structures.ModuleEntry { Size = (uint) Marshal.SizeOf<Structures.ModuleEntry>() };
-
-            var moduleEntryBuffer = MemoryTools.StoreStructureInBuffer(moduleEntry);
-
-            // Get the first module loaded in the target process
-
-            if (!PInvoke.Module32First(snapshotHandle, moduleEntryBuffer))
-            {
-                ExceptionHandler.ThrowWin32Exception("No modules were found loaded in the target process");
-            }
-            
-            yield return Marshal.PtrToStructure<Structures.ModuleEntry>(moduleEntryBuffer);
-
-            // Get the rest of the modules loaded in the target process
-
-            while (PInvoke.Module32Next(snapshotHandle, moduleEntryBuffer))
-            {
-                yield return Marshal.PtrToStructure<Structures.ModuleEntry>(moduleEntryBuffer);
-            }
-
-            // Free the memory allocated for the buffer
-
-            MemoryTools.FreeMemoryForBuffer(moduleEntryBuffer, Marshal.SizeOf<Structures.ModuleEntry>());
-
-            snapshotHandle.Dispose();
-        }
-
         internal static IntPtr GetFunctionAddress(PropertyWrapper propertyWrapper, string moduleName, string functionName)
         {
             // Look for the module in the target process
@@ -87,7 +48,7 @@ namespace Bleak.Tools
 
             // Calculate the address of the function in the target process
 
-            var functionAddress = (ulong) module.BaseAddress + function.Offset;
+            var functionAddress = (ulong)module.BaseAddress + function.Offset;
 
             // Calculate the start and end address of the modules export table
 
@@ -99,7 +60,7 @@ namespace Bleak.Tools
             {
                 var optionalHeader = peInstance.PeParser.GetPeHeaders().NtHeaders32.OptionalHeader;
 
-                exportTableStartAddress = (ulong) module.BaseAddress + optionalHeader.DataDirectory[0].VirtualAddress;
+                exportTableStartAddress = (ulong)module.BaseAddress + optionalHeader.DataDirectory[0].VirtualAddress;
 
                 exportTableEndAddress = exportTableStartAddress + optionalHeader.DataDirectory[0].Size;
             }
@@ -108,7 +69,7 @@ namespace Bleak.Tools
             {
                 var optionalHeader = peInstance.PeParser.GetPeHeaders().NtHeaders64.OptionalHeader;
 
-                exportTableStartAddress = (ulong) module.BaseAddress + optionalHeader.DataDirectory[0].VirtualAddress;
+                exportTableStartAddress = (ulong)module.BaseAddress + optionalHeader.DataDirectory[0].VirtualAddress;
 
                 exportTableEndAddress = exportTableStartAddress + optionalHeader.DataDirectory[0].Size;
             }
@@ -123,7 +84,7 @@ namespace Bleak.Tools
 
                 while (true)
                 {
-                    var currentByte = propertyWrapper.MemoryManager.Value.ReadMemory((IntPtr) functionAddress, 1);
+                    var currentByte = propertyWrapper.MemoryManager.Value.ReadMemory((IntPtr)functionAddress, 1);
 
                     if (currentByte[0] == 0x00)
                     {
@@ -150,7 +111,78 @@ namespace Bleak.Tools
                 return GetFunctionAddress(propertyWrapper, forwardedFunctionModuleName, forwardedFunctionName);
             }
 
-            return (IntPtr) functionAddress;  
+            return (IntPtr)functionAddress;
+        }
+
+        internal static Structures.ModuleEntry GetModuleInstance(IEnumerable<Structures.ModuleEntry> processModules, string dllName)
+        {
+            // Look for an instance of the DLL in the target process
+
+            var module = processModules.FirstOrDefault(m => m.Module.Equals(dllName, StringComparison.OrdinalIgnoreCase));
+
+            if (module.Equals(default(Structures.ModuleEntry)))
+            {
+                if (!Directory.Exists(Path.Combine(Path.GetTempPath(), "Bleak")))
+                {
+                    return module;
+                }
+
+                // Search the temporary directory for DLLs
+
+                foreach (var temporaryDllPath in Directory.EnumerateFiles(Path.Combine(Path.GetTempPath(), "Bleak")))
+                {
+                    // Look for an instance of the temporary DLL in the target process
+
+                    module = processModules.FirstOrDefault(m => m.Module.Equals(Path.GetFileName(temporaryDllPath), StringComparison.OrdinalIgnoreCase));
+
+                    if (!module.Equals(default(Structures.ModuleEntry)))
+                    {
+                        return module;
+                    }
+                }
+            }
+
+            return module;
+        }
+
+        internal static IEnumerable<Structures.ModuleEntry> GetProcessModules(int processId)
+        {
+            // Create a toolhelp snapshot for the target process
+
+            var snapshotHandle = PInvoke.CreateToolhelp32Snapshot(Enumerations.ToolHelpSnapshotType.Module | Enumerations.ToolHelpSnapshotType.Module32, (uint)processId);
+
+            if (snapshotHandle is null)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to create a toolhelp snapshot for the target process");
+            }
+
+            // Store a module entry structure in a buffer
+
+            var moduleEntry = new Structures.ModuleEntry { Size = (uint)Marshal.SizeOf<Structures.ModuleEntry>() };
+
+            var moduleEntryBuffer = MemoryTools.StoreStructureInBuffer(moduleEntry);
+
+            // Get the first module loaded in the target process
+
+            if (!PInvoke.Module32First(snapshotHandle, moduleEntryBuffer))
+            {
+                ExceptionHandler.ThrowWin32Exception("No modules were found loaded in the target process");
+            }
+
+            yield return Marshal.PtrToStructure<Structures.ModuleEntry>(moduleEntryBuffer);
+
+            // Get the rest of the modules loaded in the target process
+
+            while (PInvoke.Module32Next(snapshotHandle, moduleEntryBuffer))
+            {
+                yield return Marshal.PtrToStructure<Structures.ModuleEntry>(moduleEntryBuffer);
+            }
+
+            // Free the memory allocated for the buffer
+
+            MemoryTools.FreeMemoryForBuffer(moduleEntryBuffer, Marshal.SizeOf<Structures.ModuleEntry>());
+
+            snapshotHandle.Dispose();
         }
     }
 }

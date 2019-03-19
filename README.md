@@ -26,8 +26,7 @@ A Windows native DLL injection library written in C# that supports several metho
 ### Features
 
 * x86 and x64 injection
-* Syscalls used in place of most Windows API calls
-* Ability to Randomise the name of the DLL before injection
+* Optional randomise DLL name
 
 ----
 

@@ -68,7 +68,7 @@ namespace Bleak.Extensions
 
                         UnlinkEntryFromLinkedList(dllEntry.InInitOrderLinks);
 
-                        // Unlink the entry from the LdrpHashTable
+                        // Unlink the entry from the LdrpHashTable linked list
 
                         UnlinkEntryFromLinkedList(dllEntry.HashTableEntry);
 
@@ -76,9 +76,9 @@ namespace Bleak.Extensions
 
                         memoryManager.WriteMemory((IntPtr) dllEntry.BaseDllName.Buffer, new byte[dllEntry.BaseDllName.MaximumLength]);
 
-                        memoryManager.WriteMemory((IntPtr) dllEntry.BaseDllName.Buffer, new byte[dllEntry.FullDllName.MaximumLength]);
+                        memoryManager.WriteMemory((IntPtr) dllEntry.FullDllName.Buffer, new byte[dllEntry.FullDllName.MaximumLength]);
 
-                        memoryManager.WriteMemory((IntPtr) dllEntry.BaseDllName.Buffer, new byte[Marshal.SizeOf<Structures.LdrDataTableEntry32>()]);
+                        memoryManager.WriteMemory((IntPtr) currentEntry, new byte[Marshal.SizeOf<Structures.LdrDataTableEntry32>()]);
 
                         break;
                     }
@@ -146,7 +146,7 @@ namespace Bleak.Extensions
 
                         UnlinkEntryFromLinkedList(dllEntry.InInitOrderLinks);
 
-                        // Unlink the entry from the LdrpHashTable
+                        // Unlink the entry from the LdrpHashTable linked list
 
                         UnlinkEntryFromLinkedList(dllEntry.HashTableEntry);
 
@@ -154,9 +154,9 @@ namespace Bleak.Extensions
 
                         memoryManager.WriteMemory((IntPtr) dllEntry.BaseDllName.Buffer, new byte[dllEntry.BaseDllName.MaximumLength]);
 
-                        memoryManager.WriteMemory((IntPtr) dllEntry.BaseDllName.Buffer, new byte[dllEntry.FullDllName.MaximumLength]);
+                        memoryManager.WriteMemory((IntPtr) dllEntry.FullDllName.Buffer, new byte[dllEntry.FullDllName.MaximumLength]);
 
-                        memoryManager.WriteMemory((IntPtr) dllEntry.BaseDllName.Buffer, new byte[Marshal.SizeOf<Structures.LdrDataTableEntry64>()]);
+                        memoryManager.WriteMemory((IntPtr) currentEntry, new byte[Marshal.SizeOf<Structures.LdrDataTableEntry64>()]);
 
                         break;
                     }
