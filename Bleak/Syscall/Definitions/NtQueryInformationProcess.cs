@@ -1,5 +1,5 @@
-﻿using Bleak.Native;
-using Bleak.Handlers;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
@@ -7,30 +7,21 @@ using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtQueryInformationProcess : IDisposable
+    internal class NtQueryInformationProcess
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtQueryInformationProcessDefinition(SafeProcessHandle processHandle, Enumerations.ProcessInformationClass processInformationClass, IntPtr processInformationBuffer, ulong bufferSize, IntPtr returnLength);
 
-        private readonly NtQueryInformationProcessDefinition NtQueryInformationDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtQueryInformationProcessDefinition _ntQueryInformationProcessDelegate;
 
         internal NtQueryInformationProcess(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtQueryInformationDelegate = SyscallTools.CreateDelegateForSyscall<NtQueryInformationProcessDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtQueryInformationDelegate);
+            _ntQueryInformationProcessDelegate = syscallTools.CreateDelegateForSyscall<NtQueryInformationProcessDefinition>();
         }
 
         internal IntPtr Invoke(SafeProcessHandle processHandle, Enumerations.ProcessInformationClass processInformationClass)
         {
-            // Initialise a buffer to store the returned process information structure in
+            // Initialise a buffer to store the returned process information structure
 
             var bufferSize = processInformationClass == Enumerations.ProcessInformationClass.BasicInformation ? Marshal.SizeOf<Structures.ProcessBasicInformation>() : sizeof(ulong);
 
@@ -38,7 +29,7 @@ namespace Bleak.Syscall.Definitions
 
             // Perform the syscall
 
-            var syscallResult = NtQueryInformationDelegate(processHandle, processInformationClass, processInformationBuffer, (ulong) bufferSize, IntPtr.Zero);
+            var syscallResult = _ntQueryInformationProcessDelegate(processHandle, processInformationClass, processInformationBuffer, (ulong) bufferSize, IntPtr.Zero);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {

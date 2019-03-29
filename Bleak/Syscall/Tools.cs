@@ -1,66 +1,47 @@
-﻿using Bleak.Native;
+﻿using Bleak.PortableExecutable;
+using Bleak.PortableExecutable.Objects;
 using Bleak.Syscall.Shellcode;
 using Bleak.Tools;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall
 {
-    internal class Tools
+    internal class Tools : IDisposable
     {
-        private readonly Lazy<IntPtr> NtDllAddress;
+        private readonly IntPtr _ntDllAddress;
 
-        private int ShellcodeSize;
+        private readonly List<ExportedFunction> _ntDllFunctions;
+
+        private readonly List<IntPtr> _shellcodeAddresses;
 
         internal Tools()
         {
-            NtDllAddress = new Lazy<IntPtr>(GetNtDllAddress);
+            _ntDllAddress = GetNtDllAddress();
+
+            _ntDllFunctions = GetNtDllFunctions();
+
+            _shellcodeAddresses = new List<IntPtr>();
         }
 
-        internal void FreeMemoryForSyscall<TDelegate>(TDelegate syscallDelegate) where TDelegate : class
+        public void Dispose()
         {
-            // Get the address of the buffer allocated for the shellcode used to perform the syscall
+            foreach (var shellcodeAddress in _shellcodeAddresses)
+            {
+                // Free the memory allocated for the shellcode
 
-            var shellcodeBuffer = Marshal.GetFunctionPointerForDelegate(syscallDelegate);
-
-            // Free the memory allocated for the buffer
-
-            MemoryTools.FreeMemoryForBuffer(shellcodeBuffer, ShellcodeSize);
+                MemoryTools.FreeMemoryForBuffer(shellcodeAddress);
+            }
         }
 
         internal TDelegate CreateDelegateForSyscall<TDelegate>() where TDelegate : class
         {
-            var syscallIndex = GetSyscallIndex(typeof(TDelegate).Name.Replace("Definition", ""));
-
-            // Create the shellcode used to perform the syscall
-
-            var syscallShellcode = Environment.Is64BitProcess ? SyscallX64.GetShellcode(syscallIndex) : SyscallX86.GetShellcode(syscallIndex);
-
-            ShellcodeSize = syscallShellcode.Length;
-
-            // Store the shellcode in a buffer
-
-            var shellcodeBuffer = MemoryTools.AllocateMemoryForBuffer(ShellcodeSize);
-
-            Marshal.Copy(syscallShellcode, 0, shellcodeBuffer, ShellcodeSize);
-
-            // Create a delegate to perform the syscall
-
-            return Marshal.GetDelegateForFunctionPointer<TDelegate>(shellcodeBuffer);
-        }
-
-        private static IntPtr GetNtDllAddress()
-        {
-            return Process.GetCurrentProcess().Modules.Cast<ProcessModule>().First(module => module.ModuleName == "ntdll.dll").BaseAddress;
-        }
-
-        private uint GetSyscallIndex(string functionName)
-        {
             // Get the address of the function
 
-            var functionAddress = PInvoke.GetProcAddress(NtDllAddress.Value, functionName);
+            var functionAddress = _ntDllAddress + (int) _ntDllFunctions.Find(function => function.Name == typeof(TDelegate).Name.Replace("Definition", "")).Offset;
 
             // Copy the first 8 bytes of the function
 
@@ -68,11 +49,42 @@ namespace Bleak.Syscall
 
             Marshal.Copy(functionAddress, functionBytes, 0, 8);
 
-            // Retrieve the syscall index from the first 8 bytes of the function
+            // Retrieve the syscall index from the bytes
 
             var syscallIndexBytes = Environment.Is64BitProcess ? functionBytes.Skip(4).Take(4) : functionBytes.Skip(1).Take(4);
 
-            return BitConverter.ToUInt32(syscallIndexBytes.ToArray(), 0);
-        } 
+            var syscallIndex = BitConverter.ToUInt32(syscallIndexBytes.ToArray(), 0);
+
+            // Create the shellcode used to perform the syscall
+
+            var shellcode = Environment.Is64BitProcess ? SyscallX64.GetShellcode(syscallIndex) : SyscallX86.GetShellcode(syscallIndex);
+
+            // Store the shellcode in a buffer
+
+            var shellcodeBuffer = MemoryTools.AllocateMemoryForBuffer(shellcode.Length);
+
+            _shellcodeAddresses.Add(shellcodeBuffer);
+            
+            Marshal.Copy(shellcode, 0, shellcodeBuffer, shellcode.Length);
+
+            // Create a delegate to perform the syscall
+
+            return Marshal.GetDelegateForFunctionPointer<TDelegate>(shellcodeBuffer);
+        }
+
+        private IntPtr GetNtDllAddress()
+        {
+            return Process.GetCurrentProcess().Modules.Cast<ProcessModule>().First(module => module.ModuleName == "ntdll.dll").BaseAddress;
+        }
+
+        private List<ExportedFunction> GetNtDllFunctions()
+        {
+            var ntDllPath = Process.GetCurrentProcess().Modules.Cast<ProcessModule>().First(module => module.ModuleName == "ntdll.dll").FileName;
+
+            using (var peParser = new PortableExecutableParser(ntDllPath))
+            {
+                return peParser.GetExportedFunctions();
+            }
+        }
     }
 }

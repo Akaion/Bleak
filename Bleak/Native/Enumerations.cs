@@ -101,12 +101,5 @@ namespace Bleak.Native
         {
             HideFromDebugger = 0x04
         }
-
-        [Flags]
-        internal enum ToolHelpSnapshotType
-        {
-            Module = 0x08,
-            Module32 = 0x10
-        }
     }
 }

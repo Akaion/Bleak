@@ -1,42 +1,16 @@
 ﻿using Bleak.Handlers;
 using Bleak.Tools;
 using System;
+using System.IO;
+using System.Linq;
 
 namespace Bleak.Wrappers
 {
     internal class ExtensionWrapper : IDisposable
     {
-        private readonly PropertyWrapper PropertyWrapper;
+        private readonly PropertyWrapper _propertyWrapper;
 
-        internal ExtensionWrapper(string targetProcessName, byte[] dllBytes)
-        {
-            // Ensure the users operating system is supported
-
-            ValidationHandler.ValidateOperatingSystem();
-
-            // Ensure the arguments passed in are valid
-
-            if (string.IsNullOrWhiteSpace(targetProcessName) || dllBytes is null || dllBytes.Length == 0)
-            {
-                throw new ArgumentException("One or more of the arguments provided were invalid");
-            }
-
-            // Generate a name for a temporary DLL
-
-            var temporaryDllName =  WrapperTools.GenerateDllName(dllBytes);
-
-            // Create a temporary DLL on disk
-
-            var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, dllBytes);
-
-            PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), temporaryDllPath);
-
-            // Ensure the architecture of the DLL is valid
-
-            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
-        }
-
-        internal ExtensionWrapper(int targetProcessId, byte[] dllBytes)
+        internal ExtensionWrapper(int targetProcessId, byte[] dllBytes, bool randomiseDllName)
         {
             // Ensure the users operating system is supported
 
@@ -49,22 +23,36 @@ namespace Bleak.Wrappers
                 throw new ArgumentException("One or more of the arguments provided were invalid");
             }
 
-            // Generate a name for a temporary DLL
+            if (randomiseDllName)
+            {
+                // Assume the DLL is the newest file in the temporary directory
 
-            var temporaryDllName = WrapperTools.GenerateDllName(dllBytes);
+                var temporaryDirectoryInfo = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "Bleak"));
 
-            // Create a temporary DLL on disk
+                var newestTemporaryFile = temporaryDirectoryInfo.GetFiles().OrderByDescending(file => file.LastWriteTime).First();
 
-            var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, dllBytes);
+                _propertyWrapper = new PropertyWrapper(targetProcessId, newestTemporaryFile.FullName);
+            }
 
-            PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), temporaryDllPath);
+            else
+            {
+                // Get the file path of the DLL on disk
+
+                var temporaryDirectory = Path.Combine(Path.GetTempPath(), "Bleak");
+
+                var temporaryDllName = WrapperTools.GenerateDllName(dllBytes);
+
+                var temporaryDllPath = Path.Combine(temporaryDirectory, temporaryDllName);
+
+                _propertyWrapper = new PropertyWrapper(targetProcessId, temporaryDllPath);
+            }
 
             // Ensure the architecture of the DLL is valid
 
-            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
+            ValidationHandler.ValidateDllArchitecture(_propertyWrapper);
         }
 
-        internal ExtensionWrapper(string targetProcessName, string dllPath)
+        internal ExtensionWrapper(string targetProcessName, byte[] dllBytes, bool randomiseDllName)
         {
             // Ensure the users operating system is supported
 
@@ -72,19 +60,40 @@ namespace Bleak.Wrappers
 
             // Ensure the arguments passed in are valid
 
-            if (string.IsNullOrWhiteSpace(targetProcessName) || string.IsNullOrWhiteSpace(dllPath))
+            if (string.IsNullOrWhiteSpace(targetProcessName) || dllBytes is null || dllBytes.Length == 0)
             {
                 throw new ArgumentException("One or more of the arguments provided were invalid");
             }
 
-            PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), dllPath);
+            if (randomiseDllName)
+            {
+                // Assume the DLL is the newest file in the temporary directory
 
-            // Ensure the architecture of the DLL is valid
+                var temporaryDirectoryInfo = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "Bleak"));
 
-            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
+                var newestTemporaryFile = temporaryDirectoryInfo.GetFiles().OrderByDescending(file => file.LastWriteTime).First();
+
+                _propertyWrapper = new PropertyWrapper(targetProcessName, newestTemporaryFile.FullName);
+            }
+
+            else
+            {
+                // Get the file path of the DLL on disk
+
+                var temporaryDirectory = Path.Combine(Path.GetTempPath(), "Bleak");
+
+                var temporaryDllName = WrapperTools.GenerateDllName(dllBytes);
+
+                var temporaryDllPath = Path.Combine(temporaryDirectory, temporaryDllName);
+
+                _propertyWrapper = new PropertyWrapper(targetProcessName, temporaryDllPath);
+            }
+
+            ValidationHandler.ValidateDllArchitecture(_propertyWrapper);
+
         }
 
-        internal ExtensionWrapper(int targetProcessId, string dllPath)
+        internal ExtensionWrapper(int targetProcessId, string dllPath, bool randomiseDllName)
         {
             // Ensure the users operating system is supported
 
@@ -97,36 +106,80 @@ namespace Bleak.Wrappers
                 throw new ArgumentException("One or more of the arguments provided were invalid");
             }
 
-            PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), dllPath);
+            if (randomiseDllName)
+            {
+                // Assume the DLL is the newest file in the temporary directory
 
-            // Ensure the architecture of the DLL is valid
+                var temporaryDirectoryInfo = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "Bleak"));
 
-            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
+                var newestTemporaryFile = temporaryDirectoryInfo.GetFiles().OrderByDescending(file => file.LastWriteTime).First();
+
+                _propertyWrapper = new PropertyWrapper(targetProcessId, newestTemporaryFile.FullName);
+            }
+
+            else
+            {
+                _propertyWrapper = new PropertyWrapper(targetProcessId, dllPath);
+            }
+
+            ValidationHandler.ValidateDllArchitecture(_propertyWrapper);
+        }
+
+        internal ExtensionWrapper(string targetProcessName, string dllPath, bool randomiseDllName)
+        {
+            // Ensure the users operating system is supported
+
+            ValidationHandler.ValidateOperatingSystem();
+
+            // Ensure the arguments passed in are valid
+
+            if (string.IsNullOrWhiteSpace(targetProcessName) || string.IsNullOrWhiteSpace(dllPath))
+            {
+                throw new ArgumentException("One or more of the arguments provided were invalid");
+            }
+
+            if (randomiseDllName)
+            {
+                // Assume the DLL is the newest file in the temporary directory
+
+                var temporaryDirectoryInfo = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "Bleak"));
+
+                var newestTemporaryFile = temporaryDirectoryInfo.GetFiles().OrderByDescending(file => file.LastWriteTime).First();
+
+                _propertyWrapper = new PropertyWrapper(targetProcessName, newestTemporaryFile.FullName);
+            }
+
+            else
+            {
+                _propertyWrapper = new PropertyWrapper(targetProcessName, dllPath);
+            }
+
+            ValidationHandler.ValidateDllArchitecture(_propertyWrapper);
         }
 
         public void Dispose()
         {
-            PropertyWrapper.Dispose();
+            _propertyWrapper.Dispose();
         }
 
         internal bool EjectDll()
         {
-            return new Extensions.EjectDll(PropertyWrapper).Call();
+            return new Extensions.EjectDll(_propertyWrapper).Call();
         }
 
-        internal bool EraseHeaders()
+        internal bool EraseDllHeaders()
         {
-            return new Extensions.EraseHeaders(PropertyWrapper).Call();
+            return new Extensions.EraseDllHeaders(_propertyWrapper).Call();
         }
 
-        internal bool RandomiseHeaders()
+        internal bool RandomiseDllHeaders()
         {
-            return new Extensions.RandomiseHeaders(PropertyWrapper).Call();
+            return new Extensions.RandomiseDllHeaders(_propertyWrapper).Call();
         }
 
-        internal bool UnlinkFromPeb()
+        internal bool UnlinkDllFromPeb()
         {
-            return new Extensions.UnlinkFromPeb(PropertyWrapper).Call();
+            return new Extensions.UnlinkDllFromPeb(_propertyWrapper).Call();
         }
     }
 }

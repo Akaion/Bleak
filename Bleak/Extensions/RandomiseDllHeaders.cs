@@ -1,28 +1,24 @@
 ﻿using Bleak.Native;
 using Bleak.RemoteProcess.Objects;
-using Bleak.SafeHandle;
 using Bleak.Syscall.Definitions;
 using Bleak.Wrappers;
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Bleak.Extensions
 {
-    internal class EjectDll
+    internal class RandomiseDllHeaders
     {
         private readonly PropertyWrapper _propertyWrapper;
 
-        internal EjectDll(PropertyWrapper propertyWrapper)
+        internal RandomiseDllHeaders(PropertyWrapper propertyWrapper)
         {
             _propertyWrapper = propertyWrapper;
         }
 
         internal bool Call()
         {
-            // Get the address of the FreeLibraryAndExitThread function
-
-            var freeLibraryAndExitThreadAddress = _propertyWrapper.TargetProcess.GetFunctionAddress("kernel32.dll", "FreeLibraryAndExitThread");
-
             var dllName = Path.GetFileName(_propertyWrapper.DllPath);
 
             // Look for the DLL in the module list of the target process
@@ -34,13 +30,19 @@ namespace Bleak.Extensions
                 throw new ArgumentException($"No DLL with the name {dllName} was found in the target processes module list");
             }
 
-            // Create a thread to call FreeLibraryAndExitThread in the target process
+            // Query the header region of the DLL in the target process
 
-            var remoteThreadHandle = (SafeThreadHandle) _propertyWrapper.SyscallManager.InvokeSyscall<NtCreateThreadEx>(_propertyWrapper.TargetProcess.ProcessHandle, freeLibraryAndExitThreadAddress, module.BaseAddress);
+            var memoryInformationBuffer = (IntPtr) _propertyWrapper.SyscallManager.InvokeSyscall<NtQueryVirtualMemory>(_propertyWrapper.TargetProcess.ProcessHandle, module.BaseAddress);
 
-            PInvoke.WaitForSingleObject(remoteThreadHandle, uint.MaxValue);
+            var memoryInformation = Marshal.PtrToStructure<Structures.MemoryBasicInformation>(memoryInformationBuffer);
 
-            remoteThreadHandle.Dispose();
+            // Write over the header region with random bytes
+
+            var randomBuffer = new byte[(int) memoryInformation.RegionSize];
+
+            new Random().NextBytes(randomBuffer);
+
+            _propertyWrapper.MemoryManager.WriteVirtualMemory(module.BaseAddress, randomBuffer);
 
             return true;
         }

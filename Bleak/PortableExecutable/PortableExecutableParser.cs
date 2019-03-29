@@ -3,70 +3,87 @@ using Bleak.PortableExecutable.Objects;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace Bleak.PortableExecutable
 {
     internal class PortableExecutableParser : IDisposable
     {
-        private readonly Lazy<Stream> DllStream;
-        
-        private readonly Lazy<Headers> PeHeaders;
+        private readonly GCHandle _dllBuffer;
 
-        private readonly Tools PeTools;
+        private readonly IntPtr _dllBufferAddress;
+
+        private readonly PeHeaders _peHeaders;
 
         internal PortableExecutableParser(byte[] dllBytes)
         {
-            DllStream = new Lazy<Stream>(() => new MemoryStream(dllBytes));
+            _dllBuffer = GCHandle.Alloc(dllBytes, GCHandleType.Pinned);
 
-            PeHeaders = new Lazy<Headers>(ReadHeaders);
+            _dllBufferAddress = _dllBuffer.AddrOfPinnedObject();
 
-            PeTools = new Tools(DllStream, PeHeaders);
+            _peHeaders = new PeHeaders();
+
+            ReadHeaders();
         }
 
         internal PortableExecutableParser(string dllPath)
         {
-            DllStream = new Lazy<Stream>(() => new FileStream(dllPath, FileMode.Open, FileAccess.Read));
+            _dllBuffer = GCHandle.Alloc(File.ReadAllBytes(dllPath), GCHandleType.Pinned);
 
-            PeHeaders = new Lazy<Headers>(ReadHeaders);
+            _dllBufferAddress = _dllBuffer.AddrOfPinnedObject();
 
-            PeTools = new Tools(DllStream, PeHeaders);
+            _peHeaders = new PeHeaders();
+
+            ReadHeaders();
         }
 
         public void Dispose()
         {
-            DllStream.Value.Dispose();
-
-            PeTools.Dispose();
+            _dllBuffer.Free();
         }
-        
-        internal IEnumerable<BaseRelocation> GetBaseRelocations()
+
+        private uint ConvertRvaToFileOffset(uint rva)
         {
-            var peHeaders = PeHeaders.Value;
+            // Look for the section header that holds the offset of the relative virtual address
 
-            // Calculate the file offset of the base relocation table
+            var sectionHeader = _peHeaders.SectionHeaders.Find(section => section.VirtualAddress <= rva && section.VirtualAddress + section.VirtualSize > rva);
 
-            var baseRelocationRva = peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? peHeaders.NtHeaders32.OptionalHeader.DataDirectory[5].VirtualAddress : peHeaders.NtHeaders64.OptionalHeader.DataDirectory[5].VirtualAddress;
+            // Calculate the offset of the relative virtual address
 
-            var baseRelocationTableOffset = PeTools.ConvertRvaToFileOffset(baseRelocationRva);
-            
+            return sectionHeader.PointerToRawData + (rva - sectionHeader.VirtualAddress);
+        }
+
+        internal List<BaseRelocation> GetBaseRelocations()
+        {
+            var baseRelocations = new List<BaseRelocation>();
+
+            // Calculate the offset of the base relocation table
+
+            var baseRelocationTableRva = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? _peHeaders.NtHeaders32.OptionalHeader.DataDirectory[5].VirtualAddress : _peHeaders.NtHeaders64.OptionalHeader.DataDirectory[5].VirtualAddress;
+
+            if (baseRelocationTableRva == 0)
+            {
+                return default;
+            }
+
+            var baseRelocationTableOffset = ConvertRvaToFileOffset(baseRelocationTableRva);
+
             while (true)
             {
-                // Read the base relocation from the stream
+                // Read the base relocation
 
-                var baseRelocation = PeTools.ReadStructureFromStream<Structures.ImageBaseRelocation>(baseRelocationTableOffset);
+                var baseRelocation = Marshal.PtrToStructure<Structures.ImageBaseRelocation>(_dllBufferAddress + (int) baseRelocationTableOffset);
 
                 if (baseRelocation.SizeOfBlock == 0)
                 {
                     break;
                 }
 
-                // Calculate the amount of type offsets the base relocation has
+                // Calculate the amount of type offsets in the base relocation
 
                 var typeOffsetAmount = (baseRelocation.SizeOfBlock - 8) / sizeof(ushort);
 
-                // Calculate the file offset of the type offsets
+                // Calculate the offset of the type offsets
 
                 var typeOffsetsOffset = baseRelocationTableOffset + Marshal.SizeOf<Structures.ImageBaseRelocation>();
 
@@ -74,249 +91,237 @@ namespace Bleak.PortableExecutable
 
                 for (var index = 0; index < typeOffsetAmount; index += 1)
                 {
-                    // Read the type offset from the stream
+                    // Read the type offset
 
-                    var typeOffset = PeTools.ReadStructureFromStream<ushort>((uint) (typeOffsetsOffset + sizeof(ushort) * index));
+                    var typeOffset = Marshal.PtrToStructure<ushort>(_dllBufferAddress + (int) (typeOffsetsOffset + sizeof(ushort) * index));
 
-                    // The offset is located in the upper 12 bits of the type offset
+                    // The offset is located in the upper 4 bits of the ushort
 
                     var offset = typeOffset & 0xFFF;
 
-                    // The type is located in the lower 4 bits of the type offset
+                    // The type is located in the lower 12 bits of the ushort
 
                     var type = typeOffset >> 12;
 
                     typeOffsets.Add(new TypeOffset((ushort) offset, (Enumerations.RelocationType) type));
                 }
 
-                // Calculate the file offset of the base relocation
+                baseRelocations.Add(new BaseRelocation(ConvertRvaToFileOffset(baseRelocation.VirtualAddress), typeOffsets));
 
-                var baseRelocationOffset = PeTools.ConvertRvaToFileOffset(baseRelocation.VirtualAddress);
-
-                yield return new BaseRelocation(baseRelocationOffset, typeOffsets);
-
-                // Calculate the file offset of the next base relocation
+                // Calculate the offset of the next base relocation
 
                 baseRelocationTableOffset += baseRelocation.SizeOfBlock;
             }
+
+            return baseRelocations;
         }
 
-        internal IEnumerable<ExportedFunction> GetExportedFunctions()
+        internal Enumerations.MachineType GetPeArchitecture()
         {
-            var peHeaders = PeHeaders.Value;
+            return _peHeaders.FileHeader.Machine;
+        }
 
-            // Calculate the file offset of the export directory
+        internal List<ExportedFunction> GetExportedFunctions()
+        {
+            var exportedFunctions = new List<ExportedFunction>();
 
-            var exportDirectoryRva = peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? peHeaders.NtHeaders32.OptionalHeader.DataDirectory[0].VirtualAddress : peHeaders.NtHeaders64.OptionalHeader.DataDirectory[0].VirtualAddress;
+            // Calculate the offset of the export directory            
 
-            var exportDirectoryOffset = PeTools.ConvertRvaToFileOffset(exportDirectoryRva);
+            var exportDirectoryRva = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? _peHeaders.NtHeaders32.OptionalHeader.DataDirectory[0].VirtualAddress : _peHeaders.NtHeaders64.OptionalHeader.DataDirectory[0].VirtualAddress;
 
-            // Read the export directory from the stream
-
-            var exportDirectory = PeTools.ReadStructureFromStream<Structures.ImageExportDirectory>(exportDirectoryOffset);
-
-            if (exportDirectory.NumberOfFunctions == 0)
+            if (exportDirectoryRva == 0)
             {
-                yield break;
+                // The portable executable has no export directory
+
+                return exportedFunctions;
             }
 
-            // Calculate the file offset of the exported function offsets
+            var exportDirectoryOffset = ConvertRvaToFileOffset(exportDirectoryRva);
 
-            var exportedFunctionOffsetsOffset = PeTools.ConvertRvaToFileOffset(exportDirectory.AddressOfFunctions);
+            // Read the export directory
 
-            var exportedFunctions = new List<ExportedFunction>();
+            var exportDirectory = Marshal.PtrToStructure<Structures.ImageExportDirectory>(_dllBufferAddress + (int) exportDirectoryOffset);
+
+            // Calculate the offset of the exported function offsets
+
+            var exportedFunctionOffsetsOffset = ConvertRvaToFileOffset(exportDirectory.AddressOfFunctions);
 
             for (var index = 0; index < exportDirectory.NumberOfFunctions; index += 1)
             {
-                // Read the file offset of the exported function from the stream
+                // Read the offset of the exported function
 
-                var exportedFunctionOffset = PeTools.ReadStructureFromStream<uint>((uint) (exportedFunctionOffsetsOffset + sizeof(uint) * index));
+                var exportedFunctionOffset = Marshal.PtrToStructure<uint>(_dllBufferAddress + (int) (exportedFunctionOffsetsOffset + sizeof(uint) * index));
 
                 // Calculate the ordinal of the exported function
 
                 var exportedFunctionOrdinal = exportDirectory.Base + index;
 
-                exportedFunctions.Add(new ExportedFunction(exportedFunctionOffset, null, (ushort) exportedFunctionOrdinal));
+                exportedFunctions.Add(new ExportedFunction(null, exportedFunctionOffset, (ushort) exportedFunctionOrdinal));
             }
 
-            // Calculate the file offset of the exported function names
+            // Calculate the offset of the exported function names
 
-            var exportedFunctionNamesOffset = PeTools.ConvertRvaToFileOffset(exportDirectory.AddressOfNames);
+            var exportedFunctionNamesOffset = ConvertRvaToFileOffset(exportDirectory.AddressOfNames);
 
-            // Calculate the file offset of the exported function ordinals
+            // Calculate the offset of the exported function ordinals
 
-            var exportedFunctionOrdinalsOffset = PeTools.ConvertRvaToFileOffset(exportDirectory.AddressOfNameOrdinals);
+            var exportedFunctionOrdinalsOffset = ConvertRvaToFileOffset(exportDirectory.AddressOfNameOrdinals);
 
             for (var index = 0; index < exportDirectory.NumberOfNames; index += 1)
             {
-                // Calculate the file offset of the exported functions name
+                // Read the name of the exported function
 
-                var exportedFunctionNameRva = PeTools.ReadStructureFromStream<uint>((uint) (exportedFunctionNamesOffset + sizeof(uint) * index));
+                var exportedFunctionNameRva = Marshal.PtrToStructure<uint>(_dllBufferAddress + (int) (exportedFunctionNamesOffset + sizeof(uint) * index));
 
-                var exportedFunctionNameOffset = PeTools.ConvertRvaToFileOffset(exportedFunctionNameRva);
+                var exportedFunctionNameOffset = ConvertRvaToFileOffset(exportedFunctionNameRva);
 
-                // Read the name of the exported function from the stream
+                var exportedFunctionName = Marshal.PtrToStringAnsi(_dllBufferAddress + (int) exportedFunctionNameOffset);
 
-                var exportedFunctionName = PeTools.ReadStringFromStream(exportedFunctionNameOffset);
+                // Read the ordinal of the exported function
 
-                // Read the ordinal of the exported function from the stream
+                var exportedFunctionOrdinal = exportDirectory.Base + Marshal.PtrToStructure<ushort>(_dllBufferAddress + (int) (exportedFunctionOrdinalsOffset + sizeof(ushort) * index));
 
-                var exportedFunctionOrdinal = exportDirectory.Base + PeTools.ReadStructureFromStream<ushort>((uint) (exportedFunctionOrdinalsOffset + sizeof(ushort) * index));
+                // Associate the name of the exported function with the exported function
 
-                // Find the exported function that matches the ordinal
-                
-                var exportedFunction = exportedFunctions.First(f => f.Ordinal == exportedFunctionOrdinal);
-
-                // Associate the exported functions name with the exported function
-
-                yield return new ExportedFunction(exportedFunction.Offset, exportedFunctionName, exportedFunction.Ordinal);
+                exportedFunctions.Find(exportedFunction => exportedFunction.Ordinal == exportedFunctionOrdinal).Name = exportedFunctionName;
             }
+
+            return exportedFunctions;
         }
 
-        internal IEnumerable<ImportedFunction> GetImportedFunctions()
+        internal PeHeaders GetHeaders()
         {
-            var peHeaders = PeHeaders.Value;
+            return _peHeaders;
+        }
 
-            // Calculate the file offset of the first import descriptor
+        internal List<ImportedFunction> GetImportedFunctions()
+        {
+            var importedFunctions = new List<ImportedFunction>();
 
-            var importDescriptorRva = peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? peHeaders.NtHeaders32.OptionalHeader.DataDirectory[1].VirtualAddress : peHeaders.NtHeaders64.OptionalHeader.DataDirectory[1].VirtualAddress;
+            // Calculate the offset of the first import descriptor
 
-            var importDescriptorOffset = PeTools.ConvertRvaToFileOffset(importDescriptorRva);
+            var importDescriptorRva = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? _peHeaders.NtHeaders32.OptionalHeader.DataDirectory[1].VirtualAddress : _peHeaders.NtHeaders64.OptionalHeader.DataDirectory[1].VirtualAddress;
+
+            if (importDescriptorRva == 0)
+            {
+                // The portable executable has no import descriptors
+
+                return importedFunctions;
+            }
+
+            var importDescriptorOffset = ConvertRvaToFileOffset(importDescriptorRva);
 
             while (true)
             {
-                // Read the import descriptor from the stream
+                // Read the import descriptor
 
-                var importDescriptor = PeTools.ReadStructureFromStream<Structures.ImageImportDescriptor>(importDescriptorOffset);
+                var importDescriptor = Marshal.PtrToStructure<Structures.ImageImportDescriptor>(_dllBufferAddress + (int) importDescriptorOffset);
 
                 if (importDescriptor.OriginalFirstThunk == 0)
                 {
                     break;
                 }
 
-                // Calculate the file offset the imported dll's name
+                // Read the name of the imported dll
 
-                var importedDllNameOffset = PeTools.ConvertRvaToFileOffset(importDescriptor.Name);
+                var importedDllNameOffset = ConvertRvaToFileOffset(importDescriptor.Name);
 
-                // Read the name of the imported dll from the stream
+                var importedDllName = Marshal.PtrToStringAnsi(_dllBufferAddress + (int) importedDllNameOffset);
 
-                var importedDllName = PeTools.ReadStringFromStream(importedDllNameOffset);
+                // Calculate the offsets of original first thunk and first thunk of the import descriptor
 
-                // Calculate the file offset of the first thunk of the import descriptor
+                var originalFirstThunkOffset = ConvertRvaToFileOffset(importDescriptor.OriginalFirstThunk);
 
-                var thunkOffset = PeTools.ConvertRvaToFileOffset(importDescriptor.FirstThunk);
-
-                // Calculate the file offset of the data of the original first thunk of the import descriptor
-
-                var originalThunkDataOffset = PeTools.ConvertRvaToFileOffset(importDescriptor.OriginalFirstThunk);
+                var firstThunkOffset = ConvertRvaToFileOffset(importDescriptor.FirstThunk);
 
                 while (true)
                 {
-                    // Read the thunk data of the import from the stream
+                    // Read the thunk data of the imported function
 
-                    var thunkData = PeTools.ReadStructureFromStream<Structures.ImageThunkData>(originalThunkDataOffset);
+                    var importedFunctionThunkData = Marshal.PtrToStructure<Structures.ImageThunkData>(_dllBufferAddress + (int) originalFirstThunkOffset);
 
-                    if (thunkData.AddressOfData == 0)
+                    if (importedFunctionThunkData.AddressOfData == 0)
                     {
                         break;
                     }
 
-                    // Calculate the file offset of the imported function
+                    // Read the name of the imported function
 
-                    var importedFunctionOffset = PeTools.ConvertRvaToFileOffset(thunkData.AddressOfData);
+                    var importedFunctionOffset = ConvertRvaToFileOffset(importedFunctionThunkData.AddressOfData);
 
-                    // Read the name of the imported function from the stream
+                    var importedFunctionName = Marshal.PtrToStringAnsi(_dllBufferAddress + (int) importedFunctionOffset + sizeof(ushort));
 
-                    var importedFunctionName = PeTools.ReadStringFromStream(importedFunctionOffset + sizeof(ushort));
+                    importedFunctions.Add(new ImportedFunction(importedDllName, importedFunctionName, firstThunkOffset));
+                    
+                    // Calculate the offset of the original first thunk of the next imported function
 
-                    yield return new ImportedFunction(importedDllName, importedFunctionName, thunkOffset);
+                    originalFirstThunkOffset += _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? (uint) sizeof(uint) : sizeof(ulong);
 
-                    // Calculate the file offset of the next imports offset
+                    // Calculate the offset of the first thunk of the next imported function
 
-                    thunkOffset += peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? (uint) sizeof(uint) : sizeof(ulong);
-
-                    // Calculate the file offset of the next imports thunk data
-
-                    originalThunkDataOffset += peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? (uint) sizeof(uint) : sizeof(ulong);
+                    firstThunkOffset += _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? (uint) sizeof(uint) : sizeof(ulong);
                 }
 
-                // Calculate the file offset of the next import descriptor
+                // Calculate the offset of the next import descriptor
 
                 importDescriptorOffset += (uint) Marshal.SizeOf<Structures.ImageImportDescriptor>();
             }
+
+            return importedFunctions;
         }
 
-        internal Enumerations.MachineType GetPeArchitecture()
+        private void ReadHeaders()
         {
-            return PeHeaders.Value.FileHeader.Machine;
-        }
+            // Read the DOS header
 
-        internal Headers GetPeHeaders()
-        {
-            return PeHeaders.Value;
-        }
+            _peHeaders.DosHeader = Marshal.PtrToStructure<Structures.ImageDosHeader>(_dllBufferAddress);
 
-        private Headers ReadHeaders()
-        {
-            var peHeaders = new Headers
-            {
-                // Read the dos header from the stream
-
-                DosHeader = PeTools.ReadStructureFromStream<Structures.ImageDosHeader>(0),
-
-                SectionHeaders = new List<Structures.ImageSectionHeader>()
-            };
-
-            if (peHeaders.DosHeader.e_magic != 0x5A4D)
+            if (_peHeaders.DosHeader.e_magic != 0x5A4D)
             {
                 throw new BadImageFormatException("The headers of the provided DLL were invalid");
             }
 
-            // Read the file header from the stream
+            // Read the file header
 
-            peHeaders.FileHeader = PeTools.ReadStructureFromStream<Structures.ImageFileHeader>((uint) peHeaders.DosHeader.e_lfanew + sizeof(uint));
+            _peHeaders.FileHeader = Marshal.PtrToStructure<Structures.ImageFileHeader>(_dllBufferAddress + _peHeaders.DosHeader.e_lfanew + sizeof(uint));
 
-            if ((peHeaders.FileHeader.Characteristics & (ushort) Enumerations.FileCharacteristics.Dll) == 0)
+            if ((_peHeaders.FileHeader.Characteristics & (ushort) Enumerations.FileCharacteristics.Dll) == 0)
             {
                 throw new BadImageFormatException("The headers of the provided DLL were invalid");
             }
-            
-            // Read the nt headers from the stream
 
-            switch (peHeaders.FileHeader.Machine)
+            // Read the NT headers
+
+            switch (_peHeaders.FileHeader.Machine)
             {
                 case Enumerations.MachineType.X86:
                 {
-                    peHeaders.NtHeaders32 = PeTools.ReadStructureFromStream<Structures.ImageNtHeaders32>(peHeaders.DosHeader.e_lfanew);
+                    _peHeaders.NtHeaders32 = Marshal.PtrToStructure<Structures.ImageNtHeaders32>(_dllBufferAddress + _peHeaders.DosHeader.e_lfanew);
                     
                     break;
                 }
-
+                
                 case Enumerations.MachineType.X64:
                 {
-                    peHeaders.NtHeaders64 = PeTools.ReadStructureFromStream<Structures.ImageNtHeaders64>(peHeaders.DosHeader.e_lfanew);
+                    _peHeaders.NtHeaders64 = Marshal.PtrToStructure<Structures.ImageNtHeaders64>(_dllBufferAddress + _peHeaders.DosHeader.e_lfanew);
                     
                     break;
                 }
-
+                
                 default:
                 {
-                    throw new BadImageFormatException("The architecture of provided DLL was invalid");
-                }    
+                    throw new BadImageFormatException("The architecture of the provided DLL was invalid");
+                }
             }
             
-            // Calculate the file offset of the section headers
+            // Read the section headers
 
-            var sectionHeadersOffset = peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? peHeaders.DosHeader.e_lfanew + Marshal.SizeOf<Structures.ImageNtHeaders32>() : peHeaders.DosHeader.e_lfanew + Marshal.SizeOf<Structures.ImageNtHeaders64>();
+            var sectionHeadersOffset = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? _peHeaders.DosHeader.e_lfanew + Marshal.SizeOf<Structures.ImageNtHeaders32>() : _peHeaders.DosHeader.e_lfanew + Marshal.SizeOf<Structures.ImageNtHeaders64>();
 
-            // Read the section headers from the stream
-
-            for (var index = 0; index < peHeaders.FileHeader.NumberOfSections; index += 1)
+            for (var index = 0; index < _peHeaders.FileHeader.NumberOfSections; index += 1)
             {
-                peHeaders.SectionHeaders.Add(PeTools.ReadStructureFromStream<Structures.ImageSectionHeader>((uint) (sectionHeadersOffset + Marshal.SizeOf<Structures.ImageSectionHeader>() * index)));
+                _peHeaders.SectionHeaders.Add(Marshal.PtrToStructure<Structures.ImageSectionHeader>(_dllBufferAddress + sectionHeadersOffset + Marshal.SizeOf<Structures.ImageSectionHeader>() * index));
             }
-
-            return peHeaders;
         }
     }
 }

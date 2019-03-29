@@ -1,37 +1,28 @@
-﻿using Bleak.Native;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.SafeHandle;
-using Bleak.Handlers;
 using System;
 using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtQueueApcThread : IDisposable
+    internal class NtQueueApcThread
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtQueueApcThreadDefinition(SafeThreadHandle threadHandle, IntPtr apcRoutine, IntPtr parameter, IntPtr statusBlockBuffer, ulong reserved);
 
-        private readonly NtQueueApcThreadDefinition NtQueueApcThreadDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtQueueApcThreadDefinition _ntQueueApcThreadDelegate;
 
         internal NtQueueApcThread(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtQueueApcThreadDelegate = SyscallTools.CreateDelegateForSyscall<NtQueueApcThreadDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtQueueApcThreadDelegate);
+            _ntQueueApcThreadDelegate = syscallTools.CreateDelegateForSyscall<NtQueueApcThreadDefinition>();
         }
 
         internal void Invoke(SafeThreadHandle threadHandle, IntPtr apcRoutine, IntPtr parameter)
         {
             // Perform the syscall
 
-            var syscallResult = NtQueueApcThreadDelegate(threadHandle, apcRoutine, parameter, IntPtr.Zero, 0);
+            var syscallResult = _ntQueueApcThreadDelegate(threadHandle, apcRoutine, parameter, IntPtr.Zero, 0);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {

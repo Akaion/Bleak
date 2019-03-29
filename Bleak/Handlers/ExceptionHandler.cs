@@ -8,7 +8,7 @@ namespace Bleak.Handlers
     {
         internal static void ThrowWin32Exception(string message)
         {
-            // Get the error code associated with the last win32 error
+            // Get the error code associated with the last Win32 error
 
             var errorCode = Marshal.GetLastWin32Error();
 
@@ -17,7 +17,7 @@ namespace Bleak.Handlers
 
         internal static void ThrowWin32Exception(string message, Enumerations.NtStatus ntStatus)
         {
-            // Convert the nt status into a dos error code
+            // Convert the nt status into a DOS error code
 
             var errorCode = PInvoke.RtlNtStatusToDosError(ntStatus);
 

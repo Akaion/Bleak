@@ -1,8 +1,8 @@
 ﻿using Bleak.Handlers;
-using Bleak.Methods.Interfaces;
 using Bleak.Methods.Shellcode;
 using Bleak.Native;
 using Bleak.SafeHandle;
+using Bleak.Syscall.Definitions;
 using Bleak.Tools;
 using Bleak.Wrappers;
 using System;
@@ -11,47 +11,43 @@ using System.Text;
 
 namespace Bleak.Methods
 {
-    internal class SetThreadContext : IInjectionMethod
+    internal class SetThreadContext
     {
-        private readonly PropertyWrapper PropertyWrapper;
+        private readonly PropertyWrapper _propertyWrapper;
 
         internal SetThreadContext(PropertyWrapper propertyWrapper)
         {
-            PropertyWrapper = propertyWrapper;
+            _propertyWrapper = propertyWrapper;
         }
 
-        public bool Call()
+        internal bool Call()
         {
-            // Get the address of LoadLibraryW in the target process
+            // Get the address of the LoadLibraryW function
 
-            var loadLibraryAddress = NativeTools.GetFunctionAddress(PropertyWrapper, "kernel32.dll", "LoadLibraryW");
+            var loadLibraryAddress = _propertyWrapper.TargetProcess.GetFunctionAddress("kernel32.dll", "LoadLibraryW");
 
-            // Allocate a buffer for the DLL path in the target process
+            // Write the DLL path into the target process
 
-            var dllPathBuffer = PropertyWrapper.MemoryManager.Value.AllocateMemory(PropertyWrapper.DllPath.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
+            var dllPathBuffer = _propertyWrapper.MemoryManager.AllocateVirtualMemory(_propertyWrapper.DllPath.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
 
-            // Write the DLL path into the buffer
+            var dllPathBytes = Encoding.Unicode.GetBytes(_propertyWrapper.DllPath + "\0");
 
-            var dllPathBytes = Encoding.Unicode.GetBytes(PropertyWrapper.DllPath + "\0");
-
-            PropertyWrapper.MemoryManager.Value.WriteMemory(dllPathBuffer, dllPathBytes);
+            _propertyWrapper.MemoryManager.WriteVirtualMemory(dllPathBuffer, dllPathBytes);
 
             // Open a handle to the first thread in the target process
 
-            var threadHandle = (SafeThreadHandle) PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtOpenThread>(PropertyWrapper.Process.Threads[0].Id);
+            var threadHandle = (SafeThreadHandle) _propertyWrapper.SyscallManager.InvokeSyscall<NtOpenThread>(_propertyWrapper.TargetProcess.Process.Threads[0].Id);
 
-            IntPtr shellcodeBuffer;
-
-            if (PropertyWrapper.IsWow64Process.Value)
+            if (_propertyWrapper.TargetProcess.IsWow64)
             {
-                // Suspend the thread in the target process
+                // Suspend the thread
 
                 if (PInvoke.Wow64SuspendThread(threadHandle) == -1)
                 {
                     ExceptionHandler.ThrowWin32Exception("Failed to suspend a thread in the target process");
                 }
 
-                // Get the context of the thread in the target process
+                // Get the context of the thread
 
                 var threadContextBuffer = MemoryTools.StoreStructureInBuffer(new Structures.Wow64Context { ContextFlags = Enumerations.ContextFlags.Control });
 
@@ -59,89 +55,71 @@ namespace Bleak.Methods
                 {
                     ExceptionHandler.ThrowWin32Exception("Failed to get the context of a thread in the target process");
                 }
-
-                // Marshal the context from the buffer
-
+                
                 var threadContext = Marshal.PtrToStructure<Structures.Wow64Context>(threadContextBuffer);
 
-                var instructionPointer = threadContext.Eip;
+                // Write the shellcode used to call LoadLibraryW from the thread into the target process
 
-                // Create the shellcode used to call LoadLibraryW from the thread
+                var shellcode = ThreadHijackX86.GetShellcode((IntPtr) threadContext.Eip, dllPathBuffer, loadLibraryAddress);
 
-                var shellcode = ThreadHijackX86.GetShellcode((IntPtr) instructionPointer, dllPathBuffer, loadLibraryAddress);
+                var shellcodeBuffer = _propertyWrapper.MemoryManager.AllocateVirtualMemory(shellcode.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
 
-                // Store the shellcode in a buffer in the target process
+                _propertyWrapper.MemoryManager.WriteVirtualMemory(shellcodeBuffer, shellcode);
 
-                shellcodeBuffer = PropertyWrapper.MemoryManager.Value.AllocateMemory(shellcode.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
-
-                PropertyWrapper.MemoryManager.Value.WriteMemory(shellcodeBuffer, shellcode);
-
-                // Change the instruction pointer of the thread to the address of the shellcode
+                // Overwrite the instruction pointer of the thread with the shellcode buffer
 
                 threadContext.Eip = (uint) shellcodeBuffer;
 
-                // Update the context of the thread in the target process
+                // Set the context of the thread
 
                 threadContextBuffer = MemoryTools.StoreStructureInBuffer(threadContext);
 
-                if (PInvoke.Wow64SetThreadContext(threadHandle, threadContextBuffer) == 0)
+                if(PInvoke.Wow64SetThreadContext(threadHandle, threadContextBuffer) == 0)
                 {
                     ExceptionHandler.ThrowWin32Exception("Failed to set the context of a thread in the target process");
                 }
 
-                // Free the memory allocated for the buffer
-
-                MemoryTools.FreeMemoryForBuffer(threadContextBuffer, Marshal.SizeOf<Structures.Wow64Context>());
+                MemoryTools.FreeMemoryForBuffer(threadContextBuffer);
             }
 
             else
             {
-                // Suspend the thread in the target process
+                // Suspend the thread
 
-                PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtSuspendThread>(threadHandle);
+                _propertyWrapper.SyscallManager.InvokeSyscall<NtSuspendThread>(threadHandle);
 
-                // Get the context of the thread in the target process
+                // Get the context of the thread
 
-                var threadContextBuffer = (IntPtr) PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtGetContextThread>(threadHandle);
-
-                // Marshal the thread context from the buffer
+                var threadContextBuffer = (IntPtr) _propertyWrapper.SyscallManager.InvokeSyscall<NtGetContextThread>(threadHandle);
 
                 var threadContext = Marshal.PtrToStructure<Structures.Context>(threadContextBuffer);
 
-                var instructionPointer = threadContext.Rip;
+                // Write the shellcode used to call LoadLibraryW from the thread into the target process
 
-                // Create the shellcode used to call LoadLibraryW from the thread
+                var shellcode = ThreadHijackX64.GetShellcode((IntPtr) threadContext.Rip, dllPathBuffer, loadLibraryAddress);
 
-                var shellcode = ThreadHijackX64.GetShellcode((IntPtr) instructionPointer, dllPathBuffer, loadLibraryAddress);
+                var shellcodeBuffer = _propertyWrapper.MemoryManager.AllocateVirtualMemory(shellcode.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
 
-                // Store the shellcode in a buffer in the target process
+                _propertyWrapper.MemoryManager.WriteVirtualMemory(shellcodeBuffer, shellcode);
 
-                shellcodeBuffer = PropertyWrapper.MemoryManager.Value.AllocateMemory(shellcode.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
-
-                PropertyWrapper.MemoryManager.Value.WriteMemory(shellcodeBuffer, shellcode);
-
-                // Change the instruction pointer of the thread to the address of the shellcode
+                // Overwrite the instruction pointer of the thread with the shellcode buffer
 
                 threadContext.Rip = (ulong) shellcodeBuffer;
 
-                // Update the context of the thread in the target process
+                // Set the context of the thread
 
                 threadContextBuffer = MemoryTools.StoreStructureInBuffer(threadContext);
 
-                PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtSetContextThread>(threadHandle, threadContextBuffer);
+                _propertyWrapper.SyscallManager.InvokeSyscall<NtSetThreadContext>(threadHandle, threadContextBuffer);
 
-                // Free the memory allocated for the buffer
-
-                MemoryTools.FreeMemoryForBuffer(threadContextBuffer, Marshal.SizeOf<Structures.Context>());
+                MemoryTools.FreeMemoryForBuffer(threadContextBuffer);
             }
 
-            // Resume the thread in the target process
+            // Resume the thread
 
-            PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtResumeThread>(threadHandle);
+            _propertyWrapper.SyscallManager.InvokeSyscall<NtResumeThread>(threadHandle);
 
-            // Alt tab to the process to load the DLL
-
-            PInvoke.SwitchToThisWindow(PropertyWrapper.Process.MainWindowHandle, true);
+            PInvoke.SwitchToThisWindow(_propertyWrapper.TargetProcess.Process.MainWindowHandle, true);
 
             threadHandle.Dispose();
 

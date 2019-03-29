@@ -7,68 +7,60 @@ namespace Bleak.Tests
 {
     public class MethodTests : IDisposable
     {
-        private readonly string DllPath;
+        private readonly string _dllPath;
 
-        private readonly Injector Injector;
+        private readonly Injector _injector;
 
-        private readonly Process Process;
+        private readonly Process _process;
 
         public MethodTests()
         {
-            var etcDirectory = Path.GetFullPath(@"..\..\..\Etc\");
+            _dllPath = Path.Combine(Path.GetFullPath(@"..\..\..\Etc\"), "TestDll.dll");
 
-            DllPath = Path.Combine(etcDirectory, "TestDll.dll");
+            _injector = new Injector();
 
-            Injector = new Injector();
+            _process = new Process { StartInfo = { CreateNoWindow = true, FileName = "notepad.exe", UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden } };
 
-            Process = new Process { StartInfo = { CreateNoWindow = true, FileName = "notepad.exe", UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden } };
+            _process.Start();
 
-            Process.Start();
-
-            Process.WaitForInputIdle();
+            _process.WaitForInputIdle();
         }
 
         public void Dispose()
         {
-            Process.Kill();
-        
-            Process.Dispose();
+            _process.Kill();
+
+            _process.Dispose();
         }
 
         [Fact]
         public void TestCreateRemoteThread()
         {
-            Assert.True(Injector.CreateRemoteThread(Process.Id, DllPath));
+            Assert.True(_injector.CreateRemoteThread(_process.Id, _dllPath));
         }
 
         [Fact]
         public void TestManualMap()
         {
-            Assert.True(Injector.ManualMap(Process.Id, DllPath));
-        }
-
-        [Fact]
-        public void TestNtCreateThreadEx()
-        {
-            Assert.True(Injector.NtCreateThreadEx(Process.Id, DllPath));
+            Assert.True(_injector.ManualMap(_process.Id, _dllPath));
         }
 
         [Fact]
         public void TestQueueUserApc()
         {
-            Assert.True(Injector.QueueUserApc(Process.Id, DllPath));
+            Assert.True(_injector.QueueUserApc(_process.Id, _dllPath));
         }
 
         [Fact]
         public void TestRtlCreateUserThread()
         {
-            Assert.True(Injector.RtlCreateUserThread(Process.Id, DllPath));
+            Assert.True(_injector.RtlCreateUserThread(_process.Id, _dllPath));
         }
 
         [Fact]
         public void TestSetThreadContext()
         {
-            Assert.True(Injector.SetThreadContext(Process.Id, DllPath));
+            Assert.True(_injector.SetThreadContext(_process.Id, _dllPath));
         }
     }
 }

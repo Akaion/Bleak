@@ -8,41 +8,38 @@ namespace Bleak.Syscall
 {
     internal class SyscallManager : IDisposable
     {
-        private readonly Dictionary<string, Tuple<IDisposable, Delegate>> Syscalls;
+        private readonly Dictionary<string, Delegate> _syscalls;
 
-        private readonly Tools SyscallTools;
+        private readonly Tools _syscallTools;
 
         internal SyscallManager()
         {
-            Syscalls = new Dictionary<string, Tuple<IDisposable, Delegate>>();
+            _syscalls = new Dictionary<string, Delegate>();
 
-            SyscallTools = new Tools();
+            _syscallTools = new Tools();
         }
 
         public void Dispose()
         {
-            foreach (var syscall in Syscalls.Values)
-            {
-                syscall.Item1.Dispose();
-            }
+            _syscallTools.Dispose();
         }
 
-        private void InitialiseSyscall<TSyscall>() where TSyscall : class
+        private void CreateSyscall<TSyscall>() where TSyscall : class
         {
             // Create an instance of the syscall class
 
-            var syscallInstance = (IDisposable) Activator.CreateInstance(typeof(TSyscall), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { SyscallTools }, null);
+            var syscallInstance = Activator.CreateInstance(typeof(TSyscall), BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { _syscallTools }, null);
 
             // Get the parameter and return types of the syscall
 
             var methodInformation = typeof(TSyscall).GetMethod("Invoke", BindingFlags.Instance | BindingFlags.NonPublic);
-            
+
             var methodTypes = new List<Type>(methodInformation.GetParameters().Select(parameter => parameter.ParameterType))
             {
                 methodInformation.ReturnType
             };
-            
-            // Create the type of the delegate to be created
+
+            // Create the delegate type for the syscall
 
             Type delegateType;
 
@@ -61,22 +58,20 @@ namespace Bleak.Syscall
             // Create a delegate to perform the syscall
 
             var methodDelegate = Delegate.CreateDelegate(delegateType, syscallInstance, "Invoke");
-            
-            Syscalls.Add(typeof(TSyscall).Name, Tuple.Create(syscallInstance, methodDelegate));
+
+            _syscalls.Add(typeof(TSyscall).Name, methodDelegate);
         }
 
-        internal object InvokeSyscall<TSyscall>(params object[] parameters) where TSyscall : class
+        internal object InvokeSyscall<TSyscall>(params object[] arguments) where TSyscall : class
         {
-            if (!Syscalls.ContainsKey(typeof(TSyscall).Name))
+            if (!_syscalls.ContainsKey(typeof(TSyscall).Name))
             {
-                // Create a new syscall
-                
-                InitialiseSyscall<TSyscall>();
+                CreateSyscall<TSyscall>();
             }
 
             // Perform the syscall
 
-            return Syscalls[typeof(TSyscall).Name].Item2.DynamicInvoke(parameters);
+            return _syscalls[typeof(TSyscall).Name].DynamicInvoke(arguments);
         }
     }
 }

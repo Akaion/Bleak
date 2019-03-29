@@ -1,21 +1,21 @@
 ﻿using Bleak.PortableExecutable;
+using Bleak.PortableExecutable.Objects;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
-namespace Bleak.Tools.Objects
+namespace Bleak.RemoteProcess.Objects
 {
     internal class PeInstance : IDisposable
     {
         internal readonly PortableExecutableParser PeParser;
 
-        internal readonly List<PortableExecutable.Objects.ExportedFunction> ExportedFunctions;
+        internal readonly List<ExportedFunction> ExportedFunctions;
 
         internal PeInstance(string modulePath)
         {
             PeParser = new PortableExecutableParser(modulePath);
 
-            ExportedFunctions = PeParser.GetExportedFunctions().ToList();
+            ExportedFunctions = PeParser.GetExportedFunctions();
         }
 
         public void Dispose()

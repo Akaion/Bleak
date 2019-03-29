@@ -7,43 +7,7 @@ namespace Bleak.Wrappers
 {
     internal class MethodWrapper : IDisposable
     {
-        private readonly PropertyWrapper PropertyWrapper;
-
-        internal MethodWrapper(string targetProcessName, byte[] dllBytes, bool randomiseDllName, bool methodIsManualMap)
-        {
-            // Ensure the users operating system is supported
-
-            ValidationHandler.ValidateOperatingSystem();
-
-            // Ensure the arguments passed in are valid
-
-            if (string.IsNullOrWhiteSpace(targetProcessName) || dllBytes is null || dllBytes.Length == 0)
-            {
-                throw new ArgumentException("One or more of the arguments provided were invalid");
-            }
-
-            if (methodIsManualMap)
-            {
-                PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), dllBytes);
-            }
-
-            else
-            {
-                // Generate a name for a temporary DLL
-
-                var temporaryDllName = randomiseDllName ? WrapperTools.GenerateRandomDllName() : WrapperTools.GenerateDllName(dllBytes);
-
-                // Create a temporary DLL on disk
-
-                var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, dllBytes);
-
-                PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), temporaryDllPath);
-            }
-
-            // Ensure the architecture of the DLL is valid
-
-            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
-        }
+        private readonly PropertyWrapper _propertyWrapper;
 
         internal MethodWrapper(int targetProcessId, byte[] dllBytes, bool randomiseDllName, bool methodIsManualMap)
         {
@@ -60,28 +24,26 @@ namespace Bleak.Wrappers
 
             if (methodIsManualMap)
             {
-                PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), dllBytes);
+                _propertyWrapper = new PropertyWrapper(targetProcessId, dllBytes);
             }
 
             else
             {
-                // Generate a name for a temporary DLL
+                // Create a temporary DLL on disk
 
                 var temporaryDllName = randomiseDllName ? WrapperTools.GenerateRandomDllName() : WrapperTools.GenerateDllName(dllBytes);
 
-                // Create a temporary DLL on disk
-
                 var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, dllBytes);
 
-                PropertyWrapper = new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), temporaryDllPath);
+                _propertyWrapper = new PropertyWrapper(targetProcessId, temporaryDllPath);
             }
 
             // Ensure the architecture of the DLL is valid
 
-            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
+            ValidationHandler.ValidateDllArchitecture(_propertyWrapper);
         }
 
-        internal MethodWrapper(string targetProcessName, string dllPath, bool randomiseDllName, bool methodIsManualMap)
+        internal MethodWrapper(string targetProcessName, byte[] dllBytes, bool randomiseDllName, bool methodIsManualMap)
         {
             // Ensure the users operating system is supported
 
@@ -89,32 +51,30 @@ namespace Bleak.Wrappers
 
             // Ensure the arguments passed in are valid
 
-            if (string.IsNullOrWhiteSpace(targetProcessName) || string.IsNullOrWhiteSpace(dllPath))
+            if (string.IsNullOrWhiteSpace(targetProcessName) || dllBytes is null || dllBytes.Length == 0)
             {
                 throw new ArgumentException("One or more of the arguments provided were invalid");
             }
 
-            if (randomiseDllName)
+            if (methodIsManualMap)
             {
-                // Generate a name for a temporary DLL
-
-                var temporaryDllName = WrapperTools.GenerateRandomDllName();
-
-                // Create a temporary DLL on disk
-
-                var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, File.ReadAllBytes(dllPath));
-
-                PropertyWrapper = methodIsManualMap ? new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), File.ReadAllBytes(temporaryDllPath)) : new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), temporaryDllPath);
+                _propertyWrapper = new PropertyWrapper(targetProcessName, dllBytes);
             }
 
             else
             {
-                PropertyWrapper = methodIsManualMap ? new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), File.ReadAllBytes(dllPath)) : new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessName), dllPath);
+                // Create a temporary DLL on disk
+
+                var temporaryDllName = randomiseDllName ? WrapperTools.GenerateRandomDllName() : WrapperTools.GenerateDllName(dllBytes);
+
+                var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, dllBytes);
+
+                _propertyWrapper = new PropertyWrapper(targetProcessName, temporaryDllPath);
             }
 
             // Ensure the architecture of the DLL is valid
 
-            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
+            ValidationHandler.ValidateDllArchitecture(_propertyWrapper);
         }
 
         internal MethodWrapper(int targetProcessId, string dllPath, bool randomiseDllName, bool methodIsManualMap)
@@ -132,60 +92,89 @@ namespace Bleak.Wrappers
 
             if (randomiseDllName)
             {
-                // Generate a name for a temporary DLL
+                // Create a temporary DLL on disk
 
                 var temporaryDllName = WrapperTools.GenerateRandomDllName();
 
-                // Create a temporary DLL on disk
-
                 var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, File.ReadAllBytes(dllPath));
 
-                PropertyWrapper = methodIsManualMap ? new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), File.ReadAllBytes(temporaryDllPath)) : new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), temporaryDllPath);
+                _propertyWrapper = methodIsManualMap ? new PropertyWrapper(targetProcessId, File.ReadAllBytes(temporaryDllPath)) : new PropertyWrapper(targetProcessId, temporaryDllPath);
+
             }
 
             else
             {
-                PropertyWrapper = methodIsManualMap ? new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), File.ReadAllBytes(dllPath)) : new PropertyWrapper(WrapperTools.GetTargetProcess(targetProcessId), dllPath);
+                _propertyWrapper = methodIsManualMap ? new PropertyWrapper(targetProcessId, File.ReadAllBytes(dllPath)) : new PropertyWrapper(targetProcessId, dllPath);
             }
 
             // Ensure the architecture of the DLL is valid
 
-            ValidationHandler.ValidateDllArchitecture(PropertyWrapper);
+            ValidationHandler.ValidateDllArchitecture(_propertyWrapper);
+        }
+
+        internal MethodWrapper(string targetProcessName, string dllPath, bool randomiseDllName, bool methodIsManualMap)
+        {
+            // Ensure the users operating system is supported
+
+            ValidationHandler.ValidateOperatingSystem();
+
+            // Ensure the arguments passed in are valid
+
+            if (string.IsNullOrWhiteSpace(targetProcessName) || string.IsNullOrWhiteSpace(dllPath))
+            {
+                throw new ArgumentException("One or more of the arguments provided were invalid");
+            }
+
+            if (randomiseDllName)
+            {
+                // Create a temporary DLL on disk
+
+                var temporaryDllName = WrapperTools.GenerateRandomDllName();
+
+                var temporaryDllPath = WrapperTools.CreateTemporaryDll(temporaryDllName, File.ReadAllBytes(dllPath));
+
+                _propertyWrapper = methodIsManualMap ? new PropertyWrapper(targetProcessName, File.ReadAllBytes(temporaryDllPath)) : new PropertyWrapper(targetProcessName, temporaryDllPath);
+
+            }
+
+            else
+            {
+                _propertyWrapper = methodIsManualMap ? new PropertyWrapper(targetProcessName, File.ReadAllBytes(dllPath)) : new PropertyWrapper(targetProcessName, dllPath);
+            }
+
+            // Ensure the architecture of the DLL is valid
+
+            ValidationHandler.ValidateDllArchitecture(_propertyWrapper);
         }
 
         public void Dispose()
         {
-            PropertyWrapper.Dispose();
+            _propertyWrapper.Dispose();
         }
 
         internal bool CreateRemoteThread()
         {
-            return new Methods.CreateRemoteThread(PropertyWrapper).Call();
-        }
-
-        internal bool NtCreateThreadEx()
-        {
-            return new Methods.NtCreateThreadEx(PropertyWrapper).Call();
+            return new Methods.CreateRemoteThread(_propertyWrapper).Call();
         }
 
         internal bool ManualMap()
         {
-            return new Methods.ManualMap(PropertyWrapper).Call();
+            return new Methods.ManualMap(_propertyWrapper).Call();
         }
 
         internal bool QueueUserApc()
         {
-            return new Methods.QueueUserApc(PropertyWrapper).Call();
+            return new Methods.QueueUserApc(_propertyWrapper).Call();
         }
 
         internal bool RtlCreateUserThread()
         {
-            return new Methods.RtlCreateUserThread(PropertyWrapper).Call();
+            return new Methods.RtlCreateUserThread(_propertyWrapper).Call();
         }
 
         internal bool SetThreadContext()
         {
-            return new Methods.SetThreadContext(PropertyWrapper).Call();
+            return new Methods.SetThreadContext(_propertyWrapper).Call();
         }
     }
 }

@@ -10,7 +10,6 @@ A Windows native DLL injection library written in C# that supports several metho
 
 * CreateRemoteThread
 * ManualMap
-* NtCreateThreadEx
 * QueueUserAPC
 * RtlCreateUserThread
 * SetThreadContext
@@ -18,8 +17,8 @@ A Windows native DLL injection library written in C# that supports several metho
 ### Injection Extensions
 
 * Eject DLL
-* Erase PE Headers
-* Randomise PE Headers
+* Erase DLL Headers
+* Randomise DLL Headers
 * Unlink DLL From PEB
 
 
@@ -51,7 +50,7 @@ injector.CreateRemoteThread("processName", "pathToDll");
 
 // Erase the PE headers of a DLL loaded in the process
 
-injector.EraseHeaders("processName", "pathToDll");
+injector.EraseDllHeaders("processName", "pathToDll");
 ```
 Full documentation for the library can be found [here](https://akaion.github.io/repositories/bleak.html) 
 

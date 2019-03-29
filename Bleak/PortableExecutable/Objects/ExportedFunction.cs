@@ -2,17 +2,17 @@
 {
     internal class ExportedFunction
     {
-        internal readonly uint Offset;
+        internal string Name;
 
-        internal readonly string Name;
+        internal readonly uint Offset;
 
         internal readonly ushort Ordinal;
 
-        internal ExportedFunction(uint offset, string name, ushort ordinal)
+        internal ExportedFunction(string name, uint offset, ushort ordinal)
         {
-            Offset = offset;
-
             Name = name;
+
+            Offset = offset;
 
             Ordinal = ordinal;
         }

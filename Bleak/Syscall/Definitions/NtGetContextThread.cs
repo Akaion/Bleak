@@ -1,31 +1,22 @@
-﻿using Bleak.Native;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.SafeHandle;
-using Bleak.Handlers;
 using Bleak.Tools;
 using System;
 using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtGetContextThread : IDisposable
+    internal class NtGetContextThread
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtGetContextThreadDefinition(SafeThreadHandle threadHandle, IntPtr contextBuffer);
 
-        private readonly NtGetContextThreadDefinition NtGetContextThreadDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtGetContextThreadDefinition _ntGetContextThreadDelegate;
 
         internal NtGetContextThread(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtGetContextThreadDelegate = SyscallTools.CreateDelegateForSyscall<NtGetContextThreadDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtGetContextThreadDelegate);
+            _ntGetContextThreadDelegate = syscallTools.CreateDelegateForSyscall<NtGetContextThreadDefinition>();
         }
 
         internal IntPtr Invoke(SafeThreadHandle threadHandle)
@@ -38,7 +29,7 @@ namespace Bleak.Syscall.Definitions
 
             // Perform the syscall
 
-            var syscallResult = NtGetContextThreadDelegate(threadHandle, contextBuffer);
+            var syscallResult = _ntGetContextThreadDelegate(threadHandle, contextBuffer);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {

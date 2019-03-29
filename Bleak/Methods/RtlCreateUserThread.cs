@@ -1,54 +1,46 @@
 ﻿using Bleak.Handlers;
-using Bleak.Methods.Interfaces;
 using Bleak.Native;
-using Bleak.Tools;
 using Bleak.Wrappers;
 using System;
 using System.Text;
 
 namespace Bleak.Methods
 {
-    internal class RtlCreateUserThread : IInjectionMethod
+    internal class RtlCreateUserThread
     {
-        private readonly PropertyWrapper PropertyWrapper;
+        private readonly PropertyWrapper _propertyWrapper;
 
         internal RtlCreateUserThread(PropertyWrapper propertyWrapper)
         {
-            PropertyWrapper = propertyWrapper;
+            _propertyWrapper = propertyWrapper;
         }
 
-        public bool Call()
+        internal bool Call()
         {
-            // Get the address of LoadLibraryW in the target process
+            // Get the address of the LoadLibraryW function
 
-            var loadLibraryAddress = NativeTools.GetFunctionAddress(PropertyWrapper, "kernel32.dll", "LoadLibraryW");
+            var loadLibraryAddress = _propertyWrapper.TargetProcess.GetFunctionAddress("kernel32.dll", "LoadLibraryW");
 
-            // Allocate a buffer for the DLL path in the target process
+            // Write the DLL path into the target process
 
-            var dllPathBuffer = PropertyWrapper.MemoryManager.Value.AllocateMemory(PropertyWrapper.DllPath.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
+            var dllPathBuffer = _propertyWrapper.MemoryManager.AllocateVirtualMemory(_propertyWrapper.DllPath.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
 
-            // Write the DLL path into the buffer
+            var dllPathBytes = Encoding.Unicode.GetBytes(_propertyWrapper.DllPath + "\0");
 
-            var dllPathBytes = Encoding.Unicode.GetBytes(PropertyWrapper.DllPath + "\0");
+            _propertyWrapper.MemoryManager.WriteVirtualMemory(dllPathBuffer, dllPathBytes);
 
-            PropertyWrapper.MemoryManager.Value.WriteMemory(dllPathBuffer, dllPathBytes);
+            // Create a thread to call LoadLibraryW in the target process
 
-            // Create a remote thread to call LoadLibraryW in the target process
+            var ntStatus = PInvoke.RtlCreateUserThread(_propertyWrapper.TargetProcess.ProcessHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryAddress, dllPathBuffer, out var remoteThreadHandle, IntPtr.Zero);
 
-            var result = PInvoke.RtlCreateUserThread(PropertyWrapper.ProcessHandle.Value, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryAddress, dllPathBuffer, out var remoteThreadHandle, IntPtr.Zero);
-
-            if (remoteThreadHandle is null)
+            if (ntStatus != Enumerations.NtStatus.Success)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to create a thread in the target process", result);
+                ExceptionHandler.ThrowWin32Exception("Failed to create a thread in the target process", ntStatus);
             }
-
-            // Wait for the remote thread to finish its task
 
             PInvoke.WaitForSingleObject(remoteThreadHandle, uint.MaxValue);
 
-            // Free the memory allocated for the buffer
-
-            PropertyWrapper.MemoryManager.Value.FreeMemory(dllPathBuffer);
+            _propertyWrapper.MemoryManager.FreeVirtualMemory(dllPathBuffer);
 
             remoteThreadHandle.Dispose();
 

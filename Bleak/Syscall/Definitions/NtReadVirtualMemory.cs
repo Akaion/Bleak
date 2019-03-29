@@ -1,5 +1,5 @@
-﻿using Bleak.Native;
-using Bleak.Handlers;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
@@ -7,25 +7,16 @@ using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtReadVirtualMemory : IDisposable
+    internal class NtReadVirtualMemory
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtReadVirtualMemoryDefinition(SafeProcessHandle processHandle, IntPtr baseAddress, IntPtr bytesReadBuffer, ulong bytesToRead, IntPtr numberOfBytesReadBuffer);
 
-        private readonly NtReadVirtualMemoryDefinition NtReadVirtualMemoryDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtReadVirtualMemoryDefinition _ntReadVirtualMemoryDelegate;
 
         internal NtReadVirtualMemory(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtReadVirtualMemoryDelegate = SyscallTools.CreateDelegateForSyscall<NtReadVirtualMemoryDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtReadVirtualMemoryDelegate);
+            _ntReadVirtualMemoryDelegate = syscallTools.CreateDelegateForSyscall<NtReadVirtualMemoryDefinition>();
         }
 
         internal IntPtr Invoke(SafeProcessHandle processHandle, IntPtr baseAddress, int bytesToRead)
@@ -36,7 +27,7 @@ namespace Bleak.Syscall.Definitions
 
             // Perform the syscall
 
-            var syscallResult = NtReadVirtualMemoryDelegate(processHandle, baseAddress, bytesReadBuffer, (ulong) bytesToRead, IntPtr.Zero);
+            var syscallResult = _ntReadVirtualMemoryDelegate(processHandle, baseAddress, bytesReadBuffer, (ulong)bytesToRead, IntPtr.Zero);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {

@@ -1,5 +1,5 @@
-﻿using Bleak.Native;
-using Bleak.Handlers;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
@@ -7,25 +7,16 @@ using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtFreeVirtualMemory : IDisposable
+    internal class NtFreeVirtualMemory
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtFreeVirtualMemoryDefinition(SafeProcessHandle processHandle, IntPtr baseAddressBuffer, IntPtr freeSizeBuffer, Enumerations.MemoryFreeType freeType);
 
-        private readonly NtFreeVirtualMemoryDefinition NtFreeVirtualMemoryDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtFreeVirtualMemoryDefinition _ntFreeVirtualMemoryDelegate;
 
         internal NtFreeVirtualMemory(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtFreeVirtualMemoryDelegate = SyscallTools.CreateDelegateForSyscall<NtFreeVirtualMemoryDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtFreeVirtualMemoryDelegate);
+            _ntFreeVirtualMemoryDelegate = syscallTools.CreateDelegateForSyscall<NtFreeVirtualMemoryDefinition>();
         }
 
         internal void Invoke(SafeProcessHandle processHandle, IntPtr baseAddress)
@@ -40,18 +31,16 @@ namespace Bleak.Syscall.Definitions
 
             // Perform the syscall
 
-            var syscallResult = NtFreeVirtualMemoryDelegate(processHandle, baseAddressBuffer, freeSizeBuffer, Enumerations.MemoryFreeType.Release);
+            var syscallResult = _ntFreeVirtualMemoryDelegate(processHandle, baseAddressBuffer, freeSizeBuffer, Enumerations.MemoryFreeType.Release);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to free memory in the target process", syscallResult);
             }
 
-            // Free the memory allocated for the buffers
+            MemoryTools.FreeMemoryForBuffer(baseAddressBuffer);
 
-            MemoryTools.FreeMemoryForBuffer(baseAddressBuffer, IntPtr.Size);
-
-            MemoryTools.FreeMemoryForBuffer(freeSizeBuffer, sizeof(int));
+            MemoryTools.FreeMemoryForBuffer(freeSizeBuffer);
         }
     }
 }

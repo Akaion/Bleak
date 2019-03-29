@@ -13,22 +13,7 @@ namespace Bleak.Native
         internal static extern bool CloseHandle(IntPtr handle);
 
         [DllImport("kernel32.dll", SetLastError = true)]
-        internal static extern SafeThreadHandle CreateRemoteThread(SafeProcessHandle processHandle, IntPtr threadAttributesBuffer, uint stackSize, IntPtr startAddress, IntPtr parameter, uint creationFlags, IntPtr threadIdBuffer);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        internal static extern SafeSnapshotHandle CreateToolhelp32Snapshot(Enumerations.ToolHelpSnapshotType snapshotType, uint processId);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        internal static extern IntPtr GetProcAddress(IntPtr moduleHandle, string functionName);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool IsWow64Process(SafeProcessHandle processHandle, out bool isWow64Process);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        internal static extern bool Module32First(SafeSnapshotHandle snapshotHandle, IntPtr moduleEntryBuffer);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        internal static extern bool Module32Next(SafeSnapshotHandle snapshotHandle, IntPtr moduleEntryBuffer);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern IntPtr VirtualAlloc(IntPtr baseAddress, uint allocationSize, Enumerations.MemoryAllocationType allocationType, Enumerations.MemoryProtectionType protectionType);
@@ -63,6 +48,5 @@ namespace Bleak.Native
 
         [DllImport("user32.dll")]
         internal static extern void SwitchToThisWindow(IntPtr windowHandle, bool altTab);
-
     }
 }

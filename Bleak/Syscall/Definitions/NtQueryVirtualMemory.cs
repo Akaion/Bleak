@@ -1,5 +1,5 @@
-﻿using Bleak.Native;
-using Bleak.Handlers;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
@@ -7,25 +7,16 @@ using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtQueryVirtualMemory : IDisposable
+    internal class NtQueryVirtualMemory
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtQueryVirtualMemoryDefinition(SafeProcessHandle processHandle, IntPtr baseAddress, Enumerations.MemoryInformationClass memoryInformationClass, IntPtr memoryInformationBuffer, ulong bufferSize, IntPtr returnLengthBuffer);
 
-        private readonly NtQueryVirtualMemoryDefinition NtQueryVirtualMemoryDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtQueryVirtualMemoryDefinition _ntQueryVirtualMemoryDelegate;
 
         internal NtQueryVirtualMemory(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtQueryVirtualMemoryDelegate = SyscallTools.CreateDelegateForSyscall<NtQueryVirtualMemoryDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtQueryVirtualMemoryDelegate);
+            _ntQueryVirtualMemoryDelegate = syscallTools.CreateDelegateForSyscall<NtQueryVirtualMemoryDefinition>();
         }
 
         internal IntPtr Invoke(SafeProcessHandle processHandle, IntPtr baseAddress)
@@ -36,7 +27,7 @@ namespace Bleak.Syscall.Definitions
 
             // Perform the syscall
 
-            var syscallResult = NtQueryVirtualMemoryDelegate(processHandle, baseAddress, Enumerations.MemoryInformationClass.BasicInformation, memoryBasicInformationBuffer, (ulong) Marshal.SizeOf<Structures.MemoryBasicInformation>(), IntPtr.Zero);
+            var syscallResult = _ntQueryVirtualMemoryDelegate(processHandle, baseAddress, Enumerations.MemoryInformationClass.BasicInformation, memoryBasicInformationBuffer, (ulong)Marshal.SizeOf<Structures.MemoryBasicInformation>(), IntPtr.Zero);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {

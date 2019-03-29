@@ -1,5 +1,5 @@
-﻿using Bleak.Native;
-using Bleak.Handlers;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
@@ -7,25 +7,16 @@ using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtProtectVirtualMemory : IDisposable
+    internal class NtProtectVirtualMemory
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtProtectVirtualMemoryDefinition(SafeProcessHandle processHandle, IntPtr baseAddressBuffer, IntPtr protectionSizeBuffer, Enumerations.MemoryProtectionType newProtectionType, IntPtr oldProtectionBuffer);
 
-        private readonly NtProtectVirtualMemoryDefinition NtProtectVirtualMemoryDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtProtectVirtualMemoryDefinition _ntProtectVirtualMemoryDelegate;
 
         internal NtProtectVirtualMemory(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtProtectVirtualMemoryDelegate = SyscallTools.CreateDelegateForSyscall<NtProtectVirtualMemoryDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtProtectVirtualMemoryDelegate);
+            _ntProtectVirtualMemoryDelegate = syscallTools.CreateDelegateForSyscall<NtProtectVirtualMemoryDefinition>();
         }
 
         internal Enumerations.MemoryProtectionType Invoke(SafeProcessHandle processHandle, IntPtr baseAddress, int protectionSize, Enumerations.MemoryProtectionType newProtectionType)
@@ -44,7 +35,7 @@ namespace Bleak.Syscall.Definitions
 
             // Perform the syscall
 
-            var syscallResult = NtProtectVirtualMemoryDelegate(processHandle, baseAddressBuffer, protectionSizeBuffer, newProtectionType, oldProtectionBuffer);
+            var syscallResult = _ntProtectVirtualMemoryDelegate(processHandle, baseAddressBuffer, protectionSizeBuffer, newProtectionType, oldProtectionBuffer);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {
@@ -53,15 +44,13 @@ namespace Bleak.Syscall.Definitions
 
             // Marshal the returned old protection of the memory region from the buffer
 
-            var oldProtection = (Enumerations.MemoryProtectionType) Marshal.PtrToStructure<ulong>(oldProtectionBuffer);
+            var oldProtection = (Enumerations.MemoryProtectionType)Marshal.PtrToStructure<ulong>(oldProtectionBuffer);
 
-            // Free the memory allocated for the buffers
+            MemoryTools.FreeMemoryForBuffer(baseAddressBuffer);
 
-            MemoryTools.FreeMemoryForBuffer(baseAddressBuffer, IntPtr.Size);
+            MemoryTools.FreeMemoryForBuffer(protectionSizeBuffer);
 
-            MemoryTools.FreeMemoryForBuffer(protectionSizeBuffer, sizeof(int));
-
-            MemoryTools.FreeMemoryForBuffer(oldProtectionBuffer, sizeof(ulong));
+            MemoryTools.FreeMemoryForBuffer(oldProtectionBuffer);
 
             return oldProtection;
         }

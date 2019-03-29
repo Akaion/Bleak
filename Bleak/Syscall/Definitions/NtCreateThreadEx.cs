@@ -1,6 +1,6 @@
-﻿using Bleak.Native;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.SafeHandle;
-using Bleak.Handlers;
 using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
@@ -8,25 +8,16 @@ using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtCreateThreadEx : IDisposable
+    internal class NtCreateThreadEx
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtCreateThreadExDefinition(IntPtr threadHandleBuffer, Enumerations.ThreadAccessMask desiredAccess, IntPtr objectAttributesBuffer, SafeProcessHandle processHandle, IntPtr startAddress, IntPtr parameter, Enumerations.ThreadCreationType creationType, IntPtr stackZeroBits, IntPtr sizeOfStack, IntPtr maximumStackSize, IntPtr attributeListBuffer);
 
-        private readonly NtCreateThreadExDefinition NtCreateThreadExDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtCreateThreadExDefinition _ntCreateThreadExDelegate;
 
         internal NtCreateThreadEx(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtCreateThreadExDelegate = SyscallTools.CreateDelegateForSyscall<NtCreateThreadExDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtCreateThreadExDelegate);
+            _ntCreateThreadExDelegate = syscallTools.CreateDelegateForSyscall<NtCreateThreadExDefinition>();
         }
 
         internal SafeThreadHandle Invoke(SafeProcessHandle processHandle, IntPtr startAddress, IntPtr parameter)
@@ -39,7 +30,7 @@ namespace Bleak.Syscall.Definitions
 
             const Enumerations.ThreadAccessMask desiredAccess = Enumerations.ThreadAccessMask.SpecificRightsAll | Enumerations.ThreadAccessMask.StandardRightsAll;
 
-            var syscallResult = NtCreateThreadExDelegate(threadHandleBuffer, desiredAccess, IntPtr.Zero, processHandle, startAddress, parameter, Enumerations.ThreadCreationType.HideFromDebugger, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+            var syscallResult = _ntCreateThreadExDelegate(threadHandleBuffer, desiredAccess, IntPtr.Zero, processHandle, startAddress, parameter, Enumerations.ThreadCreationType.HideFromDebugger, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {
@@ -48,17 +39,11 @@ namespace Bleak.Syscall.Definitions
 
             // Marshal the returned thread handle from the buffer
 
-            var threadHandle = Marshal.PtrToStructure<IntPtr>(threadHandleBuffer);
+            var threadHandle = new SafeThreadHandle(Marshal.PtrToStructure<IntPtr>(threadHandleBuffer), true);
 
-            // Convert the thread handle into a safe handle
+            MemoryTools.FreeMemoryForBuffer(threadHandleBuffer);
 
-            var safeThreadHandle = new SafeThreadHandle(threadHandle, true);
-
-            // Free the memory allocated for the buffer
-
-            MemoryTools.FreeMemoryForBuffer(threadHandleBuffer, IntPtr.Size);
-            
-            return safeThreadHandle;
+            return threadHandle;
         }
     }
 }

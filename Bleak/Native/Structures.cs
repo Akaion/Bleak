@@ -344,13 +344,13 @@ namespace Bleak.Native
         [StructLayout(LayoutKind.Explicit)]
         internal struct ImageThunkData
         {
-            [FieldOffset(0)] 
+            [FieldOffset(0)]
             private readonly uint ForwarderString;
 
-            [FieldOffset(0)] 
+            [FieldOffset(0)]
             private readonly uint Function;
 
-            [FieldOffset(0)] 
+            [FieldOffset(0)]
             private readonly uint Ordinal;
 
             [FieldOffset(0)]
@@ -364,7 +364,7 @@ namespace Bleak.Native
             internal readonly ListEntry32 InMemoryOrderLinks;
             internal readonly ListEntry32 InInitOrderLinks;
 
-            private readonly uint DllBase;
+            internal readonly uint DllBase;
 
             private readonly uint EntryPoint;
 
@@ -392,7 +392,7 @@ namespace Bleak.Native
             internal readonly ListEntry64 InMemoryOrderLinks;
             internal readonly ListEntry64 InInitOrderLinks;
 
-            private readonly ulong DllBase;
+            internal readonly ulong DllBase;
 
             private readonly ulong EntryPoint;
 
@@ -442,37 +442,13 @@ namespace Bleak.Native
             private readonly IntPtr BaseAddress;
 
             private readonly IntPtr AllocationBase;
-            private readonly uint AllocationProtect;
+            private readonly Enumerations.MemoryProtectionType AllocationProtect;
 
             internal readonly IntPtr RegionSize;
 
             private readonly uint State;
-            private readonly uint Protect;
+            private readonly Enumerations.MemoryProtectionType Protect;
             private readonly uint Type;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct ModuleEntry
-        {
-            internal uint Size;
-
-            private readonly uint ModuleId;
-            private readonly uint ProcessId;
-
-            private readonly uint UnusedValue1;
-            private readonly uint UnusedValue2;
-
-            internal readonly IntPtr BaseAddress;
-
-            private readonly uint BaseSize;
-
-            private readonly IntPtr ModuleHandle;
-
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
-            internal readonly string Module;
-
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
-            internal readonly string ExePath;
         }
 
         [StructLayout(LayoutKind.Sequential)]

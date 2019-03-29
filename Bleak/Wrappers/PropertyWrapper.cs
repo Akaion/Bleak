@@ -1,11 +1,8 @@
-﻿using Bleak.Handlers;
-using Bleak.Native;
+﻿using Bleak.Memory;
 using Bleak.PortableExecutable;
+using Bleak.RemoteProcess;
 using Bleak.Syscall;
-using Microsoft.Win32.SafeHandles;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace Bleak.Wrappers
 {
@@ -15,87 +12,73 @@ namespace Bleak.Wrappers
 
         internal readonly string DllPath;
 
-        internal readonly Lazy<bool> IsWow64Process;
-
-        internal readonly Lazy<MemoryWrapper> MemoryManager;
-
-        internal readonly Dictionary<string, Tools.Objects.PeInstance> PeInstances;
+        internal readonly MemoryManager MemoryManager;
 
         internal readonly PortableExecutableParser PeParser;
 
-        internal readonly Process Process;
-
-        internal readonly Lazy<SafeProcessHandle> ProcessHandle;
-
         internal readonly SyscallManager SyscallManager;
 
-        internal PropertyWrapper(Process process, byte[] dllBytes)
+        internal readonly ProcessInstance TargetProcess;
+
+        internal PropertyWrapper(int targetProcessId, byte[] dllBytes)
         {
             DllBytes = dllBytes;
 
-            IsWow64Process = new Lazy<bool>(GetProcessArchitecture);
-
-            MemoryManager = new Lazy<MemoryWrapper>(() => new MemoryWrapper(ProcessHandle.Value));
-
-            PeInstances = new Dictionary<string, Tools.Objects.PeInstance>();
-
-            PeParser = new PortableExecutableParser(dllBytes);
-
-            Process = process;
-
-            ProcessHandle = new Lazy<SafeProcessHandle>(OpenProcessHandle);
-
             SyscallManager = new SyscallManager();
+
+            TargetProcess = new ProcessInstance(targetProcessId, SyscallManager);
+
+            MemoryManager = new MemoryManager(TargetProcess.ProcessHandle, SyscallManager);
+
+            PeParser = new PortableExecutableParser(DllBytes);
         }
 
-        internal PropertyWrapper(Process process, string dllPath)
+        internal PropertyWrapper(int targetProcessId, string dllPath)
         {
             DllPath = dllPath;
 
-            IsWow64Process = new Lazy<bool>(GetProcessArchitecture);
+            SyscallManager = new SyscallManager();
 
-            MemoryManager = new Lazy<MemoryWrapper>(() => new MemoryWrapper(ProcessHandle.Value));
+            TargetProcess = new ProcessInstance(targetProcessId, SyscallManager);
 
-            PeInstances = new Dictionary<string, Tools.Objects.PeInstance>();
+            MemoryManager = new MemoryManager(TargetProcess.ProcessHandle, SyscallManager);
 
-            PeParser = new PortableExecutableParser(dllPath);
+            PeParser = new PortableExecutableParser(DllPath);
+        }
 
-            Process = process;
-
-            ProcessHandle = new Lazy<SafeProcessHandle>(OpenProcessHandle);
+        internal PropertyWrapper(string targetProcessName, byte[] dllBytes)
+        {
+            DllBytes = dllBytes;
 
             SyscallManager = new SyscallManager();
+
+            TargetProcess = new ProcessInstance(targetProcessName, SyscallManager);
+
+            MemoryManager = new MemoryManager(TargetProcess.ProcessHandle, SyscallManager);
+
+            PeParser = new PortableExecutableParser(DllBytes);
         }
-        
+
+        internal PropertyWrapper(string targetProcessName, string dllPath)
+        {
+            DllPath = dllPath;
+
+            SyscallManager = new SyscallManager();
+
+            TargetProcess = new ProcessInstance(targetProcessName, SyscallManager);
+
+            MemoryManager = new MemoryManager(TargetProcess.ProcessHandle, SyscallManager);
+
+            PeParser = new PortableExecutableParser(DllPath);
+        }
+
         public void Dispose()
         {
-            MemoryManager.Value.Dispose();
-
-            foreach (var peInstance in PeInstances.Values)
-            {
-                peInstance.Dispose();
-            }
-
-            Process.Dispose();
-
-            ProcessHandle.Value.Dispose();
+            PeParser.Dispose();
 
             SyscallManager.Dispose();
-        }
 
-        private bool GetProcessArchitecture()
-        {
-            if (!PInvoke.IsWow64Process(ProcessHandle.Value, out var isWow64Process))
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to determine whether the target process was running under Wow64");
-            }
-
-            return isWow64Process;
-        }
-
-        private SafeProcessHandle OpenProcessHandle()
-        {
-            return (SafeProcessHandle) SyscallManager.InvokeSyscall<Syscall.Definitions.NtOpenProcess>(Process.Id);
+            TargetProcess.Dispose();
         }
     }
 }

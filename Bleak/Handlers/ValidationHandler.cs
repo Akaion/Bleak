@@ -11,16 +11,16 @@ namespace Bleak.Handlers
         {
             // Ensure the architecture of the target process matches the architecture of the DLL
 
-            if (propertyWrapper.IsWow64Process.Value != (propertyWrapper.PeParser.GetPeArchitecture() == Enumerations.MachineType.X86))
+            if (propertyWrapper.TargetProcess.IsWow64 != (propertyWrapper.PeParser.GetPeArchitecture() == Enumerations.MachineType.X86))
             {
                 throw new ApplicationException("The architecture of the target process did not match the architecture of the DLL");
             }
 
-            // Ensure that x64 injection is not being attempted from an x86 process
+            // Ensure that x64 injection is not being attempted if compiled under x86
 
-            if (!propertyWrapper.IsWow64Process.Value && !Environment.Is64BitProcess)
+            if (!Environment.Is64BitProcess && !propertyWrapper.TargetProcess.IsWow64)
             {
-                throw new ApplicationException("You cannot inject into an x64 when compiled under x86");
+                throw new ApplicationException("x64 injection is not supported when compiled under x86");
             }
         }
 
@@ -28,22 +28,17 @@ namespace Bleak.Handlers
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                throw new PlatformNotSupportedException("This library is intended for Windows NT use only and will not work on Linux");
+                throw new PlatformNotSupportedException("This library is intended for Windows use only and will not work on Linux");
             }
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                throw new PlatformNotSupportedException("This library is intended for Windows NT use only and will not work on OSX");
-            }
-
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && Environment.OSVersion.Platform != PlatformID.Win32NT)
-            {
-                throw new PlatformNotSupportedException("This library is intended for Windows NT use only and will not work on earlier versions of Windows");
+                throw new PlatformNotSupportedException("This library is intended for Windows use only and will not work on OSX");
             }
 
             if (!Environment.Is64BitOperatingSystem)
             {
-                throw new PlatformNotSupportedException("This library is intended for 64 bit operating systems only and will not work on 32 bit operating systems");
+                throw new PlatformNotSupportedException("This library is intended for 64 bit Windows only and will not work on 32 bit versions of Windows");
             }
         }
     }

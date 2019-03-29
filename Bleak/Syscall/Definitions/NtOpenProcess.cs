@@ -1,5 +1,5 @@
-﻿using Bleak.Native;
-using Bleak.Handlers;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
@@ -7,25 +7,16 @@ using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtOpenProcess : IDisposable
+    internal class NtOpenProcess
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtOpenProcessDefinition(IntPtr processHandleBuffer, Enumerations.ProcessAccessMask desiredAccess, IntPtr objectAttributesBuffer, IntPtr clientIdBuffer);
 
-        private readonly NtOpenProcessDefinition NtOpenProcessDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtOpenProcessDefinition _ntOpenProcessDelegate;
 
         internal NtOpenProcess(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtOpenProcessDelegate = SyscallTools.CreateDelegateForSyscall<NtOpenProcessDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtOpenProcessDelegate);
+            _ntOpenProcessDelegate = syscallTools.CreateDelegateForSyscall<NtOpenProcessDefinition>();
         }
 
         internal SafeProcessHandle Invoke(int processId)
@@ -46,7 +37,7 @@ namespace Bleak.Syscall.Definitions
 
             // Perform the syscall
 
-            var syscallResult = NtOpenProcessDelegate(processHandleBuffer, Enumerations.ProcessAccessMask.AllAccess, objectAttributesBuffer, clientIdBuffer);
+            var syscallResult = _ntOpenProcessDelegate(processHandleBuffer, Enumerations.ProcessAccessMask.AllAccess, objectAttributesBuffer, clientIdBuffer);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {
@@ -55,21 +46,15 @@ namespace Bleak.Syscall.Definitions
 
             // Marshal the returned process handle from the buffer
 
-            var processHandle = Marshal.PtrToStructure<IntPtr>(processHandleBuffer);
+            var processHandle = new SafeProcessHandle(Marshal.PtrToStructure<IntPtr>(processHandleBuffer), true);
 
-            // Convert the process handle into safe handle
+            MemoryTools.FreeMemoryForBuffer(processHandleBuffer);
 
-            var safeProcessHandle = new SafeProcessHandle(processHandle, true);
+            MemoryTools.FreeMemoryForBuffer(objectAttributesBuffer);
 
-            // Free the memory allocated for the buffers
+            MemoryTools.FreeMemoryForBuffer(clientIdBuffer);
 
-            MemoryTools.FreeMemoryForBuffer(processHandleBuffer, IntPtr.Size);
-
-            MemoryTools.FreeMemoryForBuffer(objectAttributesBuffer, Marshal.SizeOf<Structures.ObjectAttributes>());
-
-            MemoryTools.FreeMemoryForBuffer(clientIdBuffer, Marshal.SizeOf<Structures.ClientId>());
-
-            return safeProcessHandle;
+            return processHandle;
         }
     }
 }

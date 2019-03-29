@@ -1,7 +1,6 @@
-﻿using Bleak.Methods.Interfaces;
-using Bleak.Native;
+﻿using Bleak.Native;
 using Bleak.SafeHandle;
-using Bleak.Tools;
+using Bleak.Syscall.Definitions;
 using Bleak.Wrappers;
 using System.Diagnostics;
 using System.Linq;
@@ -9,47 +8,43 @@ using System.Text;
 
 namespace Bleak.Methods
 {
-    internal class QueueUserApc : IInjectionMethod
+    internal class QueueUserApc
     {
-        private readonly PropertyWrapper PropertyWrapper;
+        private readonly PropertyWrapper _propertyWrapper;
 
         internal QueueUserApc(PropertyWrapper propertyWrapper)
         {
-            PropertyWrapper = propertyWrapper;
+            _propertyWrapper = propertyWrapper;
         }
 
-        public bool Call()
+        internal bool Call()
         {
-            // Get the address of LoadLibraryW in the target process
+            // Get the address of the LoadLibraryW function
 
-            var loadLibraryAddress = NativeTools.GetFunctionAddress(PropertyWrapper, "kernel32.dll", "LoadLibraryW");
+            var loadLibraryAddress = _propertyWrapper.TargetProcess.GetFunctionAddress("kernel32.dll", "LoadLibraryW");
 
-            // Allocate a buffer for the DLL path in the target process
+            // Write the DLL path into the target process
 
-            var dllPathBuffer = PropertyWrapper.MemoryManager.Value.AllocateMemory(PropertyWrapper.DllPath.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
+            var dllPathBuffer = _propertyWrapper.MemoryManager.AllocateVirtualMemory(_propertyWrapper.DllPath.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
 
-            // Write the DLL path into the buffer
+            var dllPathBytes = Encoding.Unicode.GetBytes(_propertyWrapper.DllPath + "\0");
 
-            var dllPathBytes = Encoding.Unicode.GetBytes(PropertyWrapper.DllPath + "\0");
+            _propertyWrapper.MemoryManager.WriteVirtualMemory(dllPathBuffer, dllPathBytes);
 
-            PropertyWrapper.MemoryManager.Value.WriteMemory(dllPathBuffer, dllPathBytes);
-
-            foreach (var thread in PropertyWrapper.Process.Threads.Cast<ProcessThread>())
+            foreach (var thread in _propertyWrapper.TargetProcess.Process.Threads.Cast<ProcessThread>())
             {
                 // Open a handle to the thread
 
-                var threadHandle = (SafeThreadHandle) PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtOpenThread>(thread.Id);
+                var threadHandle = (SafeThreadHandle) _propertyWrapper.SyscallManager.InvokeSyscall<NtOpenThread>(thread.Id);
 
-                // Add an apc to call LoadLibraryW to the apc queue of the thread
+                // Add an APC to call LoadLibraryW to the APC queue of the thread
 
-                PropertyWrapper.SyscallManager.InvokeSyscall<Syscall.Definitions.NtQueueApcThread>(threadHandle, loadLibraryAddress, dllPathBuffer);
+                _propertyWrapper.SyscallManager.InvokeSyscall<NtQueueApcThread>(threadHandle, loadLibraryAddress, dllPathBuffer);
 
                 threadHandle.Dispose();
             }
 
-            // Free the memory allocated for the buffer
-
-            PropertyWrapper.MemoryManager.Value.FreeMemory(dllPathBuffer);
+            _propertyWrapper.MemoryManager.FreeVirtualMemory(dllPathBuffer);
 
             return true;
         }

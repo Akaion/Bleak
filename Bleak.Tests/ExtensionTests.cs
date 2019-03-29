@@ -7,64 +7,62 @@ namespace Bleak.Tests
 {
     public class ExtensionTests : IDisposable
     {
-        private readonly string DllPath;
+        private readonly string _dllPath;
 
-        private readonly Injector Injector;
+        private readonly Injector _injector;
 
-        private readonly Process Process;
+        private readonly Process _process;
 
         public ExtensionTests()
         {
-            var etcDirectory = Path.GetFullPath(@"..\..\..\Etc\");
+            _dllPath = Path.Combine(Path.GetFullPath(@"..\..\..\Etc\"), "TestDll.dll");
 
-            DllPath = Path.Combine(etcDirectory, "TestDll.dll");
+            _injector = new Injector();
 
-            Injector = new Injector();
+            _process = new Process { StartInfo = { CreateNoWindow = true, FileName = "notepad.exe", UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden } };
 
-            Process = new Process { StartInfo = { CreateNoWindow = true, FileName = "notepad.exe", UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden } };
+            _process.Start();
 
-            Process.Start();
-
-            Process.WaitForInputIdle();
+            _process.WaitForInputIdle();
         }
 
         public void Dispose()
         {
-            Process.Kill();
+            _process.Kill();
 
-            Process.Dispose();
+            _process.Dispose();
         }
-        
+
         [Fact]
         public void TestEjectDll()
         {
-            Injector.CreateRemoteThread(Process.Id, DllPath);
+            _injector.CreateRemoteThread(_process.Id, _dllPath);
 
-            Assert.True(Injector.EjectDll(Process.Id, DllPath));
+            Assert.True(_injector.EjectDll(_process.Id, _dllPath));
         }
 
         [Fact]
-        public void EraseHeaders()
+        public void TestEraseDllHeaders()
         {
-            Injector.CreateRemoteThread(Process.Id, DllPath);
+            _injector.CreateRemoteThread(_process.Id, _dllPath);
 
-            Assert.True(Injector.EraseHeaders(Process.Id, DllPath));
+            Assert.True(_injector.EraseDllHeaders(_process.Id, _dllPath));
         }
 
         [Fact]
-        public void RandomiseHeaders()
+        public void TestRandomiseDllHeaders()
         {
-            Injector.CreateRemoteThread(Process.Id, DllPath);
+            _injector.CreateRemoteThread(_process.Id, _dllPath);
 
-            Assert.True(Injector.RandomiseHeaders(Process.Id, DllPath));
+            Assert.True(_injector.RandomiseDllHeaders(_process.Id, _dllPath));
         }
 
         [Fact]
-        public void UnlinkFromPeb()
+        public void UnlinkDllFromPeb()
         {
-            Injector.CreateRemoteThread(Process.Id, DllPath);
+            _injector.CreateRemoteThread(_process.Id, _dllPath);
 
-            Assert.True(Injector.UnlinkFromPeb(Process.Id, DllPath));
+            Assert.True(_injector.UnlinkDllFromPeb(_process.Id, _dllPath));
         }
     }
 }

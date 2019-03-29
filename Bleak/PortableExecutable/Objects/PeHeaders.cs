@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Bleak.PortableExecutable.Objects
 {
-    internal class Headers
+    internal class PeHeaders
     {
         internal Structures.ImageDosHeader DosHeader;
 
@@ -13,6 +13,11 @@ namespace Bleak.PortableExecutable.Objects
 
         internal Structures.ImageNtHeaders64 NtHeaders64;
 
-        internal List<Structures.ImageSectionHeader> SectionHeaders;
+        internal readonly List<Structures.ImageSectionHeader> SectionHeaders;
+
+        internal PeHeaders()
+        {
+            SectionHeaders = new List<Structures.ImageSectionHeader>();
+        }
     }
 }

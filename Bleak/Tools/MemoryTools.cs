@@ -1,5 +1,5 @@
-﻿using Bleak.Native;
-using Bleak.Handlers;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using System;
 using System.Runtime.InteropServices;
 
@@ -15,7 +15,7 @@ namespace Bleak.Tools
 
             if (buffer == IntPtr.Zero)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory for a buffer in the local process");
+                ExceptionHandler.ThrowWin32Exception("Failed to allocate memory in the local process");
             }
 
             // Zero the memory in the buffer
@@ -24,18 +24,14 @@ namespace Bleak.Tools
 
             return buffer;
         }
-        
-        internal static void FreeMemoryForBuffer(IntPtr bufferAddress, int bufferSize)
+
+        internal static void FreeMemoryForBuffer(IntPtr bufferAddress)
         {
-            // Zero the memory in the buffer
-
-            PInvoke.RtlZeroMemory(bufferAddress, (uint) bufferSize);
-
             // Free the memory allocated for the buffer
 
             if (!PInvoke.VirtualFree(bufferAddress, 0, Enumerations.MemoryFreeType.Release))
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to free memory for a buffer in the local process");
+                ExceptionHandler.ThrowWin32Exception("Failed to free memory in the local process");
             }
         }
 

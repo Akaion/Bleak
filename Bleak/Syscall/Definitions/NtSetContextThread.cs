@@ -1,41 +1,32 @@
-﻿using Bleak.Native;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.SafeHandle;
-using Bleak.Handlers;
 using System;
 using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtSetContextThread : IDisposable
+    internal class NtSetThreadContext
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtSetContextThreadDefinition(SafeThreadHandle threadHandle, IntPtr contextBuffer);
 
-        private readonly NtSetContextThreadDefinition NtSetContextThreadDelegate;
+        private readonly NtSetContextThreadDefinition _ntSetContextThreadDelegate;
 
-        private readonly Tools SyscallTools;
-
-        internal NtSetContextThread(Tools syscallTools)
+        internal NtSetThreadContext(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtSetContextThreadDelegate = SyscallTools.CreateDelegateForSyscall<NtSetContextThreadDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtSetContextThreadDelegate);
+            _ntSetContextThreadDelegate = syscallTools.CreateDelegateForSyscall<NtSetContextThreadDefinition>();
         }
 
         internal void Invoke(SafeThreadHandle threadHandle, IntPtr contextBuffer)
         {
             // Perform the syscall
 
-            var syscallResult = NtSetContextThreadDelegate(threadHandle, contextBuffer);
+            var syscallResult = _ntSetContextThreadDelegate(threadHandle, contextBuffer);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to set the context of a thread in the remote process", syscallResult);
+                ExceptionHandler.ThrowWin32Exception("Failed to set the context of a thread in the target process", syscallResult);
             }
         }
     }

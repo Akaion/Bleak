@@ -1,5 +1,5 @@
-﻿using Bleak.Native;
-using Bleak.Handlers;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
@@ -7,27 +7,18 @@ using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtAllocateVirtualMemory : IDisposable
+    internal class NtAllocateVirtualMemory
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtAllocateVirtualMemoryDefinition(SafeProcessHandle processHandle, IntPtr baseAddressBuffer, ulong zeroBits, IntPtr allocationSizeBuffer, Enumerations.MemoryAllocationType allocationType, Enumerations.MemoryProtectionType protectionType);
 
-        private readonly NtAllocateVirtualMemoryDefinition NtAllocateVirtualMemoryDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtAllocateVirtualMemoryDefinition _ntAllocateVirtualMemoryDelegate;
 
         internal NtAllocateVirtualMemory(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtAllocateVirtualMemoryDelegate = SyscallTools.CreateDelegateForSyscall<NtAllocateVirtualMemoryDefinition>();
+            _ntAllocateVirtualMemoryDelegate = syscallTools.CreateDelegateForSyscall<NtAllocateVirtualMemoryDefinition>();
         }
 
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtAllocateVirtualMemoryDelegate);
-        }
-        
         internal IntPtr Invoke(SafeProcessHandle processHandle, int allocationSize, Enumerations.MemoryProtectionType protectionType)
         {
             // Initialise a buffer to store the returned address of the allocated memory region
@@ -42,7 +33,7 @@ namespace Bleak.Syscall.Definitions
 
             const Enumerations.MemoryAllocationType allocationType = Enumerations.MemoryAllocationType.Commit | Enumerations.MemoryAllocationType.Reserve;
 
-            var syscallResult = NtAllocateVirtualMemoryDelegate(processHandle, memoryRegionAddressBuffer, 0, allocationSizeBuffer, allocationType, protectionType);
+            var syscallResult = _ntAllocateVirtualMemoryDelegate(processHandle, memoryRegionAddressBuffer, 0, allocationSizeBuffer, allocationType, protectionType);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {
@@ -53,11 +44,9 @@ namespace Bleak.Syscall.Definitions
 
             var memoryRegionAddress = Marshal.PtrToStructure<IntPtr>(memoryRegionAddressBuffer);
 
-            // Free the memory allocated for the buffers
+            MemoryTools.FreeMemoryForBuffer(memoryRegionAddressBuffer);
 
-            MemoryTools.FreeMemoryForBuffer(memoryRegionAddressBuffer, IntPtr.Size);
-
-            MemoryTools.FreeMemoryForBuffer(allocationSizeBuffer, sizeof(int));
+            MemoryTools.FreeMemoryForBuffer(allocationSizeBuffer);
 
             return memoryRegionAddress;
         }

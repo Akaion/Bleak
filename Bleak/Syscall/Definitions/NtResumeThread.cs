@@ -1,37 +1,28 @@
-﻿using Bleak.Native;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.SafeHandle;
-using Bleak.Handlers;
 using System;
 using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtResumeThread : IDisposable
+    internal class NtResumeThread
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtResumeThreadDefinition(SafeThreadHandle threadHandle, IntPtr previousSuspendCountBuffer);
 
-        private readonly NtResumeThreadDefinition NtResumeThreadDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtResumeThreadDefinition _ntResumeThreadDelegate;
 
         internal NtResumeThread(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtResumeThreadDelegate = SyscallTools.CreateDelegateForSyscall<NtResumeThreadDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtResumeThreadDelegate);
+            _ntResumeThreadDelegate = syscallTools.CreateDelegateForSyscall<NtResumeThreadDefinition>();
         }
 
         internal void Invoke(SafeThreadHandle threadHandle)
         {
             // Perform the syscall
 
-            var syscallResult = NtResumeThreadDelegate(threadHandle, IntPtr.Zero);
+            var syscallResult = _ntResumeThreadDelegate(threadHandle, IntPtr.Zero);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {

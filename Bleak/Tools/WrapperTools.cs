@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -25,7 +23,7 @@ namespace Bleak.Tools
                 {
                     file.Delete();
                 }
-
+                
                 catch (Exception)
                 {
                     // The DLL is currently loaded in a process and cannot be safely deleted
@@ -60,13 +58,13 @@ namespace Bleak.Tools
                 hashedDllBytes = hashingService.ComputeHash(dllBytes);
             }
 
-            // Create a name for the DLL from a partial hash of the dll bytes
+            // Create a name for the DLL using a partial hash of the DLL bytes
 
             var stringBuilder = new StringBuilder();
 
-            foreach (var @byte in hashedDllBytes.Take(14))
+            for (var index = 0; index < 14; index += 1)
             {
-                stringBuilder.Append(@byte.ToString("X2"));
+                stringBuilder.Append(hashedDllBytes[index].ToString("X2"));
             }
 
             return stringBuilder + ".dll";
@@ -95,40 +93,6 @@ namespace Bleak.Tools
             }
 
             return stringBuilder + ".dll";
-        }
-
-        internal static Process GetTargetProcess(string targetProcessName)
-        {
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessesByName(targetProcessName)[0];
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                throw new ArgumentException($"No process with the name {targetProcessName} is currently running");
-            }
-
-            return process;
-        }
-
-        internal static Process GetTargetProcess(int targetProcessId)
-        {
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessById(targetProcessId);
-            }
-
-            catch (ArgumentException)
-            {
-                throw new ArgumentException($"No process with the id {targetProcessId} is currently running");
-            }
-
-            return process;
         }
     }
 }

@@ -1,31 +1,22 @@
-﻿using Bleak.Native;
+﻿using Bleak.Handlers;
+using Bleak.Native;
 using Bleak.SafeHandle;
-using Bleak.Handlers;
 using Bleak.Tools;
 using System;
 using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtOpenThread : IDisposable
+    internal class NtOpenThread
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtOpenThreadDefinition(IntPtr threadHandleBuffer, Enumerations.ThreadAccessMask desiredAccess, IntPtr objectAttributesBuffer, IntPtr clientIdBuffer);
 
-        private readonly NtOpenThreadDefinition NtOpenThreadDelegate;
-
-        private readonly Tools SyscallTools;
+        private readonly NtOpenThreadDefinition _ntOpenThreadDelegate;
 
         internal NtOpenThread(Tools syscallTools)
         {
-            SyscallTools = syscallTools;
-
-            NtOpenThreadDelegate = SyscallTools.CreateDelegateForSyscall<NtOpenThreadDefinition>();
-        }
-
-        public void Dispose()
-        {
-            SyscallTools.FreeMemoryForSyscall(NtOpenThreadDelegate);
+            _ntOpenThreadDelegate = syscallTools.CreateDelegateForSyscall<NtOpenThreadDefinition>();
         }
 
         internal SafeThreadHandle Invoke(int threadId)
@@ -46,7 +37,7 @@ namespace Bleak.Syscall.Definitions
 
             // Perform the syscall
 
-            var syscallResult = NtOpenThreadDelegate(threadHandleBuffer, Enumerations.ThreadAccessMask.AllAccess, objectAttributesBuffer, clientIdBuffer);
+            var syscallResult = _ntOpenThreadDelegate(threadHandleBuffer, Enumerations.ThreadAccessMask.AllAccess, objectAttributesBuffer, clientIdBuffer);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {
@@ -55,21 +46,15 @@ namespace Bleak.Syscall.Definitions
 
             // Marshal the returned thread handle from the buffer
 
-            var threadHandle = Marshal.PtrToStructure<IntPtr>(threadHandleBuffer);
+            var threadHandle = new SafeThreadHandle(Marshal.PtrToStructure<IntPtr>(threadHandleBuffer), true);
 
-            // Convert the thread handle into a safe handle
+            MemoryTools.FreeMemoryForBuffer(threadHandleBuffer);
 
-            var safeThreadHandle = new SafeThreadHandle(threadHandle, true);
+            MemoryTools.FreeMemoryForBuffer(objectAttributesBuffer);
 
-            // Free the memory allocated for the buffers
+            MemoryTools.FreeMemoryForBuffer(clientIdBuffer);
 
-            MemoryTools.FreeMemoryForBuffer(threadHandleBuffer, IntPtr.Size);
-
-            MemoryTools.FreeMemoryForBuffer(objectAttributesBuffer, Marshal.SizeOf<Structures.ObjectAttributes>());
-
-            MemoryTools.FreeMemoryForBuffer(clientIdBuffer, Marshal.SizeOf<Structures.ClientId>());
-
-            return safeThreadHandle;
+            return threadHandle;
         }
     }
 }

@@ -8,14 +8,6 @@ namespace Bleak
 
         #region CreateRemoteThread
 
-        public bool CreateRemoteThread(string processName, byte[] dllBytes)
-        {
-            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
-            {
-                return methodWrapper.CreateRemoteThread();
-            }
-        }
-
         public bool CreateRemoteThread(int processId, byte[] dllBytes)
         {
             using (var methodWrapper = new MethodWrapper(processId, dllBytes, RandomiseDllName, false))
@@ -24,9 +16,9 @@ namespace Bleak
             }
         }
 
-        public bool CreateRemoteThread(string processName, string dllPath)
+        public bool CreateRemoteThread(string processName, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
             {
                 return methodWrapper.CreateRemoteThread();
             }
@@ -40,125 +32,89 @@ namespace Bleak
             }
         }
 
+        public bool CreateRemoteThread(string processName, string dllPath)
+        {
+            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            {
+                return methodWrapper.CreateRemoteThread();
+            }
+        }
+
         #endregion
 
         #region EjectDll
 
-        public bool EjectDll(string processName, byte[] dllBytes)
-        {
-            using (var methodWrapper = new ExtensionWrapper(processName, dllBytes))
-            {
-                return methodWrapper.EjectDll();
-            }
-        }
-
         public bool EjectDll(int processId, byte[] dllBytes)
         {
-            using (var methodWrapper = new ExtensionWrapper(processId, dllBytes))
+            using (var extensionWrapper = new ExtensionWrapper(processId, dllBytes, RandomiseDllName))
             {
-                return methodWrapper.EjectDll();
+                return extensionWrapper.EjectDll();
             }
         }
 
-        public bool EjectDll(string processName, string dllPath)
+        public bool EjectDll(string processName, byte[] dllBytes)
         {
-            using (var methodWrapper = new ExtensionWrapper(processName, dllPath))
+            using (var extensionWrapper = new ExtensionWrapper(processName, dllBytes, RandomiseDllName))
             {
-                return methodWrapper.EjectDll();
+                return extensionWrapper.EjectDll();
             }
         }
 
         public bool EjectDll(int processId, string dllPath)
         {
-            using (var methodWrapper = new ExtensionWrapper(processId, dllPath))
+            using (var extensionWrapper = new ExtensionWrapper(processId, dllPath, RandomiseDllName))
             {
-                return methodWrapper.EjectDll();
+                return extensionWrapper.EjectDll();
+            }
+        }
+
+        public bool EjectDll(string processName, string dllPath)
+        {
+            using (var extensionWrapper = new ExtensionWrapper(processName, dllPath, RandomiseDllName))
+            {
+                return extensionWrapper.EjectDll();
             }
         }
 
         #endregion
 
-        #region EraseHeaders
+        #region EraseDllHeaders
 
-        public bool EraseHeaders(string processName, byte[] dllBytes)
+        public bool EraseDllHeaders(int processId, byte[] dllBytes)
         {
-            using (var methodWrapper = new ExtensionWrapper(processName, dllBytes))
+            using (var extensionWrapper = new ExtensionWrapper(processId, dllBytes, RandomiseDllName))
             {
-                return methodWrapper.EraseHeaders();
+                return extensionWrapper.EraseDllHeaders();
             }
         }
 
-        public bool EraseHeaders(int processId, byte[] dllBytes)
+        public bool EraseDllHeaders(string processName, byte[] dllBytes)
         {
-            using (var methodWrapper = new ExtensionWrapper(processId, dllBytes))
+            using (var extensionWrapper = new ExtensionWrapper(processName, dllBytes, RandomiseDllName))
             {
-                return methodWrapper.EraseHeaders();
+                return extensionWrapper.EraseDllHeaders();
             }
         }
 
-        public bool EraseHeaders(string processName, string dllPath)
+        public bool EraseDllHeaders(int processId, string dllPath)
         {
-            using (var methodWrapper = new ExtensionWrapper(processName, dllPath))
+            using (var extensionWrapper = new ExtensionWrapper(processId, dllPath, RandomiseDllName))
             {
-                return methodWrapper.EraseHeaders();
+                return extensionWrapper.EraseDllHeaders();
             }
         }
 
-        public bool EraseHeaders(int processId, string dllPath)
+        public bool EraseDllHeaders(string processName, string dllPath)
         {
-            using (var methodWrapper = new ExtensionWrapper(processId, dllPath))
+            using (var extensionWrapper = new ExtensionWrapper(processName, dllPath, RandomiseDllName))
             {
-                return methodWrapper.EraseHeaders();
-            }
-        }
-
-        #endregion
-
-        #region NtCreateThreadEx
-
-        public bool NtCreateThreadEx(string processName, byte[] dllBytes)
-        {
-            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
-            {
-                return methodWrapper.NtCreateThreadEx();
-            }
-        }
-
-        public bool NtCreateThreadEx(int processId, byte[] dllBytes)
-        {
-            using (var methodWrapper = new MethodWrapper(processId, dllBytes, RandomiseDllName, false))
-            {
-                return methodWrapper.NtCreateThreadEx();
-            }
-        }
-
-        public bool NtCreateThreadEx(string processName, string dllPath)
-        {
-            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
-            {
-                return methodWrapper.NtCreateThreadEx();
-            }
-        }
-
-        public bool NtCreateThreadEx(int processId, string dllPath)
-        {
-            using (var methodWrapper = new MethodWrapper(processId, dllPath, RandomiseDllName, false))
-            {
-                return methodWrapper.NtCreateThreadEx();
+                return extensionWrapper.EraseDllHeaders();
             }
         }
 
         #endregion
 
         #region ManualMap
-
-        public bool ManualMap(string processName, byte[] dllBytes)
-        {
-            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, true))
-            {
-                return methodWrapper.ManualMap();
-            }
-        }
 
         public bool ManualMap(int processId, byte[] dllBytes)
         {
@@ -168,9 +124,9 @@ namespace Bleak
             }
         }
 
-        public bool ManualMap(string processName, string dllPath)
+        public bool ManualMap(string processName, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, true))
+            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, true))
             {
                 return methodWrapper.ManualMap();
             }
@@ -184,17 +140,17 @@ namespace Bleak
             }
         }
 
+        public bool ManualMap(string processName, string dllPath)
+        {
+            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, true))
+            {
+                return methodWrapper.ManualMap();
+            }
+        }
+
         #endregion
 
         #region QueueUserApc
-
-        public bool QueueUserApc(string processName, byte[] dllBytes)
-        {
-            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
-            {
-                return methodWrapper.QueueUserApc();
-            }
-        }
 
         public bool QueueUserApc(int processId, byte[] dllBytes)
         {
@@ -204,9 +160,9 @@ namespace Bleak
             }
         }
 
-        public bool QueueUserApc(string processName, string dllPath)
+        public bool QueueUserApc(string processName, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
             {
                 return methodWrapper.QueueUserApc();
             }
@@ -220,53 +176,53 @@ namespace Bleak
             }
         }
 
+        public bool QueueUserApc(string processName, string dllPath)
+        {
+            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            {
+                return methodWrapper.QueueUserApc();
+            }
+        }
+
         #endregion
 
-        #region RandomiseHeaders
+        #region RandomiseDllHeaders
 
-        public bool RandomiseHeaders(string processName, byte[] dllBytes)
+        public bool RandomiseDllHeaders(int processId, byte[] dllBytes)
         {
-            using (var methodWrapper = new ExtensionWrapper(processName, dllBytes))
+            using (var extensionWrapper = new ExtensionWrapper(processId, dllBytes, RandomiseDllName))
             {
-                return methodWrapper.RandomiseHeaders();
+                return extensionWrapper.RandomiseDllHeaders();
             }
         }
 
-        public bool RandomiseHeaders(int processId, byte[] dllBytes)
+        public bool RandomiseDllHeaders(string processName, byte[] dllBytes)
         {
-            using (var methodWrapper = new ExtensionWrapper(processId, dllBytes))
+            using (var extensionWrapper = new ExtensionWrapper(processName, dllBytes, RandomiseDllName))
             {
-                return methodWrapper.RandomiseHeaders();
+                return extensionWrapper.RandomiseDllHeaders();
             }
         }
 
-        public bool RandomiseHeaders(string processName, string dllPath)
+        public bool RandomiseDllHeaders(int processId, string dllPath)
         {
-            using (var methodWrapper = new ExtensionWrapper(processName, dllPath))
+            using (var extensionWrapper = new ExtensionWrapper(processId, dllPath, RandomiseDllName))
             {
-                return methodWrapper.RandomiseHeaders();
+                return extensionWrapper.RandomiseDllHeaders();
             }
         }
 
-        public bool RandomiseHeaders(int processId, string dllPath)
+        public bool RandomiseDllHeaders(string processName, string dllPath)
         {
-            using (var methodWrapper = new ExtensionWrapper(processId, dllPath))
+            using (var extensionWrapper = new ExtensionWrapper(processName, dllPath, RandomiseDllName))
             {
-                return methodWrapper.RandomiseHeaders();
+                return extensionWrapper.RandomiseDllHeaders();
             }
         }
 
         #endregion
 
         #region RtlCreateUserThread
-
-        public bool RtlCreateUserThread(string processName, byte[] dllBytes)
-        {
-            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
-            {
-                return methodWrapper.RtlCreateUserThread();
-            }
-        }
 
         public bool RtlCreateUserThread(int processId, byte[] dllBytes)
         {
@@ -276,9 +232,9 @@ namespace Bleak
             }
         }
 
-        public bool RtlCreateUserThread(string processName, string dllPath)
+        public bool RtlCreateUserThread(string processName, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
             {
                 return methodWrapper.RtlCreateUserThread();
             }
@@ -292,17 +248,17 @@ namespace Bleak
             }
         }
 
+        public bool RtlCreateUserThread(string processName, string dllPath)
+        {
+            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            {
+                return methodWrapper.RtlCreateUserThread();
+            }
+        }
+
         #endregion
 
         #region SetThreadContext
-
-        public bool SetThreadContext(string processName, byte[] dllBytes)
-        {
-            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
-            {
-                return methodWrapper.SetThreadContext();
-            }
-        }
 
         public bool SetThreadContext(int processId, byte[] dllBytes)
         {
@@ -312,9 +268,9 @@ namespace Bleak
             }
         }
 
-        public bool SetThreadContext(string processName, string dllPath)
+        public bool SetThreadContext(string processName, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
             {
                 return methodWrapper.SetThreadContext();
             }
@@ -328,39 +284,47 @@ namespace Bleak
             }
         }
 
+        public bool SetThreadContext(string processName, string dllPath)
+        {
+            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            {
+                return methodWrapper.SetThreadContext();
+            }
+        }
+
         #endregion
 
-        #region UnlinkFromPeb
+        #region UnlinkDllFromPeb
 
-        public bool UnlinkFromPeb(string processName, byte[] dllBytes)
+        public bool UnlinkDllFromPeb(int processId, byte[] dllBytes)
         {
-            using (var methodWrapper = new ExtensionWrapper(processName, dllBytes))
+            using (var extensionWrapper = new ExtensionWrapper(processId, dllBytes, RandomiseDllName))
             {
-                return methodWrapper.UnlinkFromPeb();
+                return extensionWrapper.UnlinkDllFromPeb();
             }
         }
 
-        public bool UnlinkFromPeb(int processId, byte[] dllBytes)
+        public bool UnlinkDllFromPeb(string processName, byte[] dllBytes)
         {
-            using (var methodWrapper = new ExtensionWrapper(processId, dllBytes))
+            using (var extensionWrapper = new ExtensionWrapper(processName, dllBytes, RandomiseDllName))
             {
-                return methodWrapper.UnlinkFromPeb();
+                return extensionWrapper.UnlinkDllFromPeb();
             }
         }
 
-        public bool UnlinkFromPeb(string processName, string dllPath)
+        public bool UnlinkDllFromPeb(int processId, string dllPath)
         {
-            using (var methodWrapper = new ExtensionWrapper(processName, dllPath))
+            using (var extensionWrapper = new ExtensionWrapper(processId, dllPath, RandomiseDllName))
             {
-                return methodWrapper.UnlinkFromPeb();
+                return extensionWrapper.UnlinkDllFromPeb();
             }
         }
 
-        public bool UnlinkFromPeb(int processId, string dllPath)
+        public bool UnlinkDllFromPeb(string processName, string dllPath)
         {
-            using (var methodWrapper = new ExtensionWrapper(processId, dllPath))
+            using (var extensionWrapper = new ExtensionWrapper(processName, dllPath, RandomiseDllName))
             {
-                return methodWrapper.UnlinkFromPeb();
+                return extensionWrapper.UnlinkDllFromPeb();
             }
         }
 
