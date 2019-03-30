@@ -1,9 +1,11 @@
 ﻿using Bleak.Methods.Shellcode;
 using Bleak.Native;
+using Bleak.PortableExecutable.Objects;
 using Bleak.SafeHandle;
 using Bleak.Syscall.Definitions;
 using Bleak.Wrappers;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -39,6 +41,8 @@ namespace Bleak.Methods
 
             var remoteDllAddress = _propertyWrapper.MemoryManager.AllocateVirtualMemory((int) dllSize, Enumerations.MemoryProtectionType.ExecuteReadWrite);
 
+            var tlsCallbacks = _propertyWrapper.PeParser.GetTlsCallbacks();
+
             // Perform the needed relocations in the local process
 
             PerformRelocations(localDllBaseAddress, remoteDllAddress);
@@ -47,11 +51,21 @@ namespace Bleak.Methods
 
             MapSections(localDllBaseAddress, remoteDllAddress);
 
+            // Call any TLS callbacks
+
+            if (tlsCallbacks.Count > 0)
+            {
+                CallTlsCallbacks(remoteDllAddress, tlsCallbacks);
+            }
+
             // Call the entry point of the DLL
 
             var dllEntryPointAddress = _propertyWrapper.TargetProcess.IsWow64 ? (uint) remoteDllAddress + peHeaders.NtHeaders32.OptionalHeader.AddressOfEntryPoint : (ulong) remoteDllAddress + peHeaders.NtHeaders64.OptionalHeader.AddressOfEntryPoint;
 
-            CallEntryPoint(remoteDllAddress, (IntPtr) dllEntryPointAddress);
+            if (dllEntryPointAddress != 0)
+            {
+                CallEntryPoint(remoteDllAddress, (IntPtr) dllEntryPointAddress);
+            }
 
             localDllBuffer.Free();
 
@@ -77,6 +91,14 @@ namespace Bleak.Methods
             _propertyWrapper.MemoryManager.FreeVirtualMemory(shellcodeBuffer);
 
             threadHandle.Dispose();
+        }
+
+        private void CallTlsCallbacks(IntPtr remoteDllBaseAddress, List<TlsCallback> tlsCallbacks)
+        {
+            foreach (var tlsCallback in tlsCallbacks)
+            {
+                CallEntryPoint(remoteDllBaseAddress, (IntPtr) ((ulong) remoteDllBaseAddress + tlsCallback.Offset));
+            }
         }
 
         private Enumerations.MemoryProtectionType GetSectionProtection(Enumerations.SectionCharacteristics sectionCharacteristics)
@@ -144,9 +166,18 @@ namespace Bleak.Methods
 
         private void MapImports(IntPtr localDllBaseAddress)
         {
+            var importedFunctions = _propertyWrapper.PeParser.GetImportedFunctions();
+
+            if (importedFunctions.Count == 0)
+            {
+                // No imported functions
+
+                return;
+            }
+
             // Group the imported functions by the DLL they reside in
 
-            var groupedImports = _propertyWrapper.PeParser.GetImportedFunctions().GroupBy(importedFunction => importedFunction.DllName);
+            var groupedImports = importedFunctions.GroupBy(importedFunction => importedFunction.DllName).ToList();
 
             foreach (var importedDll in groupedImports)
             {

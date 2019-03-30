@@ -48,7 +48,7 @@ var injector = new Injector();
 
 injector.CreateRemoteThread("processName", "pathToDll");
 
-// Erase the PE headers of a DLL loaded in the process
+// Erase the PE headers of a DLL loaded in a process
 
 injector.EraseDllHeaders("processName", "pathToDll");
 ```

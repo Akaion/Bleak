@@ -190,7 +190,7 @@ namespace Bleak.Native
         [StructLayout(LayoutKind.Sequential)]
         internal struct ImageNtHeaders32
         {
-            private readonly uint Signature;
+            internal readonly uint Signature;
 
             private readonly ImageFileHeader FileHeader;
 
@@ -200,7 +200,7 @@ namespace Bleak.Native
         [StructLayout(LayoutKind.Sequential)]
         internal struct ImageNtHeaders64
         {
-            private readonly uint Signature;
+            internal readonly uint Signature;
 
             private readonly ImageFileHeader FileHeader;
 
@@ -355,6 +355,38 @@ namespace Bleak.Native
 
             [FieldOffset(0)]
             internal readonly uint AddressOfData;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct ImageTlsDirectory32
+        {
+            private readonly uint StartAddressOfRawData;
+
+            private readonly uint EndAddressOfRawData;
+
+            private readonly uint AddressOfIndex;
+
+            internal readonly uint AddressOfCallbacks;
+
+            private readonly uint SizeOfZeroFill;
+
+            private readonly uint Characteristics;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct ImageTlsDirectory64
+        {
+            private readonly ulong StartAddressOfRawData;
+
+            private readonly ulong EndAddressOfRawData;
+
+            private readonly ulong AddressOfIndex;
+
+            internal readonly ulong AddressOfCallbacks;
+
+            private readonly uint SizeOfZeroFill;
+
+            private readonly uint Characteristics;
         }
 
         [StructLayout(LayoutKind.Sequential)]

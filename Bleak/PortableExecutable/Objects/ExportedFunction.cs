@@ -4,11 +4,11 @@
     {
         internal string Name;
 
-        internal readonly uint Offset;
+        internal readonly ulong Offset;
 
         internal readonly ushort Ordinal;
 
-        internal ExportedFunction(string name, uint offset, ushort ordinal)
+        internal ExportedFunction(string name, ulong offset, ushort ordinal)
         {
             Name = name;
 

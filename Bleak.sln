@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.28714.193
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bleak", "Bleak\Bleak.csproj", "{F7FA4725-2D43-4926-99EF-930AFE270E26}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bleak.Tests", "Bleak.Tests\Bleak.Tests.csproj", "{CE79CAE7-9483-40D4-AA47-0510C8521F9D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bleak.Tests", "Bleak.Tests\Bleak.Tests.csproj", "{CE79CAE7-9483-40D4-AA47-0510C8521F9D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

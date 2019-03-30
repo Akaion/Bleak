@@ -6,9 +6,9 @@
 
         internal readonly string Name;
 
-        internal readonly uint Offset;
+        internal readonly ulong Offset;
 
-        internal ImportedFunction(string dllName, string name, uint offset)
+        internal ImportedFunction(string dllName, string name, ulong offset)
         {
             DllName = dllName;
 
