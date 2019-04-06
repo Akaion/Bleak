@@ -169,11 +169,42 @@ namespace Bleak.Wrappers
 
         internal bool RtlCreateUserThread()
         {
+            switch (Environment.OSVersion.Version.Major)
+            {
+                case 5:
+                {
+                    throw new PlatformNotSupportedException("RtlCreateUserThread is not supported on Windows XP");
+                }
+                
+                case 6:
+                {
+                    switch (Environment.OSVersion.Version.Minor)
+                    {
+                        case 0:
+                        {
+                            throw new PlatformNotSupportedException("RtlCreateUserThread is not supported on Windows Vista");
+                        }
+                        
+                        case 1:
+                        {
+                            throw new PlatformNotSupportedException("RtlCreateUserThread is not supported on Windows 7");
+                        }
+                    }
+                    
+                    break;
+                }
+            }
+
             return new Methods.RtlCreateUserThread(_propertyWrapper).Call();
         }
 
         internal bool SetThreadContext()
         {
+            if (Environment.OSVersion.Version.Major == 5)
+            {
+                throw new PlatformNotSupportedException("SetThreadContext is not supported on Windows XP");
+            }
+
             return new Methods.SetThreadContext(_propertyWrapper).Call();
         }
     }

@@ -25,9 +25,9 @@ namespace Bleak.RemoteProcess
 
         internal readonly Process Process;
 
-        internal readonly SafeProcessHandle ProcessHandle;
+        internal readonly SafeProcessHandle Handle;
 
-        internal readonly List<ModuleInstance> ProcessModules;
+        internal readonly List<ModuleInstance> Modules;
 
         private readonly SyscallManager _syscallManager;
 
@@ -37,15 +37,15 @@ namespace Bleak.RemoteProcess
 
             _syscallManager = syscallManager;
 
-            ProcessHandle = OpenProcessHandle();
+            Handle = OpenProcessHandle();
 
             IsWow64 = GetProcessArchitecture();
 
-            _memoryManager = new MemoryManager(ProcessHandle, _syscallManager);
+            _memoryManager = new MemoryManager(Handle, _syscallManager);
 
             _peInstances = new Dictionary<string, PeInstance>();
 
-            ProcessModules = new List<ModuleInstance>();
+            Modules = new List<ModuleInstance>();
 
             GetProcessModules();
         }
@@ -56,15 +56,15 @@ namespace Bleak.RemoteProcess
 
             _syscallManager = syscallManager;
 
-            ProcessHandle = OpenProcessHandle();
+            Handle = OpenProcessHandle();
 
             IsWow64 = GetProcessArchitecture();
 
-            _memoryManager = new MemoryManager(ProcessHandle, _syscallManager);
+            _memoryManager = new MemoryManager(Handle, _syscallManager);
 
             _peInstances = new Dictionary<string, PeInstance>();
 
-            ProcessModules = new List<ModuleInstance>();
+            Modules = new List<ModuleInstance>();
 
             GetProcessModules();
         }
@@ -78,14 +78,14 @@ namespace Bleak.RemoteProcess
 
             Process.Dispose();
 
-            ProcessHandle.Dispose();
+            Handle.Dispose();
         }
 
         internal IntPtr GetFunctionAddress(string moduleName, string functionName)
         {
             // Look for the module in the process module list
 
-            var processModule = ProcessModules.Find(module => module.Name.Equals(moduleName, StringComparison.OrdinalIgnoreCase));
+            var processModule = Modules.Find(module => module.Name.Equals(moduleName, StringComparison.OrdinalIgnoreCase));
 
             if (processModule is null)
             {
@@ -157,7 +157,7 @@ namespace Bleak.RemoteProcess
 
             // Query the target process for the ProcessBasicInformation
 
-            var processBasicInformationBuffer = (IntPtr) _syscallManager.InvokeSyscall<NtQueryInformationProcess>(ProcessHandle, Enumerations.ProcessInformationClass.BasicInformation);
+            var processBasicInformationBuffer = (IntPtr) _syscallManager.InvokeSyscall<NtQueryInformationProcess>(Handle, Enumerations.ProcessInformationClass.BasicInformation);
 
             var processBasicInformation = Marshal.PtrToStructure<Structures.ProcessBasicInformation>(processBasicInformationBuffer);
 
@@ -230,7 +230,7 @@ namespace Bleak.RemoteProcess
 
         private bool GetProcessArchitecture()
         {
-            if (!PInvoke.IsWow64Process(ProcessHandle, out var isWow64Process))
+            if (!PInvoke.IsWow64Process(Handle, out var isWow64Process))
             {
                 ExceptionHandler.ThrowWin32Exception("Failed to determine whether the target process was running under WOW64");
             }
@@ -240,7 +240,7 @@ namespace Bleak.RemoteProcess
 
         private void GetProcessModules()
         {
-            ProcessModules.Clear();
+            Modules.Clear();
 
             if (IsWow64)
             {
@@ -260,7 +260,7 @@ namespace Bleak.RemoteProcess
 
                     var moduleName = Encoding.Default.GetString(moduleNameBytes).Replace("\0", "");
 
-                    ProcessModules.Add(new ModuleInstance((IntPtr) pebEntry.DllBase, moduleFilePath, moduleName));
+                    Modules.Add(new ModuleInstance((IntPtr) pebEntry.DllBase, moduleFilePath, moduleName));
                 }
             }
 
@@ -280,7 +280,7 @@ namespace Bleak.RemoteProcess
 
                     var moduleName = Encoding.Default.GetString(moduleNameBytes).Replace("\0", "");
 
-                    ProcessModules.Add(new ModuleInstance((IntPtr) pebEntry.DllBase, moduleFilePath, moduleName));
+                    Modules.Add(new ModuleInstance((IntPtr) pebEntry.DllBase, moduleFilePath, moduleName));
                 }
             }
         }
@@ -291,7 +291,7 @@ namespace Bleak.RemoteProcess
 
             // Query the target process for the base address of the WOW64 PEB
 
-            var pebBaseAddressBuffer = (IntPtr) _syscallManager.InvokeSyscall<NtQueryInformationProcess>(ProcessHandle, Enumerations.ProcessInformationClass.Wow64Information);
+            var pebBaseAddressBuffer = (IntPtr) _syscallManager.InvokeSyscall<NtQueryInformationProcess>(Handle, Enumerations.ProcessInformationClass.Wow64Information);
 
             var pebBaseAddress = Marshal.PtrToStructure<ulong>(pebBaseAddressBuffer);
 

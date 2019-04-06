@@ -35,6 +35,19 @@ namespace Bleak.Tools
             }
         }
 
+        internal static IntPtr StoreBytesInBuffer(byte[] bytes)
+        {
+            // Allocate memory for a buffer to store the bytes
+
+            var bytesBuffer = AllocateMemoryForBuffer(bytes.Length);
+
+            // Copy the bytes into the buffer
+
+            Marshal.Copy(bytes, 0, bytesBuffer, bytes.Length);
+
+            return bytesBuffer;
+        }
+
         internal static IntPtr StoreStructureInBuffer<TStructure>(TStructure structure) where TStructure : struct
         {
             // Allocate memory for a buffer to store the structure

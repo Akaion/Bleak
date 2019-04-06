@@ -44,7 +44,7 @@ namespace Bleak.Syscall.Definitions
 
             // Marshal the returned old protection of the memory region from the buffer
 
-            var oldProtection = (Enumerations.MemoryProtectionType)Marshal.PtrToStructure<ulong>(oldProtectionBuffer);
+            var oldProtection = (Enumerations.MemoryProtectionType) Marshal.PtrToStructure<ulong>(oldProtectionBuffer);
 
             MemoryTools.FreeMemoryForBuffer(baseAddressBuffer);
 

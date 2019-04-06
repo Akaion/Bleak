@@ -361,7 +361,6 @@ namespace Bleak.Native
         internal struct ImageTlsDirectory32
         {
             private readonly uint StartAddressOfRawData;
-
             private readonly uint EndAddressOfRawData;
 
             private readonly uint AddressOfIndex;
@@ -377,7 +376,6 @@ namespace Bleak.Native
         internal struct ImageTlsDirectory64
         {
             private readonly ulong StartAddressOfRawData;
-
             private readonly ulong EndAddressOfRawData;
 
             private readonly ulong AddressOfIndex;

@@ -28,7 +28,7 @@ namespace Bleak.Wrappers
 
             TargetProcess = new ProcessInstance(targetProcessId, SyscallManager);
 
-            MemoryManager = new MemoryManager(TargetProcess.ProcessHandle, SyscallManager);
+            MemoryManager = new MemoryManager(TargetProcess.Handle, SyscallManager);
 
             PeParser = new PortableExecutableParser(DllBytes);
         }
@@ -41,7 +41,7 @@ namespace Bleak.Wrappers
 
             TargetProcess = new ProcessInstance(targetProcessId, SyscallManager);
 
-            MemoryManager = new MemoryManager(TargetProcess.ProcessHandle, SyscallManager);
+            MemoryManager = new MemoryManager(TargetProcess.Handle, SyscallManager);
 
             PeParser = new PortableExecutableParser(DllPath);
         }
@@ -54,7 +54,7 @@ namespace Bleak.Wrappers
 
             TargetProcess = new ProcessInstance(targetProcessName, SyscallManager);
 
-            MemoryManager = new MemoryManager(TargetProcess.ProcessHandle, SyscallManager);
+            MemoryManager = new MemoryManager(TargetProcess.Handle, SyscallManager);
 
             PeParser = new PortableExecutableParser(DllBytes);
         }
@@ -67,7 +67,7 @@ namespace Bleak.Wrappers
 
             TargetProcess = new ProcessInstance(targetProcessName, SyscallManager);
 
-            MemoryManager = new MemoryManager(TargetProcess.ProcessHandle, SyscallManager);
+            MemoryManager = new MemoryManager(TargetProcess.Handle, SyscallManager);
 
             PeParser = new PortableExecutableParser(DllPath);
         }

@@ -67,11 +67,11 @@ namespace Bleak.Memory
 
             // Marshal the bytes into a structure
 
-            var structureBytesBuffer = GCHandle.Alloc(structureBytes, GCHandleType.Pinned);
+            var structureBytesBuffer = MemoryTools.StoreBytesInBuffer(structureBytes);
 
-            var structure = Marshal.PtrToStructure<TStructure>(structureBytesBuffer.AddrOfPinnedObject());
+            var structure = Marshal.PtrToStructure<TStructure>(structureBytesBuffer);
 
-            structureBytesBuffer.Free();
+            MemoryTools.FreeMemoryForBuffer(structureBytesBuffer);
 
             return structure;
         }
@@ -80,7 +80,7 @@ namespace Bleak.Memory
         {
             // Store the bytes to write in a buffer
 
-            var bytesBuffer = GCHandle.Alloc(bytesToWrite, GCHandleType.Pinned);
+            var bytesBuffer = MemoryTools.StoreBytesInBuffer(bytesToWrite);
 
             // Adjust the protection of the memory region to ensure it has write privileges
 
@@ -88,13 +88,13 @@ namespace Bleak.Memory
 
             // Write the bytes into the memory region
 
-            _syscallManager.InvokeSyscall<NtWriteVirtualMemory>(_processHandle, baseAddress, bytesBuffer.AddrOfPinnedObject(), bytesToWrite.Length);
+            _syscallManager.InvokeSyscall<NtWriteVirtualMemory>(_processHandle, baseAddress, bytesBuffer, bytesToWrite.Length);
 
             // Restore the protection of the memory region
 
             ProtectVirtualMemory(baseAddress, bytesToWrite.Length, oldProtectionType);
 
-            bytesBuffer.Free();
+            MemoryTools.FreeMemoryForBuffer(bytesBuffer);
         }
 
         internal void WriteVirtualMemory<TStructure>(IntPtr baseAddress, TStructure structureToWrite) where TStructure : struct

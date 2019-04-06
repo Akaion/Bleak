@@ -27,7 +27,7 @@ namespace Bleak.Extensions
 
             // Look for the DLL in the module list of the target process
 
-            var module = _propertyWrapper.TargetProcess.ProcessModules.Find(m => m.Name == dllName);
+            var module = _propertyWrapper.TargetProcess.Modules.Find(m => m.Name == dllName);
 
             if (module.Equals(default(ModuleInstance)))
             {
@@ -36,7 +36,7 @@ namespace Bleak.Extensions
 
             // Create a thread to call FreeLibraryAndExitThread in the target process
 
-            var remoteThreadHandle = (SafeThreadHandle) _propertyWrapper.SyscallManager.InvokeSyscall<NtCreateThreadEx>(_propertyWrapper.TargetProcess.ProcessHandle, freeLibraryAndExitThreadAddress, module.BaseAddress);
+            var remoteThreadHandle = (SafeThreadHandle) _propertyWrapper.SyscallManager.InvokeSyscall<NtCreateThreadEx>(_propertyWrapper.TargetProcess.Handle, freeLibraryAndExitThreadAddress, module.BaseAddress);
 
             PInvoke.WaitForSingleObject(remoteThreadHandle, uint.MaxValue);
 

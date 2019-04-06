@@ -26,7 +26,7 @@ namespace Bleak.Syscall.Definitions
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {
-                ExceptionHandler.ThrowWin32Exception("Failed to queue an apc to the apc queue of a thread in the target process", syscallResult);
+                ExceptionHandler.ThrowWin32Exception("Failed to queue an APC to the APC queue of a thread in the target process", syscallResult);
             }
         }
     }

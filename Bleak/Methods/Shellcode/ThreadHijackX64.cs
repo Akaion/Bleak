@@ -9,7 +9,7 @@ namespace Bleak.Methods.Shellcode
             var shellcode = new byte[]
             {
                 0x50,                                                       // push rax
-                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rax, 0x00 (old instruction pointer)
+                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rax, 0x00 (Instruction pointer)
                 0x9C,                                                       // pushf
                 0x51,                                                       // push rcx
                 0x52,                                                       // push rdx
@@ -25,9 +25,9 @@ namespace Bleak.Methods.Shellcode
                 0x41, 0x55,                                                 // push r13
                 0x41, 0x56,                                                 // push r14
                 0x41, 0x57,                                                 // push r15
-                0x68, 0x00, 0x00, 0x00, 0x00,                               // push 0x00
+                0x6A, 0x00,                                                 // push 0x00
                 0x48, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rcx, 0x00 (DLL path address)
-                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rax, 0x00 (load library address)
+                0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rax, 0x00 (LoadLibrary address)
                 0xFF, 0xD0,                                                 // call rax
                 0x58,                                                       // pop rax
                 0x41, 0x5F,                                                 // pop r15
@@ -49,7 +49,7 @@ namespace Bleak.Methods.Shellcode
                 0xC3                                                        // ret
             };
 
-            // Copy the pointers into the shellcode
+            // Copy the values into the shellcode
 
             var instructionPointerBytes = BitConverter.GetBytes((ulong) instructionPointer);
 
@@ -59,9 +59,9 @@ namespace Bleak.Methods.Shellcode
 
             Buffer.BlockCopy(instructionPointerBytes, 0, shellcode, 3, 8);
 
-            Buffer.BlockCopy(dllPathAddressBytes, 0, shellcode, 41, 8);
+            Buffer.BlockCopy(dllPathAddressBytes, 0, shellcode, 38, 8);
 
-            Buffer.BlockCopy(loadLibraryAddressBytes, 0, shellcode, 51, 8);
+            Buffer.BlockCopy(loadLibraryAddressBytes, 0, shellcode, 48, 8);
 
             return shellcode;
         }

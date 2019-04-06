@@ -23,7 +23,7 @@ namespace Bleak.Extensions
 
             // Look for the DLL in the module list of the target process
 
-            var module = _propertyWrapper.TargetProcess.ProcessModules.Find(m => m.Name == dllName);
+            var module = _propertyWrapper.TargetProcess.Modules.Find(m => m.Name == dllName);
 
             if (module.Equals(default(ModuleInstance)))
             {
@@ -32,7 +32,7 @@ namespace Bleak.Extensions
 
             // Query the header region of the DLL in the target process
 
-            var memoryInformationBuffer = (IntPtr) _propertyWrapper.SyscallManager.InvokeSyscall<NtQueryVirtualMemory>(_propertyWrapper.TargetProcess.ProcessHandle, module.BaseAddress);
+            var memoryInformationBuffer = (IntPtr) _propertyWrapper.SyscallManager.InvokeSyscall<NtQueryVirtualMemory>(_propertyWrapper.TargetProcess.Handle, module.BaseAddress);
 
             var memoryInformation = Marshal.PtrToStructure<Structures.MemoryBasicInformation>(memoryInformationBuffer);
 

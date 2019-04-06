@@ -31,7 +31,7 @@ namespace Bleak.Methods
 
             // Create a thread to call LoadLibraryW in the target process
 
-            var remoteThreadHandle = (SafeThreadHandle) _propertyWrapper.SyscallManager.InvokeSyscall<NtCreateThreadEx>(_propertyWrapper.TargetProcess.ProcessHandle, loadLibraryAddress, dllPathBuffer);
+            var remoteThreadHandle = (SafeThreadHandle) _propertyWrapper.SyscallManager.InvokeSyscall<NtCreateThreadEx>(_propertyWrapper.TargetProcess.Handle, loadLibraryAddress, dllPathBuffer);
 
             PInvoke.WaitForSingleObject(remoteThreadHandle, uint.MaxValue);
 

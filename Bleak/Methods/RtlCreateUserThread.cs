@@ -31,7 +31,7 @@ namespace Bleak.Methods
 
             // Create a thread to call LoadLibraryW in the target process
 
-            var ntStatus = PInvoke.RtlCreateUserThread(_propertyWrapper.TargetProcess.ProcessHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryAddress, dllPathBuffer, out var remoteThreadHandle, IntPtr.Zero);
+            var ntStatus = PInvoke.RtlCreateUserThread(_propertyWrapper.TargetProcess.Handle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, loadLibraryAddress, dllPathBuffer, out var remoteThreadHandle, IntPtr.Zero);
 
             if (ntStatus != Enumerations.NtStatus.Success)
             {

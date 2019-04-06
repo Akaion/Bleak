@@ -1,5 +1,6 @@
 ﻿using Bleak.Native;
 using Bleak.PortableExecutable.Objects;
+using Bleak.Tools;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,17 +10,13 @@ namespace Bleak.PortableExecutable
 {
     internal class PortableExecutableParser : IDisposable
     {
-        private readonly GCHandle _dllBuffer;
-
-        private readonly IntPtr _dllBufferAddress;
+        private readonly IntPtr _dllBuffer;
 
         private readonly PeHeaders _peHeaders;
 
         internal PortableExecutableParser(byte[] dllBytes)
         {
-            _dllBuffer = GCHandle.Alloc(dllBytes, GCHandleType.Pinned);
-
-            _dllBufferAddress = _dllBuffer.AddrOfPinnedObject();
+            _dllBuffer = MemoryTools.StoreBytesInBuffer(dllBytes);
 
             _peHeaders = new PeHeaders();
 
@@ -28,9 +25,7 @@ namespace Bleak.PortableExecutable
 
         internal PortableExecutableParser(string dllPath)
         {
-            _dllBuffer = GCHandle.Alloc(File.ReadAllBytes(dllPath), GCHandleType.Pinned);
-
-            _dllBufferAddress = _dllBuffer.AddrOfPinnedObject();
+            _dllBuffer = MemoryTools.StoreBytesInBuffer(File.ReadAllBytes(dllPath));
 
             _peHeaders = new PeHeaders();
 
@@ -39,7 +34,7 @@ namespace Bleak.PortableExecutable
 
         public void Dispose()
         {
-            _dllBuffer.Free();
+            MemoryTools.FreeMemoryForBuffer(_dllBuffer);
         }
 
         private IntPtr AddOffsetToPointer(IntPtr pointer, ulong offset)
@@ -64,11 +59,15 @@ namespace Bleak.PortableExecutable
 
             // Calculate the offset of the base relocation table
 
-            var baseRelocationTableRva = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? _peHeaders.NtHeaders32.OptionalHeader.DataDirectory[5].VirtualAddress : _peHeaders.NtHeaders64.OptionalHeader.DataDirectory[5].VirtualAddress;
+            var baseRelocationTableRva = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 
+                                       ? _peHeaders.NtHeaders32.OptionalHeader.DataDirectory[5].VirtualAddress 
+                                       : _peHeaders.NtHeaders64.OptionalHeader.DataDirectory[5].VirtualAddress;
 
             if (baseRelocationTableRva == 0)
             {
-                return default;
+                // The portable executable has no base relocation table
+
+                return baseRelocations;
             }
 
             var baseRelocationTableOffset = ConvertRvaToFileOffset(baseRelocationTableRva);
@@ -77,7 +76,7 @@ namespace Bleak.PortableExecutable
             {
                 // Read the base relocation
 
-                var baseRelocation = Marshal.PtrToStructure<Structures.ImageBaseRelocation>(AddOffsetToPointer(_dllBufferAddress, baseRelocationTableOffset));
+                var baseRelocation = Marshal.PtrToStructure<Structures.ImageBaseRelocation>(AddOffsetToPointer(_dllBuffer, baseRelocationTableOffset));
 
                 if (baseRelocation.SizeOfBlock == 0)
                 {
@@ -98,7 +97,7 @@ namespace Bleak.PortableExecutable
                 {
                     // Read the type offset
 
-                    var typeOffset = Marshal.PtrToStructure<ushort>(AddOffsetToPointer(_dllBufferAddress, typeOffsetsOffset + (uint) (sizeof(ushort) * index)));
+                    var typeOffset = Marshal.PtrToStructure<ushort>(AddOffsetToPointer(_dllBuffer, typeOffsetsOffset + (uint) (sizeof(ushort) * index)));
 
                     // The offset is located in the upper 4 bits of the ushort
 
@@ -120,19 +119,16 @@ namespace Bleak.PortableExecutable
 
             return baseRelocations;
         }
-
-        internal Enumerations.MachineType GetPeArchitecture()
-        {
-            return _peHeaders.FileHeader.Machine;
-        }
-
+        
         internal List<ExportedFunction> GetExportedFunctions()
         {
             var exportedFunctions = new List<ExportedFunction>();
 
             // Calculate the offset of the export directory            
 
-            var exportDirectoryRva = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? _peHeaders.NtHeaders32.OptionalHeader.DataDirectory[0].VirtualAddress : _peHeaders.NtHeaders64.OptionalHeader.DataDirectory[0].VirtualAddress;
+            var exportDirectoryRva = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 
+                                   ? _peHeaders.NtHeaders32.OptionalHeader.DataDirectory[0].VirtualAddress 
+                                   : _peHeaders.NtHeaders64.OptionalHeader.DataDirectory[0].VirtualAddress;
 
             if (exportDirectoryRva == 0)
             {
@@ -145,7 +141,7 @@ namespace Bleak.PortableExecutable
 
             // Read the export directory
 
-            var exportDirectory = Marshal.PtrToStructure<Structures.ImageExportDirectory>(AddOffsetToPointer(_dllBufferAddress, exportDirectoryOffset));
+            var exportDirectory = Marshal.PtrToStructure<Structures.ImageExportDirectory>(AddOffsetToPointer(_dllBuffer, exportDirectoryOffset));
 
             // Calculate the offset of the exported function offsets
 
@@ -155,7 +151,7 @@ namespace Bleak.PortableExecutable
             {
                 // Read the offset of the exported function
 
-                var exportedFunctionOffset = Marshal.PtrToStructure<uint>(AddOffsetToPointer(_dllBufferAddress, exportedFunctionOffsetsOffset + (uint) (sizeof(uint) * index)));
+                var exportedFunctionOffset = Marshal.PtrToStructure<uint>(AddOffsetToPointer(_dllBuffer, exportedFunctionOffsetsOffset + (uint) (sizeof(uint) * index)));
 
                 // Calculate the ordinal of the exported function
 
@@ -176,15 +172,15 @@ namespace Bleak.PortableExecutable
             {
                 // Read the name of the exported function
 
-                var exportedFunctionNameRva = Marshal.PtrToStructure<uint>(AddOffsetToPointer(_dllBufferAddress, exportedFunctionNamesOffset + (uint) (sizeof(uint) * index)));
+                var exportedFunctionNameRva = Marshal.PtrToStructure<uint>(AddOffsetToPointer(_dllBuffer, exportedFunctionNamesOffset + (uint) (sizeof(uint) * index)));
 
                 var exportedFunctionNameOffset = ConvertRvaToFileOffset(exportedFunctionNameRva);
 
-                var exportedFunctionName = Marshal.PtrToStringAnsi(AddOffsetToPointer(_dllBufferAddress, exportedFunctionNameOffset));
+                var exportedFunctionName = Marshal.PtrToStringAnsi(AddOffsetToPointer(_dllBuffer, exportedFunctionNameOffset));
 
                 // Read the ordinal of the exported function
 
-                var exportedFunctionOrdinal = exportDirectory.Base + Marshal.PtrToStructure<ushort>(AddOffsetToPointer(_dllBufferAddress, exportedFunctionOrdinalsOffset + (uint) (sizeof(ushort) * index)));
+                var exportedFunctionOrdinal = exportDirectory.Base + Marshal.PtrToStructure<ushort>(AddOffsetToPointer(_dllBuffer, exportedFunctionOrdinalsOffset + (uint) (sizeof(ushort) * index)));
 
                 // Associate the name of the exported function with the exported function
 
@@ -205,7 +201,9 @@ namespace Bleak.PortableExecutable
 
             // Calculate the offset of the first import descriptor
 
-            var importDescriptorRva = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? _peHeaders.NtHeaders32.OptionalHeader.DataDirectory[1].VirtualAddress : _peHeaders.NtHeaders64.OptionalHeader.DataDirectory[1].VirtualAddress;
+            var importDescriptorRva = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 
+                                    ? _peHeaders.NtHeaders32.OptionalHeader.DataDirectory[1].VirtualAddress 
+                                    : _peHeaders.NtHeaders64.OptionalHeader.DataDirectory[1].VirtualAddress;
 
             if (importDescriptorRva == 0)
             {
@@ -220,7 +218,7 @@ namespace Bleak.PortableExecutable
             {
                 // Read the import descriptor
 
-                var importDescriptor = Marshal.PtrToStructure<Structures.ImageImportDescriptor>(_dllBufferAddress + (int) importDescriptorOffset);
+                var importDescriptor = Marshal.PtrToStructure<Structures.ImageImportDescriptor>(AddOffsetToPointer(_dllBuffer, importDescriptorOffset));
 
                 if (importDescriptor.OriginalFirstThunk == 0)
                 {
@@ -231,7 +229,7 @@ namespace Bleak.PortableExecutable
 
                 var importedDllNameOffset = ConvertRvaToFileOffset(importDescriptor.Name);
 
-                var importedDllName = Marshal.PtrToStringAnsi(_dllBufferAddress + (int) importedDllNameOffset);
+                var importedDllName = Marshal.PtrToStringAnsi(AddOffsetToPointer(_dllBuffer, importedDllNameOffset));
 
                 // Calculate the offsets of original first thunk and first thunk of the import descriptor
 
@@ -243,7 +241,7 @@ namespace Bleak.PortableExecutable
                 {
                     // Read the thunk data of the imported function
 
-                    var importedFunctionThunkData = Marshal.PtrToStructure<Structures.ImageThunkData>(_dllBufferAddress + (int) originalFirstThunkOffset);
+                    var importedFunctionThunkData = Marshal.PtrToStructure<Structures.ImageThunkData>(AddOffsetToPointer(_dllBuffer, originalFirstThunkOffset));
 
                     if (importedFunctionThunkData.AddressOfData == 0)
                     {
@@ -254,15 +252,13 @@ namespace Bleak.PortableExecutable
 
                     var importedFunctionOffset = ConvertRvaToFileOffset(importedFunctionThunkData.AddressOfData);
 
-                    var importedFunctionName = Marshal.PtrToStringAnsi(_dllBufferAddress + (int) importedFunctionOffset + sizeof(ushort));
+                    var importedFunctionName = Marshal.PtrToStringAnsi(AddOffsetToPointer(_dllBuffer, importedFunctionOffset + sizeof(ushort)));
 
                     importedFunctions.Add(new ImportedFunction(importedDllName, importedFunctionName, firstThunkOffset));
                     
-                    // Calculate the offset of the original first thunk of the next imported function
+                    // Calculate the offset of the original first thunk and first thunk of the next imported function
 
                     originalFirstThunkOffset += _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? (uint) sizeof(uint) : sizeof(ulong);
-
-                    // Calculate the offset of the first thunk of the next imported function
 
                     firstThunkOffset += _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? (uint) sizeof(uint) : sizeof(ulong);
                 }
@@ -279,20 +275,28 @@ namespace Bleak.PortableExecutable
         {
             var tlsCallbacks = new List<TlsCallback>();
 
+            // Calculate the offset of the TLS directory
+
+            var tlsDirectoryRva = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86
+                                ? _peHeaders.NtHeaders32.OptionalHeader.DataDirectory[9].VirtualAddress
+                                : _peHeaders.NtHeaders64.OptionalHeader.DataDirectory[9].VirtualAddress;
+
+            if (tlsDirectoryRva == 0)
+            {
+                // The portable executable has no TLS directory
+
+                return tlsCallbacks;
+            }
+
+            var tlsDirectoryOffset = ConvertRvaToFileOffset(tlsDirectoryRva);
+
             switch (_peHeaders.FileHeader.Machine)
             {
                 case Enumerations.MachineType.X86:
                 {
-                    if (_peHeaders.NtHeaders32.OptionalHeader.DataDirectory[9].VirtualAddress == 0)
-                    {
-                        return tlsCallbacks;
-                    }
-
                     // Read the TLS directory
-
-                    var tlsDirectoryOffset = ConvertRvaToFileOffset(_peHeaders.NtHeaders32.OptionalHeader.DataDirectory[9].VirtualAddress);
                     
-                    var tlsDirectory = Marshal.PtrToStructure<Structures.ImageTlsDirectory32>(AddOffsetToPointer(_dllBufferAddress, tlsDirectoryOffset));
+                    var tlsDirectory = Marshal.PtrToStructure<Structures.ImageTlsDirectory32>(AddOffsetToPointer(_dllBuffer, tlsDirectoryOffset));
                     
                     // Calculate the offset of the TLS callbacks
 
@@ -300,9 +304,9 @@ namespace Bleak.PortableExecutable
                     
                     while (true)
                     {
-                        // Read the TLS callback
+                        // Read the RVA of the TLS callback
 
-                        var tlsCallback = Marshal.PtrToStructure<uint>(AddOffsetToPointer(_dllBufferAddress, tlsCallbacksOffset));
+                        var tlsCallback = Marshal.PtrToStructure<uint>(AddOffsetToPointer(_dllBuffer, tlsCallbacksOffset));
                         
                         if (tlsCallback == 0)
                         {
@@ -315,7 +319,7 @@ namespace Bleak.PortableExecutable
                         
                         tlsCallbacks.Add(new TlsCallback(tlsCallbackOffset));
                         
-                        // Calculate the offset of the next TLS callback
+                        // Calculate the offset of the next TLS callback RVA
 
                         tlsCallbacksOffset += sizeof(uint);
                     }
@@ -325,16 +329,9 @@ namespace Bleak.PortableExecutable
                 
                 case Enumerations.MachineType.X64:
                 {
-                    if (_peHeaders.NtHeaders64.OptionalHeader.DataDirectory[9].VirtualAddress == 0)
-                    {
-                        return tlsCallbacks;
-                    }
-
                     // Read the TLS directory
 
-                    var tlsDirectoryOffset = ConvertRvaToFileOffset(_peHeaders.NtHeaders64.OptionalHeader.DataDirectory[9].VirtualAddress);
-
-                    var tlsDirectory = Marshal.PtrToStructure<Structures.ImageTlsDirectory64>(AddOffsetToPointer(_dllBufferAddress, tlsDirectoryOffset));
+                    var tlsDirectory = Marshal.PtrToStructure<Structures.ImageTlsDirectory64>(AddOffsetToPointer(_dllBuffer, tlsDirectoryOffset));
                     
                     // Calculate the offset of the TLS callbacks
 
@@ -342,9 +339,9 @@ namespace Bleak.PortableExecutable
                     
                     while (true)
                     {
-                        // Read the TLS callback
+                        // Read the RVA of the TLS callback
 
-                        var tlsCallback = Marshal.PtrToStructure<ulong>(AddOffsetToPointer(_dllBufferAddress, tlsCallbacksOffset));
+                        var tlsCallback = Marshal.PtrToStructure<ulong>(AddOffsetToPointer(_dllBuffer, tlsCallbacksOffset));
                         
                         if (tlsCallback == 0)
                         {
@@ -357,7 +354,7 @@ namespace Bleak.PortableExecutable
                         
                         tlsCallbacks.Add(new TlsCallback(tlsCallbackOffset));
                         
-                        // Calculate the offset of the next TLS callback
+                        // Calculate the offset of the next TLS callback RVA
 
                         tlsCallbacksOffset += sizeof(ulong);
                     }
@@ -369,24 +366,29 @@ namespace Bleak.PortableExecutable
             return tlsCallbacks;
         }
 
+        internal Enumerations.MachineType GetPeArchitecture()
+        {
+            return _peHeaders.FileHeader.Machine;
+        }
+
         private void ReadHeaders()
         {
             // Read the DOS header
 
-            _peHeaders.DosHeader = Marshal.PtrToStructure<Structures.ImageDosHeader>(_dllBufferAddress);
+            _peHeaders.DosHeader = Marshal.PtrToStructure<Structures.ImageDosHeader>(_dllBuffer);
 
-            if (_peHeaders.DosHeader.e_magic != 0x5A4D)
+            if (_peHeaders.DosHeader.e_magic != Constants.DosSignature)
             {
-                throw new BadImageFormatException("The headers of the provided DLL were invalid");
+                throw new BadImageFormatException("The DOS header of the provided DLL was invalid");
             }
 
             // Read the file header
 
-            _peHeaders.FileHeader = Marshal.PtrToStructure<Structures.ImageFileHeader>(_dllBufferAddress + _peHeaders.DosHeader.e_lfanew + sizeof(uint));
+            _peHeaders.FileHeader = Marshal.PtrToStructure<Structures.ImageFileHeader>(_dllBuffer + _peHeaders.DosHeader.e_lfanew + sizeof(uint));
 
             if ((_peHeaders.FileHeader.Characteristics & (ushort) Enumerations.FileCharacteristics.Dll) == 0)
             {
-                throw new BadImageFormatException("The headers of the provided DLL were invalid");
+                throw new BadImageFormatException("The file header of the provided DLL was invalid");
             }
 
             // Read the NT headers
@@ -395,16 +397,16 @@ namespace Bleak.PortableExecutable
             {
                 case Enumerations.MachineType.X86:
                 {
-                    _peHeaders.NtHeaders32 = Marshal.PtrToStructure<Structures.ImageNtHeaders32>(_dllBufferAddress + _peHeaders.DosHeader.e_lfanew);
+                    _peHeaders.NtHeaders32 = Marshal.PtrToStructure<Structures.ImageNtHeaders32>(_dllBuffer + _peHeaders.DosHeader.e_lfanew);
                     
-                    if (_peHeaders.NtHeaders32.Signature != 0x4550)
+                    if (_peHeaders.NtHeaders32.Signature != Constants.NtSignature)
                     {
-                        throw new BadImageFormatException("The headers of the provided DLL were invalid");
+                        throw new BadImageFormatException("The NT headers of the provided DLL were invalid");
                     }
 
                     if (_peHeaders.NtHeaders32.OptionalHeader.DataDirectory[14].VirtualAddress != 0)
                     {
-                        throw new BadImageFormatException(".Net DLL's are not supported in this library");
+                        throw new BadImageFormatException(".Net DLL's are not supported");
                     }
 
                     break;
@@ -412,16 +414,16 @@ namespace Bleak.PortableExecutable
                 
                 case Enumerations.MachineType.X64:
                 {
-                    _peHeaders.NtHeaders64 = Marshal.PtrToStructure<Structures.ImageNtHeaders64>(_dllBufferAddress + _peHeaders.DosHeader.e_lfanew);
+                    _peHeaders.NtHeaders64 = Marshal.PtrToStructure<Structures.ImageNtHeaders64>(_dllBuffer + _peHeaders.DosHeader.e_lfanew);
                     
-                    if (_peHeaders.NtHeaders64.Signature != 0x4550)
+                    if (_peHeaders.NtHeaders64.Signature != Constants.NtSignature)
                     {
-                        throw new BadImageFormatException("The headers of the provided DLL were invalid");
+                        throw new BadImageFormatException("The NT headers of the provided DLL were invalid");
                     }
 
                     if (_peHeaders.NtHeaders64.OptionalHeader.DataDirectory[14].VirtualAddress != 0)
                     {
-                        throw new BadImageFormatException(".Net DLL's are not supported in this library");
+                        throw new BadImageFormatException(".Net DLL's are not supported");
                     }
 
                     break;
@@ -429,17 +431,19 @@ namespace Bleak.PortableExecutable
                 
                 default:
                 {
-                    throw new BadImageFormatException("The architecture of the provided DLL was invalid");
+                    throw new BadImageFormatException("The architecture of the provided DLL is not supported");
                 }
             }
             
             // Read the section headers
 
-            var sectionHeadersOffset = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 ? _peHeaders.DosHeader.e_lfanew + Marshal.SizeOf<Structures.ImageNtHeaders32>() : _peHeaders.DosHeader.e_lfanew + Marshal.SizeOf<Structures.ImageNtHeaders64>();
+            var sectionHeadersOffset = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86 
+                                     ? _peHeaders.DosHeader.e_lfanew + Marshal.SizeOf<Structures.ImageNtHeaders32>() 
+                                     : _peHeaders.DosHeader.e_lfanew + Marshal.SizeOf<Structures.ImageNtHeaders64>();
 
             for (var index = 0; index < _peHeaders.FileHeader.NumberOfSections; index += 1)
             {
-                _peHeaders.SectionHeaders.Add(Marshal.PtrToStructure<Structures.ImageSectionHeader>(_dllBufferAddress + sectionHeadersOffset + Marshal.SizeOf<Structures.ImageSectionHeader>() * index));
+                _peHeaders.SectionHeaders.Add(Marshal.PtrToStructure<Structures.ImageSectionHeader>(_dllBuffer + sectionHeadersOffset + Marshal.SizeOf<Structures.ImageSectionHeader>() * index));
             }
         }
     }

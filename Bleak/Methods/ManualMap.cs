@@ -1,11 +1,10 @@
 ﻿using Bleak.Methods.Shellcode;
 using Bleak.Native;
-using Bleak.PortableExecutable.Objects;
 using Bleak.SafeHandle;
 using Bleak.Syscall.Definitions;
+using Bleak.Tools;
 using Bleak.Wrappers;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -23,25 +22,19 @@ namespace Bleak.Methods
 
         internal bool Call()
         {
-            // Store the DLL bytes in a buffer
-
-            var localDllBuffer = GCHandle.Alloc(_propertyWrapper.DllBytes, GCHandleType.Pinned);
-
-            var localDllBaseAddress = localDllBuffer.AddrOfPinnedObject();
+            var localDllBaseAddress = MemoryTools.StoreBytesInBuffer(_propertyWrapper.DllBytes);
 
             var peHeaders = _propertyWrapper.PeParser.GetHeaders();
 
-            // Map the imports the DLL into the local process
+            // Build the import table of the DLL in the local process
 
-            MapImports(localDllBaseAddress);
+            BuildImportTable(localDllBaseAddress);
 
             // Allocate memory for the DLL in the target process
 
             var dllSize = _propertyWrapper.TargetProcess.IsWow64 ? peHeaders.NtHeaders32.OptionalHeader.SizeOfImage : peHeaders.NtHeaders64.OptionalHeader.SizeOfImage;
 
             var remoteDllAddress = _propertyWrapper.MemoryManager.AllocateVirtualMemory((int) dllSize, Enumerations.MemoryProtectionType.ExecuteReadWrite);
-
-            var tlsCallbacks = _propertyWrapper.PeParser.GetTlsCallbacks();
 
             // Perform the needed relocations in the local process
 
@@ -53,21 +46,20 @@ namespace Bleak.Methods
 
             // Call any TLS callbacks
 
-            if (tlsCallbacks.Count > 0)
-            {
-                CallTlsCallbacks(remoteDllAddress, tlsCallbacks);
-            }
+            CallTlsCallbacks(remoteDllAddress);
 
             // Call the entry point of the DLL
 
-            var dllEntryPointAddress = _propertyWrapper.TargetProcess.IsWow64 ? (uint) remoteDllAddress + peHeaders.NtHeaders32.OptionalHeader.AddressOfEntryPoint : (ulong) remoteDllAddress + peHeaders.NtHeaders64.OptionalHeader.AddressOfEntryPoint;
+            var dllEntryPointAddress = _propertyWrapper.TargetProcess.IsWow64 
+                                     ? (uint) remoteDllAddress + peHeaders.NtHeaders32.OptionalHeader.AddressOfEntryPoint 
+                                     : (ulong) remoteDllAddress + peHeaders.NtHeaders64.OptionalHeader.AddressOfEntryPoint;
 
             if (dllEntryPointAddress != 0)
             {
                 CallEntryPoint(remoteDllAddress, (IntPtr) dllEntryPointAddress);
             }
 
-            localDllBuffer.Free();
+            MemoryTools.FreeMemoryForBuffer(localDllBaseAddress);
 
             return true;
         }
@@ -84,7 +76,7 @@ namespace Bleak.Methods
 
             // Create a thread to call the shellcode in the target process
 
-            var threadHandle = (SafeThreadHandle) _propertyWrapper.SyscallManager.InvokeSyscall<NtCreateThreadEx>(_propertyWrapper.TargetProcess.ProcessHandle, shellcodeBuffer, IntPtr.Zero);
+            var threadHandle = (SafeThreadHandle) _propertyWrapper.SyscallManager.InvokeSyscall<NtCreateThreadEx>(_propertyWrapper.TargetProcess.Handle, shellcodeBuffer, IntPtr.Zero);
 
             PInvoke.WaitForSingleObject(threadHandle, uint.MaxValue);
 
@@ -93,9 +85,9 @@ namespace Bleak.Methods
             threadHandle.Dispose();
         }
 
-        private void CallTlsCallbacks(IntPtr remoteDllBaseAddress, List<TlsCallback> tlsCallbacks)
+        private void CallTlsCallbacks(IntPtr remoteDllBaseAddress)
         {
-            foreach (var tlsCallback in tlsCallbacks)
+            foreach (var tlsCallback in _propertyWrapper.PeParser.GetTlsCallbacks())
             {
                 CallEntryPoint(remoteDllBaseAddress, (IntPtr) ((ulong) remoteDllBaseAddress + tlsCallback.Offset));
             }
@@ -138,33 +130,36 @@ namespace Bleak.Methods
                 }
             }
 
-            else if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryRead))
+            else
             {
-                if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryWrite))
+                if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryRead))
                 {
-                    sectionProtection |= Enumerations.MemoryProtectionType.ReadWrite;
+                    if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryWrite))
+                    {
+                        sectionProtection |= Enumerations.MemoryProtectionType.ReadWrite;
+                    }
+
+                    else
+                    {
+                        sectionProtection |= Enumerations.MemoryProtectionType.ReadOnly;
+                    }
+                }
+
+                else if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryWrite))
+                {
+                    sectionProtection |= Enumerations.MemoryProtectionType.WriteCopy;
                 }
 
                 else
                 {
-                    sectionProtection |= Enumerations.MemoryProtectionType.ReadOnly;
+                    sectionProtection |= Enumerations.MemoryProtectionType.NoAccess;
                 }
-            }
-
-            else if (sectionCharacteristics.HasFlag(Enumerations.SectionCharacteristics.MemoryWrite))
-            {
-                sectionProtection |= Enumerations.MemoryProtectionType.WriteCopy;
-            }
-
-            else
-            {
-                sectionProtection |= Enumerations.MemoryProtectionType.NoAccess;
             }
 
             return sectionProtection;
         }
 
-        private void MapImports(IntPtr localDllBaseAddress)
+        private void BuildImportTable(IntPtr localDllBaseAddress)
         {
             var importedFunctions = _propertyWrapper.PeParser.GetImportedFunctions();
 
@@ -188,9 +183,11 @@ namespace Bleak.Methods
                     dllName = "ucrtbase.dll";
                 }
 
-                if (!_propertyWrapper.TargetProcess.ProcessModules.Any(module => module.Name.Equals(dllName, StringComparison.OrdinalIgnoreCase)))
+                if (!_propertyWrapper.TargetProcess.Modules.Any(module => module.Name.Equals(dllName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    var systemFolderPath = _propertyWrapper.TargetProcess.IsWow64 ? Environment.GetFolderPath(Environment.SpecialFolder.SystemX86) : Environment.GetFolderPath(Environment.SpecialFolder.System);
+                    var systemFolderPath = _propertyWrapper.TargetProcess.IsWow64 
+                                         ? Environment.GetFolderPath(Environment.SpecialFolder.SystemX86) 
+                                         : Environment.GetFolderPath(Environment.SpecialFolder.System);
 
                     // Load the DLL into the target process
 
@@ -213,7 +210,7 @@ namespace Bleak.Methods
 
                 var importedFunctionAddress = _propertyWrapper.TargetProcess.GetFunctionAddress(dllName, importedFunction.Name);
 
-                // Map the imported function into the local process
+                // Write the imported function into the local process
 
                 var importAddress = (ulong) localDllBaseAddress + importedFunction.Offset;
 
@@ -260,7 +257,9 @@ namespace Bleak.Methods
 
             // Calculate the delta of the DLL in the target process
 
-            var delta = _propertyWrapper.TargetProcess.IsWow64 ? (long) remoteDllBaseAddress - peHeaders.NtHeaders32.OptionalHeader.ImageBase : (long) remoteDllBaseAddress - (long) peHeaders.NtHeaders64.OptionalHeader.ImageBase;
+            var delta = _propertyWrapper.TargetProcess.IsWow64 
+                      ? (long) remoteDllBaseAddress - peHeaders.NtHeaders32.OptionalHeader.ImageBase 
+                      : (long) remoteDllBaseAddress - (long) peHeaders.NtHeaders64.OptionalHeader.ImageBase;
 
             if (delta == 0)
             {
