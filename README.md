@@ -12,7 +12,7 @@ A Windows native DLL injection library written in C# that supports several metho
 * ManualMap
 * QueueUserAPC
 * RtlCreateUserThread
-* SetThreadContext
+* ThreadHijack
 
 ### Injection Extensions
 

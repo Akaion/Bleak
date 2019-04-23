@@ -1,9 +1,8 @@
 ﻿using Bleak.Handlers;
-using Bleak.Native;
 using Microsoft.Win32.SafeHandles;
 using System;
 
-namespace Bleak.SafeHandle
+namespace Bleak.Native.SafeHandle
 {
     internal class SafeThreadHandle : SafeHandleZeroOrMinusOneIsInvalid
     {

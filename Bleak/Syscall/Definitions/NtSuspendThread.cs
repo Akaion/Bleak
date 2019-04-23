@@ -1,6 +1,6 @@
 ﻿using Bleak.Handlers;
 using Bleak.Native;
-using Bleak.SafeHandle;
+using Bleak.Native.SafeHandle;
 using System;
 using System.Runtime.InteropServices;
 
@@ -13,9 +13,9 @@ namespace Bleak.Syscall.Definitions
 
         private readonly NtSuspendThreadDefinition _ntSuspendThreadDelegate;
 
-        internal NtSuspendThread(Tools suspendTools)
+        internal NtSuspendThread(IntPtr shellcodeAddress)
         {
-            _ntSuspendThreadDelegate = suspendTools.CreateDelegateForSyscall<NtSuspendThreadDefinition>();
+            _ntSuspendThreadDelegate = Marshal.GetDelegateForFunctionPointer<NtSuspendThreadDefinition>(shellcodeAddress);
         }
 
         internal void Invoke(SafeThreadHandle threadHandle)

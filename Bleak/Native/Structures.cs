@@ -6,6 +6,51 @@ namespace Bleak.Native
     internal static class Structures
     {
         [StructLayout(LayoutKind.Sequential)]
+        internal struct ApiSetNamespace
+        {
+            private readonly uint Version;
+
+            private readonly uint Size;
+
+            private readonly uint Flags;
+
+            internal readonly uint Count;
+
+            internal readonly uint EntryOffset;
+
+            private readonly uint HashOffset;
+            private readonly uint HashFactor;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct ApiSetNamespaceEntry
+        {
+            private readonly uint Flags;
+
+            internal readonly uint NameOffset;
+
+            private readonly uint NameLength;
+
+            private readonly uint HashedLength;
+
+            internal readonly uint ValueOffset;
+            
+            private readonly uint ValueCount;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct ApiSetValueEntry
+        {
+            private readonly uint Flags;
+
+            private readonly uint NameOffset;
+            private readonly uint NameLength;
+
+            internal readonly uint ValueOffset;
+            internal readonly uint ValueCount;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
         internal struct ClientId
         {
             internal IntPtr UniqueProcess;
@@ -170,7 +215,7 @@ namespace Bleak.Native
 
             private readonly ushort SizeOfOptionalHeader;
 
-            internal readonly ushort Characteristics;
+            internal readonly Enumerations.FileCharacteristics Characteristics;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -242,7 +287,7 @@ namespace Bleak.Native
 
             internal readonly uint SizeOfImage;
 
-            private readonly uint SizeOfHeaders;
+            internal readonly uint SizeOfHeaders;
 
             private readonly uint CheckSum;
 
@@ -298,7 +343,7 @@ namespace Bleak.Native
 
             internal readonly uint SizeOfImage;
 
-            private readonly uint SizeOfHeaders;
+            internal readonly uint SizeOfHeaders;
 
             private readonly uint CheckSum;
 
@@ -324,7 +369,7 @@ namespace Bleak.Native
         internal struct ImageSectionHeader
         {
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 8)]
-            private readonly byte[] Name;
+            internal readonly byte[] Name;
 
             internal readonly uint VirtualSize;
             internal readonly uint VirtualAddress;
@@ -392,7 +437,7 @@ namespace Bleak.Native
         {
             internal readonly ListEntry32 InLoadOrderLinks;
             internal readonly ListEntry32 InMemoryOrderLinks;
-            internal readonly ListEntry32 InInitOrderLinks;
+            internal readonly ListEntry32 InInitializationOrderLinks;
 
             internal readonly uint DllBase;
 
@@ -406,13 +451,17 @@ namespace Bleak.Native
 
             private readonly uint Flags;
 
-            private readonly ushort LoadCount;
+            private readonly ushort ObsoleteLoadCount;
 
             private readonly ushort TlsIndex;
 
-            internal readonly ListEntry32 HashTableEntry;
+            internal readonly ListEntry32 HashLinks;
 
             private readonly ulong TimeDateStamp;
+
+            private readonly ulong EntryPointActivationContext;
+
+            private readonly ulong Lock;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -420,7 +469,7 @@ namespace Bleak.Native
         {
             internal readonly ListEntry64 InLoadOrderLinks;
             internal readonly ListEntry64 InMemoryOrderLinks;
-            internal readonly ListEntry64 InInitOrderLinks;
+            internal readonly ListEntry64 InInitializationOrderLinks;
 
             internal readonly ulong DllBase;
 
@@ -434,20 +483,23 @@ namespace Bleak.Native
 
             private readonly uint Flags;
 
-            private readonly ushort LoadCount;
+            private readonly ushort ObsoleteLoadCount;
 
             private readonly ushort TlsIndex;
 
-            internal readonly ListEntry64 HashTableEntry;
+            internal ListEntry64 HashLinks;
 
             private readonly ulong TimeDateStamp;
+
+            private readonly ulong EntryPointActivationContext;
+
+            private readonly ulong Lock;
         }
 
         [StructLayout(LayoutKind.Sequential)]
         internal struct ListEntry32
         {
             internal uint Flink;
-
             internal uint Blink;
         }
 
@@ -455,7 +507,6 @@ namespace Bleak.Native
         internal struct ListEntry64
         {
             internal ulong Flink;
-
             internal ulong Blink;
         }
 

@@ -1,6 +1,6 @@
 ﻿using Bleak.Handlers;
+using Bleak.Memory;
 using Bleak.Native;
-using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.Runtime.InteropServices;
@@ -14,20 +14,20 @@ namespace Bleak.Syscall.Definitions
 
         private readonly NtReadVirtualMemoryDefinition _ntReadVirtualMemoryDelegate;
 
-        internal NtReadVirtualMemory(Tools syscallTools)
+        internal NtReadVirtualMemory(IntPtr shellcodeAddress)
         {
-            _ntReadVirtualMemoryDelegate = syscallTools.CreateDelegateForSyscall<NtReadVirtualMemoryDefinition>();
+            _ntReadVirtualMemoryDelegate = Marshal.GetDelegateForFunctionPointer<NtReadVirtualMemoryDefinition>(shellcodeAddress);
         }
 
         internal IntPtr Invoke(SafeProcessHandle processHandle, IntPtr baseAddress, int bytesToRead)
         {
             // Initialise a buffer to store the returned bytes read
 
-            var bytesReadBuffer = MemoryTools.AllocateMemoryForBuffer(bytesToRead);
+            var bytesReadBuffer = LocalMemoryTools.AllocateMemoryForBuffer(bytesToRead);
 
             // Perform the syscall
 
-            var syscallResult = _ntReadVirtualMemoryDelegate(processHandle, baseAddress, bytesReadBuffer, (ulong)bytesToRead, IntPtr.Zero);
+            var syscallResult = _ntReadVirtualMemoryDelegate(processHandle, baseAddress, bytesReadBuffer, (ulong) bytesToRead, IntPtr.Zero);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {

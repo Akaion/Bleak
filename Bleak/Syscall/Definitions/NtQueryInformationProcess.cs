@@ -1,6 +1,6 @@
 ﻿using Bleak.Handlers;
+using Bleak.Memory;
 using Bleak.Native;
-using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.Runtime.InteropServices;
@@ -14,9 +14,9 @@ namespace Bleak.Syscall.Definitions
 
         private readonly NtQueryInformationProcessDefinition _ntQueryInformationProcessDelegate;
 
-        internal NtQueryInformationProcess(Tools syscallTools)
+        internal NtQueryInformationProcess(IntPtr shellcodeAddress)
         {
-            _ntQueryInformationProcessDelegate = syscallTools.CreateDelegateForSyscall<NtQueryInformationProcessDefinition>();
+            _ntQueryInformationProcessDelegate = Marshal.GetDelegateForFunctionPointer<NtQueryInformationProcessDefinition>(shellcodeAddress);
         }
 
         internal IntPtr Invoke(SafeProcessHandle processHandle, Enumerations.ProcessInformationClass processInformationClass)
@@ -25,7 +25,7 @@ namespace Bleak.Syscall.Definitions
 
             var bufferSize = processInformationClass == Enumerations.ProcessInformationClass.BasicInformation ? Marshal.SizeOf<Structures.ProcessBasicInformation>() : sizeof(ulong);
 
-            var processInformationBuffer = MemoryTools.AllocateMemoryForBuffer(bufferSize);
+            var processInformationBuffer = LocalMemoryTools.AllocateMemoryForBuffer(bufferSize);
 
             // Perform the syscall
 

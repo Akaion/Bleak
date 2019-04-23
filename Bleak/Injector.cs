@@ -1,4 +1,6 @@
-﻿using Bleak.Wrappers;
+﻿using Bleak.Injection;
+using Bleak.Injection.Extensions;
+using Bleak.Injection.Methods;
 
 namespace Bleak
 {
@@ -8,35 +10,35 @@ namespace Bleak
 
         #region CreateRemoteThread
 
-        public bool CreateRemoteThread(int processId, byte[] dllBytes)
+        public bool CreateRemoteThread(int targetProcessId, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processId, dllBytes, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllBytes, false, false, RandomiseDllName))
             {
-                return methodWrapper.CreateRemoteThread();
+                return injectionManager.CallInjectionMethod<CreateRemoteThread>();
             }
         }
 
-        public bool CreateRemoteThread(string processName, byte[] dllBytes)
+        public bool CreateRemoteThread(int targetProcessId, string dllPath)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllPath, false, RandomiseDllName))
             {
-                return methodWrapper.CreateRemoteThread();
+                return injectionManager.CallInjectionMethod<CreateRemoteThread>();
             }
         }
 
-        public bool CreateRemoteThread(int processId, string dllPath)
+        public bool CreateRemoteThread(string targetProcessName, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processId, dllPath, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllBytes, false, false, RandomiseDllName))
             {
-                return methodWrapper.CreateRemoteThread();
+                return injectionManager.CallInjectionMethod<CreateRemoteThread>();
             }
         }
 
-        public bool CreateRemoteThread(string processName, string dllPath)
+        public bool CreateRemoteThread(string targetProcessName, string dllPath)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllPath, false, RandomiseDllName))
             {
-                return methodWrapper.CreateRemoteThread();
+                return injectionManager.CallInjectionMethod<CreateRemoteThread>();
             }
         }
 
@@ -44,35 +46,35 @@ namespace Bleak
 
         #region EjectDll
 
-        public bool EjectDll(int processId, byte[] dllBytes)
+        public bool EjectDll(int targetProcessId, byte[] dllBytes)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processId, dllBytes, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllBytes, false, true, RandomiseDllName))
             {
-                return extensionWrapper.EjectDll();
+                return injectionManager.CallInjectionExtension<EjectDll>();
             }
         }
 
-        public bool EjectDll(string processName, byte[] dllBytes)
+        public bool EjectDll(int targetProcessId, string dllPath)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processName, dllBytes, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllPath, true, RandomiseDllName))
             {
-                return extensionWrapper.EjectDll();
+                return injectionManager.CallInjectionExtension<EjectDll>();
             }
         }
 
-        public bool EjectDll(int processId, string dllPath)
+        public bool EjectDll(string targetProcessName, byte[] dllBytes)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processId, dllPath, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllBytes, false, true, RandomiseDllName))
             {
-                return extensionWrapper.EjectDll();
+                return injectionManager.CallInjectionExtension<EjectDll>();
             }
         }
 
-        public bool EjectDll(string processName, string dllPath)
+        public bool EjectDll(string targetProcessName, string dllPath)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processName, dllPath, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllPath, true, RandomiseDllName))
             {
-                return extensionWrapper.EjectDll();
+                return injectionManager.CallInjectionExtension<EjectDll>();
             }
         }
 
@@ -80,35 +82,35 @@ namespace Bleak
 
         #region EraseDllHeaders
 
-        public bool EraseDllHeaders(int processId, byte[] dllBytes)
+        public bool EraseDllHeaders(int targetProcessId, byte[] dllBytes)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processId, dllBytes, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllBytes, false, true, RandomiseDllName))
             {
-                return extensionWrapper.EraseDllHeaders();
+                return injectionManager.CallInjectionExtension<EraseDllHeaders>();
             }
         }
 
-        public bool EraseDllHeaders(string processName, byte[] dllBytes)
+        public bool EraseDllHeaders(int targetProcessId, string dllPath)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processName, dllBytes, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllPath, true, RandomiseDllName))
             {
-                return extensionWrapper.EraseDllHeaders();
+                return injectionManager.CallInjectionExtension<EraseDllHeaders>();
             }
         }
 
-        public bool EraseDllHeaders(int processId, string dllPath)
+        public bool EraseDllHeaders(string targetProcessName, byte[] dllBytes)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processId, dllPath, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllBytes, false, true, RandomiseDllName))
             {
-                return extensionWrapper.EraseDllHeaders();
+                return injectionManager.CallInjectionExtension<EraseDllHeaders>();
             }
         }
 
-        public bool EraseDllHeaders(string processName, string dllPath)
+        public bool EraseDllHeaders(string targetProcessName, string dllPath)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processName, dllPath, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllPath, true, RandomiseDllName))
             {
-                return extensionWrapper.EraseDllHeaders();
+                return injectionManager.CallInjectionExtension<EraseDllHeaders>();
             }
         }
 
@@ -116,35 +118,35 @@ namespace Bleak
 
         #region ManualMap
 
-        public bool ManualMap(int processId, byte[] dllBytes)
+        public bool ManualMap(int targetProcessId, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processId, dllBytes, RandomiseDllName, true))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllBytes, true, false, RandomiseDllName))
             {
-                return methodWrapper.ManualMap();
+                return injectionManager.CallInjectionMethod<ManualMap>();
             }
         }
 
-        public bool ManualMap(string processName, byte[] dllBytes)
+        public bool ManualMap(int targetProcessId, string dllPath)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, true))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllPath, false, RandomiseDllName))
             {
-                return methodWrapper.ManualMap();
+                return injectionManager.CallInjectionMethod<ManualMap>();
             }
         }
 
-        public bool ManualMap(int processId, string dllPath)
+        public bool ManualMap(string targetProcessName, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processId, dllPath, RandomiseDllName, true))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllBytes, true, false, RandomiseDllName))
             {
-                return methodWrapper.ManualMap();
+                return injectionManager.CallInjectionMethod<ManualMap>();
             }
         }
 
-        public bool ManualMap(string processName, string dllPath)
+        public bool ManualMap(string targetProcessName, string dllPath)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, true))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllPath, false, RandomiseDllName))
             {
-                return methodWrapper.ManualMap();
+                return injectionManager.CallInjectionMethod<ManualMap>();
             }
         }
 
@@ -152,35 +154,35 @@ namespace Bleak
 
         #region QueueUserApc
 
-        public bool QueueUserApc(int processId, byte[] dllBytes)
+        public bool QueueUserApc(int targetProcessId, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processId, dllBytes, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllBytes, false, false, RandomiseDllName))
             {
-                return methodWrapper.QueueUserApc();
+                return injectionManager.CallInjectionMethod<QueueUserApc>();
             }
         }
 
-        public bool QueueUserApc(string processName, byte[] dllBytes)
+        public bool QueueUserApc(int targetProcessId, string dllPath)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllPath, false, RandomiseDllName))
             {
-                return methodWrapper.QueueUserApc();
+                return injectionManager.CallInjectionMethod<QueueUserApc>();
             }
         }
 
-        public bool QueueUserApc(int processId, string dllPath)
+        public bool QueueUserApc(string targetProcessName, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processId, dllPath, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllBytes, false, false, RandomiseDllName))
             {
-                return methodWrapper.QueueUserApc();
+                return injectionManager.CallInjectionMethod<QueueUserApc>();
             }
         }
 
-        public bool QueueUserApc(string processName, string dllPath)
+        public bool QueueUserApc(string targetProcessName, string dllPath)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllPath, false, RandomiseDllName))
             {
-                return methodWrapper.QueueUserApc();
+                return injectionManager.CallInjectionMethod<QueueUserApc>();
             }
         }
 
@@ -188,35 +190,35 @@ namespace Bleak
 
         #region RandomiseDllHeaders
 
-        public bool RandomiseDllHeaders(int processId, byte[] dllBytes)
+        public bool RandomiseDllHeaders(int targetProcessId, byte[] dllBytes)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processId, dllBytes, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllBytes, false, true, RandomiseDllName))
             {
-                return extensionWrapper.RandomiseDllHeaders();
+                return injectionManager.CallInjectionExtension<RandomiseDllHeaders>();
             }
         }
 
-        public bool RandomiseDllHeaders(string processName, byte[] dllBytes)
+        public bool RandomiseDllHeaders(int targetProcessId, string dllPath)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processName, dllBytes, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllPath, true, RandomiseDllName))
             {
-                return extensionWrapper.RandomiseDllHeaders();
+                return injectionManager.CallInjectionExtension<RandomiseDllHeaders>();
             }
         }
 
-        public bool RandomiseDllHeaders(int processId, string dllPath)
+        public bool RandomiseDllHeaders(string targetProcessName, byte[] dllBytes)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processId, dllPath, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllBytes, false, true, RandomiseDllName))
             {
-                return extensionWrapper.RandomiseDllHeaders();
+                return injectionManager.CallInjectionExtension<RandomiseDllHeaders>();
             }
         }
 
-        public bool RandomiseDllHeaders(string processName, string dllPath)
+        public bool RandomiseDllHeaders(string targetProcessName, string dllPath)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processName, dllPath, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllPath, true, RandomiseDllName))
             {
-                return extensionWrapper.RandomiseDllHeaders();
+                return injectionManager.CallInjectionExtension<RandomiseDllHeaders>();
             }
         }
 
@@ -224,71 +226,71 @@ namespace Bleak
 
         #region RtlCreateUserThread
 
-        public bool RtlCreateUserThread(int processId, byte[] dllBytes)
+        public bool RtlCreateUserThread(int targetProcessId, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processId, dllBytes, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllBytes, false, false, RandomiseDllName))
             {
-                return methodWrapper.RtlCreateUserThread();
+                return injectionManager.CallInjectionMethod<RtlCreateUserThread>();
             }
         }
 
-        public bool RtlCreateUserThread(string processName, byte[] dllBytes)
+        public bool RtlCreateUserThread(int targetProcessId, string dllPath)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllPath, false, RandomiseDllName))
             {
-                return methodWrapper.RtlCreateUserThread();
+                return injectionManager.CallInjectionMethod<RtlCreateUserThread>();
             }
         }
 
-        public bool RtlCreateUserThread(int processId, string dllPath)
+        public bool RtlCreateUserThread(string targetProcessName, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processId, dllPath, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllBytes, false, false, RandomiseDllName))
             {
-                return methodWrapper.RtlCreateUserThread();
+                return injectionManager.CallInjectionMethod<RtlCreateUserThread>();
             }
         }
 
-        public bool RtlCreateUserThread(string processName, string dllPath)
+        public bool RtlCreateUserThread(string targetProcessName, string dllPath)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllPath, false, RandomiseDllName))
             {
-                return methodWrapper.RtlCreateUserThread();
+                return injectionManager.CallInjectionMethod<RtlCreateUserThread>();
             }
         }
 
         #endregion
 
-        #region SetThreadContext
+        #region ThreadHijack
 
-        public bool SetThreadContext(int processId, byte[] dllBytes)
+        public bool ThreadHijack(int targetProcessId, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processId, dllBytes, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllBytes, false, false, RandomiseDllName))
             {
-                return methodWrapper.SetThreadContext();
+                return injectionManager.CallInjectionMethod<ThreadHijack>();
             }
         }
 
-        public bool SetThreadContext(string processName, byte[] dllBytes)
+        public bool ThreadHijack(int targetProcessId, string dllPath)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllBytes, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllPath, false, RandomiseDllName))
             {
-                return methodWrapper.SetThreadContext();
+                return injectionManager.CallInjectionMethod<ThreadHijack>();
             }
         }
 
-        public bool SetThreadContext(int processId, string dllPath)
+        public bool ThreadHijack(string targetProcessName, byte[] dllBytes)
         {
-            using (var methodWrapper = new MethodWrapper(processId, dllPath, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllBytes, false, false, RandomiseDllName))
             {
-                return methodWrapper.SetThreadContext();
+                return injectionManager.CallInjectionMethod<ThreadHijack>();
             }
         }
 
-        public bool SetThreadContext(string processName, string dllPath)
+        public bool ThreadHijack(string targetProcessName, string dllPath)
         {
-            using (var methodWrapper = new MethodWrapper(processName, dllPath, RandomiseDllName, false))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllPath, false, RandomiseDllName))
             {
-                return methodWrapper.SetThreadContext();
+                return injectionManager.CallInjectionMethod<ThreadHijack>();
             }
         }
 
@@ -296,35 +298,35 @@ namespace Bleak
 
         #region UnlinkDllFromPeb
 
-        public bool UnlinkDllFromPeb(int processId, byte[] dllBytes)
+        public bool UnlinkDllFromPeb(int targetProcessId, byte[] dllBytes)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processId, dllBytes, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllBytes, false, true, RandomiseDllName))
             {
-                return extensionWrapper.UnlinkDllFromPeb();
+                return injectionManager.CallInjectionExtension<UnlinkDllFromPeb>();
             }
         }
 
-        public bool UnlinkDllFromPeb(string processName, byte[] dllBytes)
+        public bool UnlinkDllFromPeb(int targetProcessId, string dllPath)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processName, dllBytes, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessId, dllPath, true, RandomiseDllName))
             {
-                return extensionWrapper.UnlinkDllFromPeb();
+                return injectionManager.CallInjectionExtension<UnlinkDllFromPeb>();
             }
         }
 
-        public bool UnlinkDllFromPeb(int processId, string dllPath)
+        public bool UnlinkDllFromPeb(string targetProcessName, byte[] dllBytes)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processId, dllPath, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllBytes, false, true, RandomiseDllName))
             {
-                return extensionWrapper.UnlinkDllFromPeb();
+                return injectionManager.CallInjectionExtension<UnlinkDllFromPeb>();
             }
         }
 
-        public bool UnlinkDllFromPeb(string processName, string dllPath)
+        public bool UnlinkDllFromPeb(string targetProcessName, string dllPath)
         {
-            using (var extensionWrapper = new ExtensionWrapper(processName, dllPath, RandomiseDllName))
+            using (var injectionManager = new InjectionManager(targetProcessName, dllPath, true, RandomiseDllName))
             {
-                return extensionWrapper.UnlinkDllFromPeb();
+                return injectionManager.CallInjectionExtension<UnlinkDllFromPeb>();
             }
         }
 

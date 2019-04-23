@@ -1,7 +1,7 @@
 ﻿using Bleak.Handlers;
+using Bleak.Memory;
 using Bleak.Native;
-using Bleak.SafeHandle;
-using Bleak.Tools;
+using Bleak.Native.SafeHandle;
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.Runtime.InteropServices;
@@ -15,16 +15,16 @@ namespace Bleak.Syscall.Definitions
 
         private readonly NtCreateThreadExDefinition _ntCreateThreadExDelegate;
 
-        internal NtCreateThreadEx(Tools syscallTools)
+        internal NtCreateThreadEx(IntPtr shellcodeAddress)
         {
-            _ntCreateThreadExDelegate = syscallTools.CreateDelegateForSyscall<NtCreateThreadExDefinition>();
+            _ntCreateThreadExDelegate = Marshal.GetDelegateForFunctionPointer<NtCreateThreadExDefinition>(shellcodeAddress);
         }
 
         internal SafeThreadHandle Invoke(SafeProcessHandle processHandle, IntPtr startAddress, IntPtr parameter)
         {
             // Initialise a buffer to store the returned thread handle
 
-            var threadHandleBuffer = MemoryTools.AllocateMemoryForBuffer(IntPtr.Size);
+            var threadHandleBuffer = LocalMemoryTools.AllocateMemoryForBuffer(IntPtr.Size);
 
             // Perform the syscall
 
@@ -37,13 +37,15 @@ namespace Bleak.Syscall.Definitions
                 ExceptionHandler.ThrowWin32Exception("Failed to create a thread in the target process", syscallResult);
             }
 
-            // Marshal the returned thread handle from the buffer
+            try
+            {
+                return new SafeThreadHandle(Marshal.PtrToStructure<IntPtr>(threadHandleBuffer), true);
+            }
 
-            var threadHandle = new SafeThreadHandle(Marshal.PtrToStructure<IntPtr>(threadHandleBuffer), true);
-
-            MemoryTools.FreeMemoryForBuffer(threadHandleBuffer);
-
-            return threadHandle;
+            finally
+            {
+                LocalMemoryTools.FreeMemoryForBuffer(threadHandleBuffer);
+            }
         }
     }
 }

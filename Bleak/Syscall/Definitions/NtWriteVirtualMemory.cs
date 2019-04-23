@@ -13,9 +13,9 @@ namespace Bleak.Syscall.Definitions
 
         private readonly NtWriteVirtualMemoryDefinition _ntWriteVirtualMemoryDelegate;
 
-        internal NtWriteVirtualMemory(Tools syscallTools)
+        internal NtWriteVirtualMemory(IntPtr shellcodeAddress)
         {
-            _ntWriteVirtualMemoryDelegate = syscallTools.CreateDelegateForSyscall<NtWriteVirtualMemoryDefinition>();
+            _ntWriteVirtualMemoryDelegate = Marshal.GetDelegateForFunctionPointer<NtWriteVirtualMemoryDefinition>(shellcodeAddress);
         }
 
         internal void Invoke(SafeProcessHandle processHandle, IntPtr baseAddress, IntPtr bufferToWrite, int sizeOfBuffer)

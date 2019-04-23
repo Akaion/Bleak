@@ -1,0 +1,40 @@
+﻿using Bleak.Injection.Interfaces;
+using Bleak.Injection.Objects;
+using Bleak.Native;
+using Bleak.Native.SafeHandle;
+using Bleak.Syscall.Definitions;
+using System;
+using System.Text;
+
+namespace Bleak.Injection.Methods
+{
+    internal class CreateRemoteThread : IInjectionMethod
+    {
+        public bool Call(InjectionProperties injectionProperties)
+        {
+            // Get the address of the LoadLibraryW function in the target process
+
+            var loadLibraryAddress = injectionProperties.RemoteProcess.GetFunctionAddress("kernel32.dll", "LoadLibraryW");
+
+            // Write the DLL path into the target process
+
+            var dllPathBuffer = injectionProperties.MemoryManager.AllocateVirtualMemory(IntPtr.Zero, injectionProperties.DllPath.Length, Enumerations.MemoryProtectionType.ExecuteReadWrite);
+
+            var dllPathBytes = Encoding.Unicode.GetBytes(injectionProperties.DllPath);
+
+            injectionProperties.MemoryManager.WriteVirtualMemory(dllPathBuffer, dllPathBytes);
+
+            // Create a thread to call LoadLibraryW in the target process
+
+            var remoteThreadHandle = (SafeThreadHandle) injectionProperties.SyscallManager.InvokeSyscall<NtCreateThreadEx>(injectionProperties.RemoteProcess.Handle, loadLibraryAddress, dllPathBuffer);
+
+            PInvoke.WaitForSingleObject(remoteThreadHandle, uint.MaxValue);
+
+            injectionProperties.MemoryManager.FreeVirtualMemory(dllPathBuffer);
+
+            remoteThreadHandle.Dispose();
+
+            return true;
+        }
+    }
+}

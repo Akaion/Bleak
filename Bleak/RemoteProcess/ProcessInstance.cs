@@ -8,6 +8,7 @@ using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -17,23 +18,27 @@ namespace Bleak.RemoteProcess
 {
     internal class ProcessInstance : IDisposable
     {
-        internal readonly bool IsWow64;
-
-        private readonly MemoryManager _memoryManager;
-
-        private readonly Dictionary<string, PeInstance> _peInstances;
-
-        internal readonly Process Process;
-
         internal readonly SafeProcessHandle Handle;
 
+        internal readonly bool IsWow64;
+
         internal readonly List<ModuleInstance> Modules;
+
+        private readonly RemoteMemoryManager _memoryManager;
+
+        private readonly Dictionary<string, PeInstance> _peInstanceCache;
+
+        internal readonly Process TargetProcess;
 
         private readonly SyscallManager _syscallManager;
 
         internal ProcessInstance(int targetProcessId, SyscallManager syscallManager)
         {
-            Process = GetTargetProcess(targetProcessId);
+            Modules = new List<ModuleInstance>();
+
+            _peInstanceCache = new Dictionary<string, PeInstance>();
+
+            TargetProcess = GetTargetProcess(targetProcessId);
 
             _syscallManager = syscallManager;
 
@@ -41,18 +46,20 @@ namespace Bleak.RemoteProcess
 
             IsWow64 = GetProcessArchitecture();
 
-            _memoryManager = new MemoryManager(Handle, _syscallManager);
+            _memoryManager = new RemoteMemoryManager(Handle, _syscallManager);
 
-            _peInstances = new Dictionary<string, PeInstance>();
+            EnableDebuggerPrivileges();
 
-            Modules = new List<ModuleInstance>();
-
-            GetProcessModules();
+            Modules.AddRange(GetProcessModules());
         }
 
         internal ProcessInstance(string targetProcessName, SyscallManager syscallManager)
         {
-            Process = GetTargetProcess(targetProcessName);
+            Modules = new List<ModuleInstance>();
+
+            _peInstanceCache = new Dictionary<string, PeInstance>();
+
+            TargetProcess = GetTargetProcess(targetProcessName);
 
             _syscallManager = syscallManager;
 
@@ -60,30 +67,41 @@ namespace Bleak.RemoteProcess
 
             IsWow64 = GetProcessArchitecture();
 
-            _memoryManager = new MemoryManager(Handle, _syscallManager);
+            _memoryManager = new RemoteMemoryManager(Handle, _syscallManager);
 
-            _peInstances = new Dictionary<string, PeInstance>();
+            EnableDebuggerPrivileges();
 
-            Modules = new List<ModuleInstance>();
-
-            GetProcessModules();
+            Modules.AddRange(GetProcessModules());
         }
 
         public void Dispose()
         {
-            foreach (var peInstance in _peInstances)
+            foreach (var peInstance in _peInstanceCache.Values)
             {
-                peInstance.Value.Dispose();
+                peInstance.Dispose();
             }
 
-            Process.Dispose();
+            TargetProcess.Dispose();
 
             Handle.Dispose();
         }
 
+        private void EnableDebuggerPrivileges()
+        {
+            try
+            {
+                Process.EnterDebugMode();
+            }
+
+            catch (Win32Exception)
+            {
+                // The local process isn't running in administrator mode
+            }
+        }
+
         internal IntPtr GetFunctionAddress(string moduleName, string functionName)
         {
-            // Look for the module in the process module list
+            // Look for the module in the module list of the process
 
             var processModule = Modules.Find(module => module.Name.Equals(moduleName, StringComparison.OrdinalIgnoreCase));
 
@@ -92,30 +110,36 @@ namespace Bleak.RemoteProcess
                 return IntPtr.Zero;
             }
 
-            if (!_peInstances.TryGetValue(moduleName, out var peInstance))
+            if (!_peInstanceCache.ContainsKey(moduleName))
             {
-                peInstance = new PeInstance(processModule.FilePath);
-
-                _peInstances.Add(moduleName, peInstance);
+                _peInstanceCache.Add(moduleName, new PeInstance(processModule.FilePath));
             }
 
-            // Calculate the address of the the function
+            var peInstance = _peInstanceCache[moduleName];
 
-            var functionAddress = processModule.BaseAddress + (int) peInstance.ExportedFunctions.Find(function => function.Name != null && function.Name.Equals(functionName, StringComparison.OrdinalIgnoreCase)).Offset;
+            // Calculate the address of the function
+
+            var functionOffset = peInstance.ExportedFunctions.Find(function => function.Name != null && function.Name.Equals(functionName, StringComparison.OrdinalIgnoreCase)).Offset;
+
+            var functionAddress = processModule.BaseAddress.AddOffset(functionOffset);
+
+            // Get the export directory of the module
 
             var peHeaders = peInstance.PeParser.GetHeaders();
 
-            // Calculate the start and end address of the modules export table
+            var exportDirectory = IsWow64 
+                                ? peHeaders.NtHeaders32.OptionalHeader.DataDirectory[0]
+                                : peHeaders.NtHeaders64.OptionalHeader.DataDirectory[0];
 
-            var exportDirectory = IsWow64 ? peHeaders.NtHeaders32.OptionalHeader.DataDirectory[0] : peHeaders.NtHeaders64.OptionalHeader.DataDirectory[0];
+            // Calculate the start and end address of the export directory
 
-            var exportTableStartAddress = (ulong) processModule.BaseAddress + exportDirectory.VirtualAddress;
+            var exportTableStartAddress = processModule.BaseAddress.AddOffset(exportDirectory.VirtualAddress);
 
-            var exportTableEndAddress = exportTableStartAddress + exportDirectory.Size;
+            var exportTableEndAddress = exportTableStartAddress.AddOffset(exportDirectory.Size);
 
             // Check whether the function is forwarded to another function
 
-            if ((ulong) functionAddress >= exportTableStartAddress && (ulong) functionAddress <= exportTableEndAddress)
+            if ((ulong) functionAddress >= (ulong) exportTableStartAddress && (ulong) functionAddress <= (ulong) exportTableEndAddress)
             {
                 // Read the forwarded function
 
@@ -139,8 +163,8 @@ namespace Bleak.RemoteProcess
 
                 // Get the name of the module the forwarded function resides in
 
-                var forwardedFunctionModuleName = forwardedFunction[0] + ".dll";
-
+                var forwardedFunctionModuleName = string.Concat(forwardedFunction[0], ".dll");
+                
                 // Get the name of the forwarded function
 
                 var forwardedFunctionName = forwardedFunction[1];
@@ -151,11 +175,9 @@ namespace Bleak.RemoteProcess
             return functionAddress;
         }
 
-        internal List<Structures.LdrDataTableEntry64> GetPebEntries()
+        internal IEnumerable<Structures.LdrDataTableEntry64> GetPebEntries()
         {
-            var pebEntries = new List<Structures.LdrDataTableEntry64>();
-
-            // Query the target process for the ProcessBasicInformation
+            // Query the target process for the ProcessBasicInformation of the process
 
             var processBasicInformationBuffer = (IntPtr) _syscallManager.InvokeSyscall<NtQueryInformationProcess>(Handle, Enumerations.ProcessInformationClass.BasicInformation);
 
@@ -175,6 +197,10 @@ namespace Bleak.RemoteProcess
             {
                 if (currentPebEntry == pebLoaderData.InLoadOrderModuleList.Blink)
                 {
+                    // Read the last entry from the InLoadOrder doubly linked list
+
+                    yield return _memoryManager.ReadVirtualMemory<Structures.LdrDataTableEntry64>((IntPtr) currentPebEntry);
+
                     break;
                 }
 
@@ -182,50 +208,12 @@ namespace Bleak.RemoteProcess
 
                 var pebEntry = _memoryManager.ReadVirtualMemory<Structures.LdrDataTableEntry64>((IntPtr) currentPebEntry);
 
-                pebEntries.Add(pebEntry);
-
+                yield return pebEntry;
+                
                 // Get the address of the next entry in the InLoadOrder doubly linked list
 
                 currentPebEntry = pebEntry.InLoadOrderLinks.Flink;
             }
-
-            MemoryTools.FreeMemoryForBuffer(processBasicInformationBuffer);
-
-            return pebEntries;
-        }
-
-        private Process GetTargetProcess(int targetProcessId)
-        {
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessById(targetProcessId);
-            }
-
-            catch (ArgumentException)
-            {
-                throw new ArgumentException($"No process with the id {targetProcessId} is currently running");
-            }
-
-            return process;
-        }
-
-        private Process GetTargetProcess(string targetProcessName)
-        {
-            Process process;
-
-            try
-            {
-                process = Process.GetProcessesByName(targetProcessName)[0];
-            }
-
-            catch (IndexOutOfRangeException)
-            {
-                throw new ArgumentException($"No process with the name {targetProcessName} is currently running");
-            }
-
-            return process;
         }
 
         private bool GetProcessArchitecture()
@@ -238,29 +226,27 @@ namespace Bleak.RemoteProcess
             return isWow64Process;
         }
 
-        private void GetProcessModules()
+        private IEnumerable<ModuleInstance> GetProcessModules()
         {
-            Modules.Clear();
-
             if (IsWow64)
             {
-                var moduleFilePathRegex = new Regex("System32", RegexOptions.IgnoreCase);
+                var entryFilePathRegex = new Regex("System32", RegexOptions.IgnoreCase);
 
                 foreach (var pebEntry in GetWow64PebEntries())
                 {
-                    // Read the file path of the module
+                    // Read the file path of the entry
 
-                    var moduleFilePathBytes = _memoryManager.ReadVirtualMemory((IntPtr) pebEntry.FullDllName.Buffer, pebEntry.FullDllName.Length);
+                    var entryFilePathBytes = _memoryManager.ReadVirtualMemory((IntPtr) pebEntry.FullDllName.Buffer, pebEntry.FullDllName.Length);
 
-                    var moduleFilePath = moduleFilePathRegex.Replace(Encoding.Default.GetString(moduleFilePathBytes).Replace("\0", ""), "SysWOW64");
+                    var entryFilePath = entryFilePathRegex.Replace(Encoding.Unicode.GetString(entryFilePathBytes), "SysWOW64");
 
-                    // Read the name of the module
+                    // Read the name of the entry
 
-                    var moduleNameBytes = _memoryManager.ReadVirtualMemory((IntPtr) pebEntry.BaseDllName.Buffer, pebEntry.BaseDllName.Length);
+                    var entryNameBytes = _memoryManager.ReadVirtualMemory((IntPtr) pebEntry.BaseDllName.Buffer, pebEntry.BaseDllName.Length);
 
-                    var moduleName = Encoding.Default.GetString(moduleNameBytes).Replace("\0", "");
+                    var entryName = Encoding.Unicode.GetString(entryNameBytes);
 
-                    Modules.Add(new ModuleInstance((IntPtr) pebEntry.DllBase, moduleFilePath, moduleName));
+                    yield return new ModuleInstance((IntPtr) pebEntry.DllBase, entryFilePath, entryName);
                 }
             }
 
@@ -268,40 +254,64 @@ namespace Bleak.RemoteProcess
             {
                 foreach (var pebEntry in GetPebEntries())
                 {
-                    // Read the file path of the module
+                    // Read the file path of the entry
 
-                    var moduleFilePathBytes = _memoryManager.ReadVirtualMemory((IntPtr) pebEntry.FullDllName.Buffer, pebEntry.FullDllName.Length);
+                    var entryFilePathBytes = _memoryManager.ReadVirtualMemory((IntPtr) pebEntry.FullDllName.Buffer, pebEntry.FullDllName.Length);
 
-                    var moduleFilePath = Encoding.Default.GetString(moduleFilePathBytes).Replace("\0", "");
+                    var entryFilePath = Encoding.Unicode.GetString(entryFilePathBytes);
 
-                    // Read the name of the module
+                    // Read the name of the entry
 
-                    var moduleNameBytes = _memoryManager.ReadVirtualMemory((IntPtr) pebEntry.BaseDllName.Buffer, pebEntry.BaseDllName.Length);
+                    var entryNameBytes = _memoryManager.ReadVirtualMemory((IntPtr) pebEntry.BaseDllName.Buffer, pebEntry.BaseDllName.Length);
 
-                    var moduleName = Encoding.Default.GetString(moduleNameBytes).Replace("\0", "");
+                    var entryName = Encoding.Unicode.GetString(entryNameBytes);
 
-                    Modules.Add(new ModuleInstance((IntPtr) pebEntry.DllBase, moduleFilePath, moduleName));
+                    yield return new ModuleInstance((IntPtr)pebEntry.DllBase, entryFilePath, entryName);
                 }
             }
         }
 
-        internal List<Structures.LdrDataTableEntry32> GetWow64PebEntries()
+        private Process GetTargetProcess(int targetProcessId)
         {
-            var pebEntries = new List<Structures.LdrDataTableEntry32>();
+            try
+            {
+                return Process.GetProcessById(targetProcessId);
+            }
 
+            catch (ArgumentException)
+            {
+                throw new ArgumentException($"No process with the id {targetProcessId} is currently running");
+            }
+        }
+
+        private Process GetTargetProcess(string targetProcessName)
+        {
+            try
+            {
+                return Process.GetProcessesByName(targetProcessName)[0];
+            }
+
+            catch (IndexOutOfRangeException)
+            {
+                throw new ArgumentException($"No process with the name {targetProcessName} is currently running");
+            }
+        }
+
+        internal IEnumerable<Structures.LdrDataTableEntry32> GetWow64PebEntries()
+        {
             // Query the target process for the base address of the WOW64 PEB
 
-            var pebBaseAddressBuffer = (IntPtr) _syscallManager.InvokeSyscall<NtQueryInformationProcess>(Handle, Enumerations.ProcessInformationClass.Wow64Information);
+            var pebBaseAddressBuffer = (IntPtr)_syscallManager.InvokeSyscall<NtQueryInformationProcess>(Handle, Enumerations.ProcessInformationClass.Wow64Information);
 
             var pebBaseAddress = Marshal.PtrToStructure<ulong>(pebBaseAddressBuffer);
 
             // Read the WOW64 PEB of the target process
 
-            var peb = _memoryManager.ReadVirtualMemory<Structures.Peb32>((IntPtr) pebBaseAddress);
+            var peb = _memoryManager.ReadVirtualMemory<Structures.Peb32>((IntPtr)pebBaseAddress);
 
             // Read the loader data of the WOW64 PEB
 
-            var pebLoaderData = _memoryManager.ReadVirtualMemory<Structures.PebLdrData32>((IntPtr) peb.Ldr);
+            var pebLoaderData = _memoryManager.ReadVirtualMemory<Structures.PebLdrData32>((IntPtr)peb.Ldr);
 
             var currentPebEntry = pebLoaderData.InLoadOrderModuleList.Flink;
 
@@ -309,6 +319,10 @@ namespace Bleak.RemoteProcess
             {
                 if (currentPebEntry == pebLoaderData.InLoadOrderModuleList.Blink)
                 {
+                    // Read the last entry from the InLoadOrder doubly linked list
+
+                    yield return _memoryManager.ReadVirtualMemory<Structures.LdrDataTableEntry32>((IntPtr) currentPebEntry);
+
                     break;
                 }
 
@@ -316,28 +330,26 @@ namespace Bleak.RemoteProcess
 
                 var pebEntry = _memoryManager.ReadVirtualMemory<Structures.LdrDataTableEntry32>((IntPtr) currentPebEntry);
 
-                pebEntries.Add(pebEntry);
+                yield return pebEntry;
 
                 // Get the address of the next entry in the InLoadOrder doubly linked list
 
                 currentPebEntry = pebEntry.InLoadOrderLinks.Flink;
             }
-
-            MemoryTools.FreeMemoryForBuffer(pebBaseAddressBuffer);
-
-            return pebEntries;
         }
 
         private SafeProcessHandle OpenProcessHandle()
         {
-            return (SafeProcessHandle) _syscallManager.InvokeSyscall<NtOpenProcess>(Process.Id);
+            return (SafeProcessHandle) _syscallManager.InvokeSyscall<NtOpenProcess>(TargetProcess.Id);
         }
 
         internal void Refresh()
         {
-            Process.Refresh();
+            Modules.Clear();
 
-            GetProcessModules();
+            Modules.AddRange(GetProcessModules());
+
+            TargetProcess.Refresh();
         }
     }
 }

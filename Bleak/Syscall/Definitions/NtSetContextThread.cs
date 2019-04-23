@@ -1,21 +1,21 @@
 ﻿using Bleak.Handlers;
 using Bleak.Native;
-using Bleak.SafeHandle;
+using Bleak.Native.SafeHandle;
 using System;
 using System.Runtime.InteropServices;
 
 namespace Bleak.Syscall.Definitions
 {
-    internal class NtSetThreadContext
+    internal class NtSetContextThread
     {
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate Enumerations.NtStatus NtSetContextThreadDefinition(SafeThreadHandle threadHandle, IntPtr contextBuffer);
 
         private readonly NtSetContextThreadDefinition _ntSetContextThreadDelegate;
 
-        internal NtSetThreadContext(Tools syscallTools)
+        internal NtSetContextThread(IntPtr shellcodeAddress)
         {
-            _ntSetContextThreadDelegate = syscallTools.CreateDelegateForSyscall<NtSetContextThreadDefinition>();
+            _ntSetContextThreadDelegate = Marshal.GetDelegateForFunctionPointer<NtSetContextThreadDefinition>(shellcodeAddress);
         }
 
         internal void Invoke(SafeThreadHandle threadHandle, IntPtr contextBuffer)

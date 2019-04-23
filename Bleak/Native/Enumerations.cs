@@ -10,14 +10,6 @@ namespace Bleak.Native
         }
 
         [Flags]
-        internal enum SectionCharacteristics : uint
-        {
-            MemoryNotCached = 0x04000000,
-            MemoryExecute = 0x020000000,
-            MemoryRead = 0x040000000,
-            MemoryWrite = 0x080000000
-        }
-
         internal enum FileCharacteristics : ushort
         {
             RelocationsStripped = 0x01,
@@ -87,6 +79,15 @@ namespace Bleak.Native
         {
             HighLow = 0x03,
             Dir64 = 0x0A
+        }
+
+        [Flags]
+        internal enum SectionCharacteristics : uint
+        {
+            MemoryNotCached = 0x04000000,
+            MemoryExecute = 0x020000000,
+            MemoryRead = 0x040000000,
+            MemoryWrite = 0x080000000
         }
 
         [Flags]

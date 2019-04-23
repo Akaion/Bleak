@@ -1,7 +1,7 @@
 ﻿using Bleak.Handlers;
+using Bleak.Memory;
 using Bleak.Native;
-using Bleak.SafeHandle;
-using Bleak.Tools;
+using Bleak.Native.SafeHandle;
 using System;
 using System.Runtime.InteropServices;
 
@@ -14,18 +14,30 @@ namespace Bleak.Syscall.Definitions
 
         private readonly NtGetContextThreadDefinition _ntGetContextThreadDelegate;
 
-        internal NtGetContextThread(Tools syscallTools)
+        internal NtGetContextThread(IntPtr shellcodeAddress)
         {
-            _ntGetContextThreadDelegate = syscallTools.CreateDelegateForSyscall<NtGetContextThreadDefinition>();
+            _ntGetContextThreadDelegate = Marshal.GetDelegateForFunctionPointer<NtGetContextThreadDefinition>(shellcodeAddress);
         }
 
         internal IntPtr Invoke(SafeThreadHandle threadHandle)
         {
             // Store a context structure in a buffer
 
-            var context = new Structures.Context { ContextFlags = Enumerations.ContextFlags.Control };
+            IntPtr contextBuffer;
 
-            var contextBuffer = MemoryTools.StoreStructureInBuffer(context);
+            if (Environment.Is64BitProcess)
+            {
+                var context = new Structures.Context { ContextFlags = Enumerations.ContextFlags.Control };
+
+                contextBuffer = LocalMemoryTools.StoreStructureInBuffer(context);
+            }
+
+            else
+            {
+                var context = new Structures.Wow64Context { ContextFlags = Enumerations.ContextFlags.Control };
+
+                contextBuffer = LocalMemoryTools.StoreStructureInBuffer(context);
+            }
 
             // Perform the syscall
 

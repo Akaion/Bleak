@@ -1,6 +1,6 @@
 ﻿using Bleak.Handlers;
 using Bleak.Native;
-using Bleak.SafeHandle;
+using Bleak.Native.SafeHandle;
 using System;
 using System.Runtime.InteropServices;
 
@@ -12,10 +12,10 @@ namespace Bleak.Syscall.Definitions
         private delegate Enumerations.NtStatus NtQueueApcThreadDefinition(SafeThreadHandle threadHandle, IntPtr apcRoutine, IntPtr parameter, IntPtr statusBlockBuffer, ulong reserved);
 
         private readonly NtQueueApcThreadDefinition _ntQueueApcThreadDelegate;
-
-        internal NtQueueApcThread(Tools syscallTools)
+        
+        internal NtQueueApcThread(IntPtr shellcodeAddress)
         {
-            _ntQueueApcThreadDelegate = syscallTools.CreateDelegateForSyscall<NtQueueApcThreadDefinition>();
+            _ntQueueApcThreadDelegate = Marshal.GetDelegateForFunctionPointer<NtQueueApcThreadDefinition>(shellcodeAddress);
         }
 
         internal void Invoke(SafeThreadHandle threadHandle, IntPtr apcRoutine, IntPtr parameter)

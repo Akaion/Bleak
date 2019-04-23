@@ -1,6 +1,6 @@
 ﻿using Bleak.Handlers;
 using Bleak.Native;
-using Bleak.SafeHandle;
+using Bleak.Native.SafeHandle;
 using System;
 using System.Runtime.InteropServices;
 
@@ -13,9 +13,9 @@ namespace Bleak.Syscall.Definitions
 
         private readonly NtResumeThreadDefinition _ntResumeThreadDelegate;
 
-        internal NtResumeThread(Tools syscallTools)
+        internal NtResumeThread(IntPtr shellcodeAddress)
         {
-            _ntResumeThreadDelegate = syscallTools.CreateDelegateForSyscall<NtResumeThreadDefinition>();
+            _ntResumeThreadDelegate = Marshal.GetDelegateForFunctionPointer<NtResumeThreadDefinition>(shellcodeAddress);
         }
 
         internal void Invoke(SafeThreadHandle threadHandle)

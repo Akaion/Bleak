@@ -1,29 +1,23 @@
-﻿using Bleak.Native;
+﻿using Bleak.Injection.Interfaces;
+using Bleak.Injection.Objects;
+using Bleak.Native;
 using Bleak.RemoteProcess.Objects;
 using Bleak.Syscall.Definitions;
-using Bleak.Wrappers;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace Bleak.Extensions
+namespace Bleak.Injection.Extensions
 {
-    internal class RandomiseDllHeaders
+    internal class RandomiseDllHeaders : IInjectionExtension
     {
-        private readonly PropertyWrapper _propertyWrapper;
-
-        internal RandomiseDllHeaders(PropertyWrapper propertyWrapper)
+        public bool Call(InjectionProperties injectionProperties)
         {
-            _propertyWrapper = propertyWrapper;
-        }
-
-        internal bool Call()
-        {
-            var dllName = Path.GetFileName(_propertyWrapper.DllPath);
-
             // Look for the DLL in the module list of the target process
 
-            var module = _propertyWrapper.TargetProcess.Modules.Find(m => m.Name == dllName);
+            var dllName = Path.GetFileName(injectionProperties.DllPath);
+
+            var module = injectionProperties.RemoteProcess.Modules.Find(m => m.Name == dllName);
 
             if (module.Equals(default(ModuleInstance)))
             {
@@ -32,7 +26,7 @@ namespace Bleak.Extensions
 
             // Query the header region of the DLL in the target process
 
-            var memoryInformationBuffer = (IntPtr) _propertyWrapper.SyscallManager.InvokeSyscall<NtQueryVirtualMemory>(_propertyWrapper.TargetProcess.Handle, module.BaseAddress);
+            var memoryInformationBuffer = (IntPtr) injectionProperties.SyscallManager.InvokeSyscall<NtQueryVirtualMemory>(injectionProperties.RemoteProcess.Handle, module.BaseAddress);
 
             var memoryInformation = Marshal.PtrToStructure<Structures.MemoryBasicInformation>(memoryInformationBuffer);
 
@@ -42,7 +36,7 @@ namespace Bleak.Extensions
 
             new Random().NextBytes(randomBuffer);
 
-            _propertyWrapper.MemoryManager.WriteVirtualMemory(module.BaseAddress, randomBuffer);
+            injectionProperties.MemoryManager.WriteVirtualMemory(module.BaseAddress, randomBuffer);
 
             return true;
         }

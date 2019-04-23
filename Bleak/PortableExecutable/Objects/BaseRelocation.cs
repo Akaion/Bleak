@@ -6,13 +6,13 @@ namespace Bleak.PortableExecutable.Objects
     {
         internal readonly ulong Offset;
 
-        internal readonly List<TypeOffset> TypeOffsets;
+        internal readonly List<Relocation> Relocations;
 
-        internal BaseRelocation(ulong offset, List<TypeOffset> typeOffsets)
+        internal BaseRelocation(ulong offset, List<Relocation> relocations)
         {
             Offset = offset;
 
-            TypeOffsets = typeOffsets;
+            Relocations = relocations;
         }
     }
 }

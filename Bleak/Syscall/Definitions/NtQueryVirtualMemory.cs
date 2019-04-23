@@ -1,6 +1,6 @@
 ﻿using Bleak.Handlers;
+using Bleak.Memory;
 using Bleak.Native;
-using Bleak.Tools;
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.Runtime.InteropServices;
@@ -14,20 +14,20 @@ namespace Bleak.Syscall.Definitions
 
         private readonly NtQueryVirtualMemoryDefinition _ntQueryVirtualMemoryDelegate;
 
-        internal NtQueryVirtualMemory(Tools syscallTools)
+        internal NtQueryVirtualMemory(IntPtr shellcodeAddress)
         {
-            _ntQueryVirtualMemoryDelegate = syscallTools.CreateDelegateForSyscall<NtQueryVirtualMemoryDefinition>();
+            _ntQueryVirtualMemoryDelegate = Marshal.GetDelegateForFunctionPointer<NtQueryVirtualMemoryDefinition>(shellcodeAddress);
         }
 
         internal IntPtr Invoke(SafeProcessHandle processHandle, IntPtr baseAddress)
         {
-            // Initialise a buffer to store the returned memory basic information structure in
+            // Initialise a buffer to store the returned memory basic information structure
 
-            var memoryBasicInformationBuffer = MemoryTools.AllocateMemoryForBuffer(Marshal.SizeOf<Structures.MemoryBasicInformation>());
+            var memoryBasicInformationBuffer = LocalMemoryTools.AllocateMemoryForBuffer(Marshal.SizeOf<Structures.MemoryBasicInformation>());
 
             // Perform the syscall
 
-            var syscallResult = _ntQueryVirtualMemoryDelegate(processHandle, baseAddress, Enumerations.MemoryInformationClass.BasicInformation, memoryBasicInformationBuffer, (ulong)Marshal.SizeOf<Structures.MemoryBasicInformation>(), IntPtr.Zero);
+            var syscallResult = _ntQueryVirtualMemoryDelegate(processHandle, baseAddress, Enumerations.MemoryInformationClass.BasicInformation, memoryBasicInformationBuffer, (ulong) Marshal.SizeOf<Structures.MemoryBasicInformation>(), IntPtr.Zero);
 
             if (syscallResult != Enumerations.NtStatus.Success)
             {

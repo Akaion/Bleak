@@ -15,11 +15,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Bleak\Bleak.csproj" />
+    <Folder Include="Etc\" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Etc\" />
+    <ProjectReference Include="..\Bleak\Bleak.csproj" />
   </ItemGroup>
 
 </Project>

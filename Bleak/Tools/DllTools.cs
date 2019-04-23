@@ -5,15 +5,13 @@ using System.Text;
 
 namespace Bleak.Tools
 {
-    internal static class WrapperTools
+    internal static class DllTools
     {
         internal static string CreateTemporaryDll(string dllName, byte[] dllBytes)
         {
             // Create a directory to store the temporary DLL
 
-            var temporaryDllFolderPath = Path.Combine(Path.GetTempPath(), "Bleak");
-
-            var temporaryDirectoryInfo = Directory.CreateDirectory(temporaryDllFolderPath);
+            var temporaryDirectoryInfo = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "Bleak"));
 
             // Clear the directory
 
@@ -23,16 +21,16 @@ namespace Bleak.Tools
                 {
                     file.Delete();
                 }
-                
+
                 catch (Exception)
                 {
-                    // The DLL is currently loaded in a process and cannot be safely deleted
+                    // The file is currently open and cannot be safely deleted
                 }
             }
 
             // Create a temporary DLL
 
-            var temporaryDllPath = Path.Combine(temporaryDllFolderPath, dllName);
+            var temporaryDllPath = Path.Combine(temporaryDirectoryInfo.FullName, dllName);
 
             try
             {
@@ -41,7 +39,7 @@ namespace Bleak.Tools
 
             catch (IOException)
             {
-                // The DLL already exists and is loaded in a process and cannot be safely overwritten
+                // A DLL already exists with the specified name and is loaded in a process and cannot be safely overwritten
             }
 
             return temporaryDllPath;
@@ -58,7 +56,7 @@ namespace Bleak.Tools
                 hashedDllBytes = hashingService.ComputeHash(dllBytes);
             }
 
-            // Create a name for the DLL using a partial hash of the DLL bytes
+            // Create a name for the DLL using a partial hash of the its bytes
 
             var stringBuilder = new StringBuilder();
 
@@ -67,7 +65,7 @@ namespace Bleak.Tools
                 stringBuilder.Append(hashedDllBytes[index].ToString("X2"));
             }
 
-            return stringBuilder + ".dll";
+            return stringBuilder.Append(".dll").ToString();
         }
 
         internal static string GenerateRandomDllName()
@@ -92,7 +90,7 @@ namespace Bleak.Tools
                 stringBuilder.Append(characterArray[@byte % characterArray.Length]);
             }
 
-            return stringBuilder + ".dll";
+            return stringBuilder.Append(".dll").ToString();
         }
     }
 }

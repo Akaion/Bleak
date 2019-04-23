@@ -58,9 +58,9 @@ namespace Bleak.Tests
         }
 
         [Fact]
-        public void TestSetThreadContext()
+        public void TestThreadHijack()
         {
-            Assert.True(_injector.SetThreadContext(_process.Id, _dllPath));
+            Assert.True(_injector.ThreadHijack(_process.Id, _dllPath));
         }
     }
 }

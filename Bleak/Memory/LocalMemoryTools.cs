@@ -3,15 +3,17 @@ using Bleak.Native;
 using System;
 using System.Runtime.InteropServices;
 
-namespace Bleak.Tools
+namespace Bleak.Memory
 {
-    internal static class MemoryTools
+    internal static class LocalMemoryTools
     {
         internal static IntPtr AllocateMemoryForBuffer(int allocationSize)
         {
             // Allocate memory for a buffer in the local process
 
-            var buffer = PInvoke.VirtualAlloc(IntPtr.Zero, (uint) allocationSize, Enumerations.MemoryAllocationType.Commit | Enumerations.MemoryAllocationType.Reserve, Enumerations.MemoryProtectionType.ExecuteReadWrite);
+            const Enumerations.MemoryAllocationType allocationType = Enumerations.MemoryAllocationType.Commit | Enumerations.MemoryAllocationType.Reserve;
+
+            var buffer = PInvoke.VirtualAlloc(IntPtr.Zero, (uint) allocationSize, allocationType, Enumerations.MemoryProtectionType.ExecuteReadWrite);
 
             if (buffer == IntPtr.Zero)
             {

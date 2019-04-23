@@ -1,4 +1,4 @@
-﻿using Bleak.SafeHandle;
+﻿using Bleak.Native.SafeHandle;
 using Microsoft.Win32.SafeHandles;
 using System;
 using System.Runtime.InteropServices;
@@ -7,13 +7,16 @@ namespace Bleak.Native
 {
     internal static class PInvoke
     {
-        // kernel32.dll functions
+        // kernel32.dll imports
 
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool CloseHandle(IntPtr handle);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern bool IsWow64Process(SafeProcessHandle processHandle, out bool isWow64Process);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern IntPtr GetProcAddress(IntPtr moduleHandle, string functionName);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern IntPtr VirtualAlloc(IntPtr baseAddress, uint allocationSize, Enumerations.MemoryAllocationType allocationType, Enumerations.MemoryProtectionType protectionType);
@@ -33,7 +36,7 @@ namespace Bleak.Native
         [DllImport("kernel32.dll", SetLastError = true)]
         internal static extern int Wow64SuspendThread(SafeThreadHandle threadHandle);
 
-        // ntdll.dll functions
+        // ntdll.dll imports
 
         [DllImport("ntdll.dll")]
         internal static extern Enumerations.NtStatus RtlCreateUserThread(SafeProcessHandle processHandle, IntPtr securityDescriptorBuffer, bool createSuspended, ulong stackZeroBits, IntPtr stackReserved, IntPtr stackCommit, IntPtr startAddress, IntPtr parameter, out SafeThreadHandle threadHandle, IntPtr clientIdBuffer);

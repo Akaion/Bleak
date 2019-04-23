@@ -4,7 +4,7 @@ namespace Bleak.Syscall.Shellcode
 {
     internal static class SyscallX86
     {
-        internal static byte[] GetShellcode(uint syscallIndex)
+        internal static byte[] GetShellcode(byte[] syscallIndexBytes)
         {
             var shellcode = new byte[]
             {
@@ -17,8 +17,6 @@ namespace Bleak.Syscall.Shellcode
             };
 
             // Copy the syscall index into the shellcode
-
-            var syscallIndexBytes = BitConverter.GetBytes(syscallIndex);
 
             Buffer.BlockCopy(syscallIndexBytes, 0, shellcode, 1, sizeof(uint));
 
