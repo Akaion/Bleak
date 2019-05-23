@@ -27,15 +27,7 @@ namespace Bleak.Injection.Extensions
                 var dllEntryPointAddress = _injectionWrapper.RemoteProcess.IsWow64
                                          ? dllBaseAddress.AddOffset(_injectionWrapper.PeParser.GetPeHeaders().NtHeaders32.OptionalHeader.AddressOfEntryPoint)
                                          : dllBaseAddress.AddOffset(_injectionWrapper.PeParser.GetPeHeaders().NtHeaders64.OptionalHeader.AddressOfEntryPoint);
-
-                // Calculate the address of the exception table
-
-                var exceptionTable = _injectionWrapper.RemoteProcess.IsWow64
-                                   ? _injectionWrapper.PeParser.GetPeHeaders().NtHeaders32.OptionalHeader.DataDirectory[3]
-                                   : _injectionWrapper.PeParser.GetPeHeaders().NtHeaders64.OptionalHeader.DataDirectory[3];
-
-                var exceptionTableAddress = dllBaseAddress.AddOffset(exceptionTable.VirtualAddress);
-
+                
                 // Call the DllMain function of the DLL with DllProcessDetach in the remote process
 
                 if (!_injectionWrapper.RemoteProcess.CallFunction<bool>(CallingConvention.StdCall, dllEntryPointAddress, (ulong) dllBaseAddress, Constants.DllProcessDetach, 0))
@@ -66,6 +58,12 @@ namespace Bleak.Injection.Extensions
 
                 else
                 {
+                    // Calculate the address of the exception table
+                    
+                    var exceptionTable = _injectionWrapper.PeParser.GetPeHeaders().NtHeaders64.OptionalHeader.DataDirectory[3];
+
+                    var exceptionTableAddress = dllBaseAddress.AddOffset(exceptionTable.VirtualAddress);
+                    
                     // Remove the exception table from the dynamic function table of the remote process
 
                     if (!_injectionWrapper.RemoteProcess.CallFunction<bool>(CallingConvention.StdCall, "kernel32.dll", "RtlDeleteFunctionTable", (ulong) exceptionTableAddress))
@@ -73,8 +71,6 @@ namespace Bleak.Injection.Extensions
                         throw new Win32Exception("Failed to remove an exception table from the dynamic function table of the remote process");
                     }
                 }
-                
-                
 
                 // Free the memory previously allocated for the DLL in the remote process
 
