@@ -132,17 +132,19 @@ namespace Bleak.Injection.Methods
 
             foreach (var dll in groupedFunctions)
             {
-                if (!_injectionWrapper.RemoteProcess.Modules.Any(module => module.Name.Equals(dll.Key, StringComparison.OrdinalIgnoreCase)))
+                if (_injectionWrapper.RemoteProcess.Modules.Any(module => module.Name.Equals(dll.Key, StringComparison.OrdinalIgnoreCase)))
                 {
-                    // Load the DLL into the remote process
-
-                    using (var injector = new Injector(InjectionMethod.CreateThread, _injectionWrapper.RemoteProcess.Process.Id, Path.Combine(systemFolderPath, dll.Key)))
-                    {
-                        injector.InjectDll();
-                    }
-
-                    _injectionWrapper.RemoteProcess.Refresh();
+                    continue;
                 }
+                
+                // Load the DLL into the remote process
+
+                using (var injector = new Injector(InjectionMethod.CreateThread, _injectionWrapper.RemoteProcess.Process.Id, Path.Combine(systemFolderPath, dll.Key)))
+                {
+                    injector.InjectDll();
+                }
+
+                _injectionWrapper.RemoteProcess.Refresh();
             }
 
             foreach (var importedFunction in groupedFunctions.SelectMany(dll => dll.Select(importedFunction => importedFunction)))
@@ -163,7 +165,7 @@ namespace Bleak.Injection.Methods
 
         private void CallEntryPoint(IntPtr entryPointAddress)
         {
-            if (!_injectionWrapper.RemoteProcess.CallFunction<bool>(entryPointAddress, (ulong) _remoteDllAddress, Constants.DllProcessAttach, 0))
+            if (!_injectionWrapper.RemoteProcess.CallFunction<bool>(CallingConvention.StdCall, entryPointAddress, (ulong) _remoteDllAddress, Constants.DllProcessAttach, 0))
             {
                 throw new Win32Exception("Failed to call DllMain in the remote process");
             }
@@ -181,24 +183,49 @@ namespace Bleak.Injection.Methods
         {
             if (_injectionWrapper.RemoteProcess.IsWow64)
             {
-                return;
+                var ntdll = _injectionWrapper.RemoteProcess.Modules.Find(module => module.Name == "ntdll.dll");
+
+                var ntdllPeHeaders = ntdll.PeParser.Value.GetPeHeaders();
+                
+                var dllSize = _injectionWrapper.RemoteProcess.IsWow64
+                            ? _injectionWrapper.PeParser.GetPeHeaders().NtHeaders32.OptionalHeader.SizeOfImage
+                            : _injectionWrapper.PeParser.GetPeHeaders().NtHeaders64.OptionalHeader.SizeOfImage;
+
+                // Ensure the PDB has been downloaded
+                
+                while (!_injectionWrapper.PdbParser.Value.PdbDownloaded) { }
+                
+                // Get the address of the RtlInsertInvertedFunctionTable function
+
+                var rtlInsertInvertedFunctionTableSymbol = _injectionWrapper.PdbParser.Value.PdbSymbols.Find(symbol => symbol.Name == "_RtlInsertInvertedFunctionTable@8");
+
+                var rtlInsertInvertedFunctionTableSection = ntdllPeHeaders.SectionHeaders[(int) rtlInsertInvertedFunctionTableSymbol.Section - 1];
+                
+                var rtlInsertInvertedFunctionTableAddress = ntdll.BaseAddress.AddOffset(rtlInsertInvertedFunctionTableSection.VirtualAddress + rtlInsertInvertedFunctionTableSymbol.Offset);
+
+                // Add an entry for the DLL to the LdrpInvertedFunctionTable
+                
+                _injectionWrapper.RemoteProcess.CallFunction(CallingConvention.FastCall, rtlInsertInvertedFunctionTableAddress, (ulong) _remoteDllAddress, dllSize);
             }
 
-            // Calculate the address of the exception table
-
-            var exceptionTable = _injectionWrapper.PeParser.GetPeHeaders().NtHeaders64.OptionalHeader.DataDirectory[3];
-
-            var exceptionTableAddress = _remoteDllAddress.AddOffset(exceptionTable.VirtualAddress);
-
-            // Calculate the amount of entries in the exception table
-
-            var exceptionTableAmount = exceptionTable.Size / Marshal.SizeOf<Structures.ImageRuntimeFunctionEntry>();
-
-            // Add the exception table to the dynamic function table of the remote process
-
-            if (!_injectionWrapper.RemoteProcess.CallFunction<bool>("kernel32.dll", "RtlAddFunctionTable", (ulong) exceptionTableAddress, (uint) exceptionTableAmount, (ulong) _remoteDllAddress))
+            else
             {
-                throw new Win32Exception("Failed to add an exception table to the dynamic function table of the remote process");
+                // Calculate the address of the exception table
+
+                var exceptionTable = _injectionWrapper.PeParser.GetPeHeaders().NtHeaders64.OptionalHeader.DataDirectory[3];
+
+                var exceptionTableAddress = _remoteDllAddress.AddOffset(exceptionTable.VirtualAddress);
+
+                // Calculate the amount of entries in the exception table
+
+                var exceptionTableAmount = exceptionTable.Size / Marshal.SizeOf<Structures.ImageRuntimeFunctionEntry>();
+
+                // Add the exception table to the dynamic function table of the remote process
+
+                if (!_injectionWrapper.RemoteProcess.CallFunction<bool>(CallingConvention.StdCall, "kernel32.dll", "RtlAddFunctionTable", (ulong) exceptionTableAddress, (uint) exceptionTableAmount, (ulong) _remoteDllAddress))
+                {
+                    throw new Win32Exception("Failed to add an exception table to the dynamic function table of the remote process");
+                }
             }
         }
 
@@ -212,17 +239,17 @@ namespace Bleak.Injection.Methods
 
             var apiSetNamespace = _injectionWrapper.MemoryManager.ReadVirtualMemory<Structures.ApiSetNamespace>(apiSetDataAddress);
 
-            for (var index = 0; index < (int) apiSetNamespace.Count; index += 1)
+            for (var namespaceEntryIndex = 0; namespaceEntryIndex < (int) apiSetNamespace.Count; namespaceEntryIndex += 1)
             {
                 // Read the namespace entry
 
-                var namespaceEntry = _injectionWrapper.MemoryManager.ReadVirtualMemory<Structures.ApiSetNamespaceEntry>(apiSetDataAddress.AddOffset(apiSetNamespace.EntryOffset + Marshal.SizeOf<Structures.ApiSetNamespaceEntry>() * index));
+                var namespaceEntry = _injectionWrapper.MemoryManager.ReadVirtualMemory<Structures.ApiSetNamespaceEntry>(apiSetDataAddress.AddOffset(apiSetNamespace.EntryOffset + Marshal.SizeOf<Structures.ApiSetNamespaceEntry>() * namespaceEntryIndex));
 
                 // Read the name of the namespace entry
 
                 var namespaceEntryNameBytes = _injectionWrapper.MemoryManager.ReadVirtualMemory(apiSetDataAddress.AddOffset(namespaceEntry.NameOffset), (int) namespaceEntry.NameLength);
 
-                var namespaceEntryName = string.Concat(Encoding.Unicode.GetString(namespaceEntryNameBytes), ".dll");
+                var namespaceEntryName = Encoding.Unicode.GetString(namespaceEntryNameBytes) + ".dll";
 
                 // Read the value entry that the namespace entry maps to
 

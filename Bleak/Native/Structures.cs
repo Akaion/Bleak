@@ -115,6 +115,26 @@ namespace Bleak.Native
         }
 
         [StructLayout(LayoutKind.Sequential)]
+        internal struct DbiHeader
+        {
+            private readonly uint Signature;
+
+            private readonly uint Version;
+
+            private readonly uint Age;
+
+            private readonly ushort GlobalStreamIndex;
+
+            private readonly ushort PdbBuildNumber;
+
+            private readonly ushort PublicStreamIndex;
+
+            private readonly ushort DllVersion;
+
+            internal readonly ushort SymbolStreamIndex;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
         internal struct ImageBaseRelocation
         {
             internal readonly uint VirtualAddress;
@@ -130,6 +150,36 @@ namespace Bleak.Native
             internal readonly uint Size;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct ImageDebugData
+        {
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
+            private readonly char[] Signature;
+
+            internal readonly Guid Guid;
+
+            internal readonly uint Age;
+        }
+        
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct ImageDebugDirectory
+        {
+            private readonly uint Characteristics;
+            
+            private readonly uint TimeDateStamp;
+            
+            private readonly ushort MajorVersion;
+            private readonly ushort MinorVersion;
+            
+            private readonly uint Type;
+            
+            private readonly uint SizeOfData;
+            
+            internal readonly uint AddressOfRawData;
+            
+            private readonly uint PointerToRawData;
+        }
+        
         [StructLayout(LayoutKind.Sequential)]
         internal struct ImageDosHeader
         {
@@ -389,38 +439,6 @@ namespace Bleak.Native
             internal readonly Enumerations.SectionCharacteristics Characteristics;
         }
 
-        [StructLayout(LayoutKind.Explicit)]
-        internal struct ImageThunkData32
-        {
-            [FieldOffset(0)]
-            private readonly uint ForwarderString;
-
-            [FieldOffset(0)]
-            private readonly uint Function;
-
-            [FieldOffset(0)]
-            internal readonly uint Ordinal;
-
-            [FieldOffset(0)]
-            internal readonly uint AddressOfData;
-        }
-
-        [StructLayout(LayoutKind.Explicit)]
-        internal struct ImageThunkData64
-        {
-            [FieldOffset(0)]
-            private readonly ulong ForwarderString;
-
-            [FieldOffset(0)]
-            private readonly ulong Function;
-
-            [FieldOffset(0)]
-            internal readonly ulong Ordinal;
-
-            [FieldOffset(0)]
-            internal readonly ulong AddressOfData;
-        }
-
         [StructLayout(LayoutKind.Sequential)]
         internal struct ImageTlsDirectory32
         {
@@ -523,21 +541,24 @@ namespace Bleak.Native
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        internal struct OsVersionInfo
+        internal struct PdbHeader
         {
-            private readonly uint OsVersionInfoSize;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+            private readonly char[] Signature;
 
-            internal readonly uint MajorVersion;
-            internal readonly uint MinorVersion;
+            internal readonly uint PageSize;
 
-            private readonly uint BuildNumber;
+            private readonly uint AllocationTablePointer;
 
-            private readonly uint PlatformId;
+            private readonly uint FilePageCount;
 
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-            private readonly string CSDVersion;
+            private readonly uint RootStreamSize;
+
+            private readonly uint Reserved;
+
+            internal readonly uint RootStreamPageNumberListNumber;
         }
-
+        
         [StructLayout(LayoutKind.Sequential)]
         internal struct Peb32
         {
@@ -706,6 +727,20 @@ namespace Bleak.Native
             private readonly byte[] Reserved4;
         }
 
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        internal struct SymbolData
+        {
+            internal readonly ushort Length;
+
+            internal readonly ushort Magic;
+
+            private readonly uint Flags;
+
+            internal readonly uint Offset;
+
+            internal readonly ushort Section;
+        }
+        
         [StructLayout(LayoutKind.Sequential)]
         internal struct UnicodeString32
         {

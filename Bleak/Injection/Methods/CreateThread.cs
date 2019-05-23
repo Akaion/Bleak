@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using Bleak.Handlers;
 using Bleak.Injection.Interfaces;
@@ -67,7 +68,7 @@ namespace Bleak.Injection.Methods
 
             // Call LdrLoadDll in the remote process
 
-            var ntStatus = (Enumerations.NtStatus) _injectionWrapper.RemoteProcess.CallFunction<uint>("ntdll.dll", "LdrLoadDll", 0, 0, (ulong) unicodeStringBuffer, (ulong) moduleHandleBuffer);
+            var ntStatus = (Enumerations.NtStatus) _injectionWrapper.RemoteProcess.CallFunction<uint>(CallingConvention.StdCall, "ntdll.dll", "LdrLoadDll", 0, 0, (ulong) unicodeStringBuffer, (ulong) moduleHandleBuffer);
 
             if (ntStatus != Enumerations.NtStatus.Success)
             {

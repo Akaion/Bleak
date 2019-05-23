@@ -1,12 +1,10 @@
 using System;
 using System.IO;
 using Bleak.Assembly;
-using Bleak.Handlers;
 using Bleak.Memory;
-using Bleak.Native;
 using Bleak.PortableExecutable;
+using Bleak.ProgramDatabase;
 using Bleak.RemoteProcess;
-using Bleak.Shared;
 
 namespace Bleak.Injection.Objects
 {
@@ -22,15 +20,15 @@ namespace Bleak.Injection.Objects
 
         internal readonly MemoryManager MemoryManager;
 
+        internal readonly Lazy<PdbParser> PdbParser;
+        
         internal readonly PeParser PeParser;
 
         internal readonly ProcessWrapper RemoteProcess;
 
-        internal readonly WindowsVersion WindowsVersion;
-
         internal InjectionWrapper(InjectionMethod injectionMethod, int processId, byte[] dllBytes)
         {
-            RemoteProcess = new ProcessWrapper(processId, WindowsVersion);
+            RemoteProcess = new ProcessWrapper(processId);
 
             Assembler = new Assembler(RemoteProcess.IsWow64);
 
@@ -40,14 +38,14 @@ namespace Bleak.Injection.Objects
 
             MemoryManager = new MemoryManager(RemoteProcess.Process.SafeHandle);
 
+            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.IsWow64));
+            
             PeParser = new PeParser(dllBytes);
-
-            WindowsVersion = GetWindowsVersion();
         }
 
         internal InjectionWrapper(InjectionMethod injectionMethod, int processId, string dllPath)
         {
-            RemoteProcess = new ProcessWrapper(processId, WindowsVersion);
+            RemoteProcess = new ProcessWrapper(processId);
 
             Assembler = new Assembler(RemoteProcess.IsWow64);
 
@@ -59,14 +57,14 @@ namespace Bleak.Injection.Objects
 
             MemoryManager = new MemoryManager(RemoteProcess.Process.SafeHandle);
 
+            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.IsWow64));
+            
             PeParser = new PeParser(dllPath);
-
-            WindowsVersion = GetWindowsVersion();
         }
 
         internal InjectionWrapper(InjectionMethod injectionMethod, string processName, byte[] dllBytes)
         {
-            RemoteProcess = new ProcessWrapper(processName, WindowsVersion);
+            RemoteProcess = new ProcessWrapper(processName);
 
             Assembler = new Assembler(RemoteProcess.IsWow64);
 
@@ -76,14 +74,14 @@ namespace Bleak.Injection.Objects
 
             MemoryManager = new MemoryManager(RemoteProcess.Process.SafeHandle);
 
+            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.IsWow64));
+            
             PeParser = new PeParser(dllBytes);
-
-            WindowsVersion = GetWindowsVersion();
         }
 
         internal InjectionWrapper(InjectionMethod injectionMethod, string processName, string dllPath)
         {
-            RemoteProcess = new ProcessWrapper(processName, WindowsVersion);
+            RemoteProcess = new ProcessWrapper(processName);
 
             Assembler = new Assembler(RemoteProcess.IsWow64);
 
@@ -95,9 +93,9 @@ namespace Bleak.Injection.Objects
 
             MemoryManager = new MemoryManager(RemoteProcess.Process.SafeHandle);
 
+            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.IsWow64));
+            
             PeParser = new PeParser(dllPath);
-
-            WindowsVersion = GetWindowsVersion();
         }
 
         public void Dispose()
@@ -105,47 +103,6 @@ namespace Bleak.Injection.Objects
             PeParser.Dispose();
 
             RemoteProcess.Dispose();
-        }
-
-        private WindowsVersion GetWindowsVersion()
-        {
-            if (PInvoke.RtlGetVersion(out var versionInformation) != Enumerations.NtStatus.Success)
-            {
-                ExceptionHandler.ThrowWin32Exception("Failed to determine the version of Windows");
-            }
-
-            switch (versionInformation.MajorVersion)
-            {
-                case 6:
-                {
-                    if (versionInformation.MinorVersion == 1)
-                    {
-                        return WindowsVersion.Windows7;
-                    }
-
-                    if (versionInformation.MinorVersion == 2)
-                    {
-                        return WindowsVersion.Windows8;
-                    }
-
-                    if (versionInformation.MinorVersion == 3)
-                    {
-                        return WindowsVersion.Windows8Point1;
-                    }
-
-                    throw new PlatformNotSupportedException("This library is intended Windows versions >= 7 only");
-                }
-
-                case 10:
-                {
-                    return WindowsVersion.Windows10;
-                }
-
-                default:
-                {
-                    throw new PlatformNotSupportedException("This library is intended Windows versions >= 7 only");
-                }
-            }
         }
     }
 }

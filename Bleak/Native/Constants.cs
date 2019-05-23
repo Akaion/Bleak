@@ -13,5 +13,7 @@ namespace Bleak.Native
         internal const uint OrdinalFlag32 = 0x80000000;
 
         internal const ulong OrdinalFlag64 = 0x8000000000000000;
+
+        internal const int SymbolMagic = 0x110E;
     }
 }

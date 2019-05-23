@@ -61,19 +61,13 @@ namespace Bleak.Native
         internal static extern bool WriteProcessMemory(SafeProcessHandle processHandle, IntPtr baseAddress, IntPtr bufferToWrite, int bufferSize, out int numberOfBytesWritten);
 
         // ntdll.dll imports
-
-        [DllImport("ntdll.dll", SetLastError = true)]
-        internal static extern Enumerations.NtStatus NtCreateThreadEx(out SafeThreadHandle threadHandle, Enumerations.ThreadAccessMask desiredAccess, IntPtr objectAttributesBuffer, SafeProcessHandle processHandle, IntPtr startAddress, IntPtr parameter, Enumerations.ThreadCreationType creationType, int stackZeroBits, int sizeOfStack, int maximumStackSize, IntPtr attributeListBuffer);
-
+        
         [DllImport("ntdll.dll", SetLastError = true)]
         internal static extern Enumerations.NtStatus NtQueryInformationProcess(SafeProcessHandle processHandle, Enumerations.ProcessInformationClass processInformationClass, IntPtr processInformationBuffer, int bufferSize, out int returnLength);
 
         [DllImport("ntdll.dll", SetLastError = true)]
         internal static extern Enumerations.NtStatus RtlCreateUserThread(SafeProcessHandle processHandle, IntPtr securityDescriptorBuffer, bool createSuspended, int stackZeroBits, IntPtr stackReserved, IntPtr stackCommit, IntPtr startAddress, IntPtr parameter, out SafeThreadHandle threadHandle, out IntPtr clientIdBuffer);
-
-        [DllImport("ntdll.dll", SetLastError = true)]
-        internal static extern Enumerations.NtStatus RtlGetVersion(out Structures.OsVersionInfo versionInformation);
-
+        
         [DllImport("ntdll.dll")]
         internal static extern ulong RtlNtStatusToDosError(Enumerations.NtStatus ntStatus);
 

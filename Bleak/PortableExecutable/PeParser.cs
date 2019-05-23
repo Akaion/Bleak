@@ -19,7 +19,7 @@ namespace Bleak.PortableExecutable
         internal PeParser(byte[] dllBytes)
         {
             _dllBufferHandle = GCHandle.Alloc(dllBytes.Clone(), GCHandleType.Pinned);
-
+            
             _dllBuffer = _dllBufferHandle.AddrOfPinnedObject();
 
             _peHeaders = new PeHeaders();
@@ -88,11 +88,11 @@ namespace Bleak.PortableExecutable
 
                 var relocations = new List<Relocation>();
 
-                for (var index = 0; index < relocationAmount; index += 1)
+                for (var relocationIndex = 0; relocationIndex < relocationAmount; relocationIndex += 1)
                 {
                     // Read the relocation
 
-                    var relocation = Marshal.PtrToStructure<ushort>(_dllBuffer.AddOffset(relocationsOffset + (uint) (sizeof(ushort) * index)));
+                    var relocation = Marshal.PtrToStructure<ushort>(_dllBuffer.AddOffset(relocationsOffset + (uint) (sizeof(ushort) * relocationIndex)));
 
                     // The relocation offset is located in the upper 4 bits of the ushort
 
@@ -115,6 +115,40 @@ namespace Bleak.PortableExecutable
             return baseRelocations;
         }
 
+        internal DebugData GetDebugData()
+        {
+            // Calculate the offset of the debug directory
+
+            var debugDirectoryRva = _peHeaders.FileHeader.Machine == Enumerations.MachineType.X86
+                                  ? _peHeaders.NtHeaders32.OptionalHeader.DataDirectory[6].VirtualAddress
+                                  : _peHeaders.NtHeaders64.OptionalHeader.DataDirectory[6].VirtualAddress;
+
+            if (debugDirectoryRva == 0)
+            {
+                // The DLL has no debug directory
+
+                return default;
+            }
+
+            var debugDirectoryOffset = ConvertRvaToOffset(debugDirectoryRva);
+
+            // Read the debug directory
+
+            var debugDirectory = Marshal.PtrToStructure<Structures.ImageDebugDirectory>(_dllBuffer.AddOffset(debugDirectoryOffset));
+            
+            // Read the debug data
+
+            var debugDataOffset = ConvertRvaToOffset(debugDirectory.AddressOfRawData);
+            
+            var debugData = Marshal.PtrToStructure<Structures.ImageDebugData>(_dllBuffer.AddOffset(debugDataOffset));
+            
+            // Read the name of the PDB
+            
+            var pdbName = Marshal.PtrToStringAnsi(_dllBuffer.AddOffset(debugDataOffset + (uint) Marshal.SizeOf<Structures.ImageDebugData>()));
+
+            return new DebugData(debugData.Age, debugData.Guid.ToString().Replace("-", ""), pdbName);
+        }
+        
         internal List<ExportedFunction> GetExportedFunctions()
         {
             var exportedFunctions = new List<ExportedFunction>();
@@ -142,13 +176,13 @@ namespace Bleak.PortableExecutable
 
             var exportedFunctionOffsetsOffset = ConvertRvaToOffset(exportDirectory.AddressOfFunctions);
 
-            for (var index = 0; index < exportDirectory.NumberOfFunctions; index += 1)
+            for (var functionIndex = 0; functionIndex < exportDirectory.NumberOfFunctions; functionIndex += 1)
             {
                 // Read the offset of the exported function
 
-                var exportedFunctionOffset = Marshal.PtrToStructure<uint>(_dllBuffer.AddOffset(exportedFunctionOffsetsOffset + (uint) (sizeof(uint) * index)));
+                var exportedFunctionOffset = Marshal.PtrToStructure<uint>(_dllBuffer.AddOffset(exportedFunctionOffsetsOffset + (uint) (sizeof(uint) * functionIndex)));
 
-                exportedFunctions.Add(new ExportedFunction(null, exportedFunctionOffset, (ushort) (exportDirectory.Base + index)));
+                exportedFunctions.Add(new ExportedFunction(null, exportedFunctionOffset, (ushort) (exportDirectory.Base + functionIndex)));
             }
 
             // Calculate the offset of the exported function names
@@ -159,11 +193,11 @@ namespace Bleak.PortableExecutable
 
             var exportedFunctionOrdinalsOffset = ConvertRvaToOffset(exportDirectory.AddressOfNameOrdinals);
 
-            for (var index = 0; index < exportDirectory.NumberOfNames; index += 1)
+            for (var exportedFunctionIndex = 0; exportedFunctionIndex < exportDirectory.NumberOfNames; exportedFunctionIndex += 1)
             {
                 // Calculate the offset of the name of the exported function
 
-                var exportedFunctionNameRva = Marshal.PtrToStructure<uint>(_dllBuffer.AddOffset(exportedFunctionNamesOffset + (uint) (sizeof(uint) * index)));
+                var exportedFunctionNameRva = Marshal.PtrToStructure<uint>(_dllBuffer.AddOffset(exportedFunctionNamesOffset + (uint) (sizeof(uint) * exportedFunctionIndex)));
 
                 var exportedFunctionNameOffset = ConvertRvaToOffset(exportedFunctionNameRva);
 
@@ -173,7 +207,7 @@ namespace Bleak.PortableExecutable
 
                 // Read the ordinal of the exported function
 
-                var exportedFunctionOrdinal = exportDirectory.Base + Marshal.PtrToStructure<ushort>(_dllBuffer.AddOffset(exportedFunctionOrdinalsOffset + (uint) (sizeof(ushort) * index)));
+                var exportedFunctionOrdinal = exportDirectory.Base + Marshal.PtrToStructure<ushort>(_dllBuffer.AddOffset(exportedFunctionOrdinalsOffset + (uint) (sizeof(ushort) * exportedFunctionIndex)));
 
                 exportedFunctions.Find(exportedFunction => exportedFunction.Ordinal == exportedFunctionOrdinal).Name = exportedFunctionName;
             }
@@ -231,25 +265,25 @@ namespace Bleak.PortableExecutable
                     {
                         // Read the thunk of the imported function
 
-                        var importedFunctionThunk = Marshal.PtrToStructure<Structures.ImageThunkData32>(_dllBuffer.AddOffset(thunkOffset));
+                        var importedFunctionThunk = Marshal.PtrToStructure<uint>(_dllBuffer.AddOffset(thunkOffset));
 
-                        if (importedFunctionThunk.AddressOfData == 0)
+                        if (importedFunctionThunk == 0)
                         {
                             break;
                         }
 
                         // Check if the function is imported by its ordinal
 
-                        if ((importedFunctionThunk.Ordinal & Constants.OrdinalFlag32) == Constants.OrdinalFlag32)
+                        if ((importedFunctionThunk & Constants.OrdinalFlag32) == Constants.OrdinalFlag32)
                         {
-                            importedFunctions.Add(new ImportedFunction(importDescriptorName, firstThunkOffset, (ushort) (importedFunctionThunk.Ordinal & 0xFFFF)));
+                            importedFunctions.Add(new ImportedFunction(importDescriptorName, firstThunkOffset, (ushort) (importedFunctionThunk & 0xFFFF)));
                         }
 
                         else
                         {
                             // Read the ordinal of the imported function
 
-                            var importedFunctionOrdinalOffset = ConvertRvaToOffset(importedFunctionThunk.AddressOfData);
+                            var importedFunctionOrdinalOffset = ConvertRvaToOffset(importedFunctionThunk);
 
                             var importedFunctionOrdinal = Marshal.PtrToStructure<ushort>(_dllBuffer.AddOffset(importedFunctionOrdinalOffset));
 
@@ -260,43 +294,43 @@ namespace Bleak.PortableExecutable
                             importedFunctions.Add(new ImportedFunction(importDescriptorName, importedFunctionName, firstThunkOffset, importedFunctionOrdinal));
                         }
 
-                        thunkOffset += (uint) Marshal.SizeOf<Structures.ImageThunkData32>();
+                        thunkOffset += sizeof(uint);
 
-                        firstThunkOffset += (uint) Marshal.SizeOf<Structures.ImageThunkData32>();
+                        firstThunkOffset += sizeof(uint);
                     }
 
                     else
                     {
                         // Read the thunk of the imported function
 
-                        var importedFunctionThunk = Marshal.PtrToStructure<Structures.ImageThunkData64>(_dllBuffer.AddOffset(thunkOffset));
+                        var importedFunctionThunk = Marshal.PtrToStructure<ulong>(_dllBuffer.AddOffset(thunkOffset));
 
-                        if (importedFunctionThunk.AddressOfData == 0)
+                        if (importedFunctionThunk == 0)
                         {
                             break;
                         }
 
                         // Check if the function is imported by its ordinal
 
-                        if ((importedFunctionThunk.Ordinal & Constants.OrdinalFlag64) == Constants.OrdinalFlag64)
+                        if ((importedFunctionThunk & Constants.OrdinalFlag64) == Constants.OrdinalFlag64)
                         {
-                            importedFunctions.Add(new ImportedFunction(importDescriptorName, firstThunkOffset, (ushort) (importedFunctionThunk.Ordinal & 0xFFFF)));
+                            importedFunctions.Add(new ImportedFunction(importDescriptorName, firstThunkOffset, (ushort) (importedFunctionThunk & 0xFFFF)));
                         }
 
                         else
                         {
                             // Read the name of the imported function
 
-                            var importedFunctionNameOffset = ConvertRvaToOffset(importedFunctionThunk.AddressOfData) + sizeof(ushort);
+                            var importedFunctionNameOffset = ConvertRvaToOffset(importedFunctionThunk) + sizeof(ushort);
 
                             var importedFunctionName = Marshal.PtrToStringAnsi(_dllBuffer.AddOffset(importedFunctionNameOffset));
 
                             importedFunctions.Add(new ImportedFunction(importDescriptorName, importedFunctionName, firstThunkOffset));
                         }
 
-                        thunkOffset += (uint) Marshal.SizeOf<Structures.ImageThunkData64>();
+                        thunkOffset += sizeof(ulong);
 
-                        firstThunkOffset += (uint) Marshal.SizeOf<Structures.ImageThunkData64>();
+                        firstThunkOffset += sizeof(ulong);
                     }
                 }
 

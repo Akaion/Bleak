@@ -9,7 +9,6 @@ using Bleak.Assembly;
 using Bleak.Handlers;
 using Bleak.Memory;
 using Bleak.Native;
-using Bleak.Native.SafeHandle;
 using Bleak.RemoteProcess.Objects;
 using Bleak.Shared;
 
@@ -27,9 +26,7 @@ namespace Bleak.RemoteProcess
 
         private readonly MemoryManager _memoryManager;
 
-        private readonly WindowsVersion _windowsVersion;
-
-        internal ProcessWrapper(int processId, WindowsVersion windowsVersion)
+        internal ProcessWrapper(int processId)
         {
             Process = GetProcess(processId);
 
@@ -41,14 +38,12 @@ namespace Bleak.RemoteProcess
 
             _memoryManager = new MemoryManager(Process.SafeHandle);
 
-            _windowsVersion = windowsVersion;
-
             EnableDebuggerPrivileges();
 
             Modules.AddRange(GetProcessModules());
         }
 
-        internal ProcessWrapper(string processName, WindowsVersion windowsVersion)
+        internal ProcessWrapper(string processName)
         {
             Process = GetProcess(processName);
 
@@ -59,8 +54,6 @@ namespace Bleak.RemoteProcess
             _assembler = new Assembler(IsWow64);
 
             _memoryManager = new MemoryManager(Process.SafeHandle);
-
-            _windowsVersion = windowsVersion;
 
             EnableDebuggerPrivileges();
 
@@ -77,7 +70,33 @@ namespace Bleak.RemoteProcess
             Process.Dispose();
         }
 
-        internal TStructure CallFunction<TStructure>(IntPtr functionAddress, params ulong[] parameters) where TStructure : struct
+        internal void CallFunction(CallingConvention callingConvention, IntPtr functionAddress, params ulong[] parameters)
+        {
+            // Write the shellcode used to call the function into the remote process
+
+            var shellcode = _assembler.AssembleFunctionCall(callingConvention, functionAddress, IntPtr.Zero, parameters);
+
+            var shellcodeBuffer = _memoryManager.AllocateVirtualMemory(shellcode.Length);
+
+            _memoryManager.WriteVirtualMemory(shellcodeBuffer, shellcode);
+
+            // Create a thread in the remote process to call the shellcode
+            
+            var ntStatus = PInvoke.RtlCreateUserThread(Process.SafeHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, shellcodeBuffer, IntPtr.Zero, out var threadHandle, out _);
+
+            if (ntStatus != Enumerations.NtStatus.Success)
+            {
+                ExceptionHandler.ThrowWin32Exception("Failed to create a thread in the remote process");
+            }
+
+            PInvoke.WaitForSingleObject(threadHandle, int.MaxValue);
+
+            threadHandle.Dispose();
+
+            _memoryManager.FreeVirtualMemory(shellcodeBuffer);
+        }
+        
+        internal TStructure CallFunction<TStructure>(CallingConvention callingConvention, IntPtr functionAddress, params ulong[] parameters) where TStructure : struct
         {
             // Allocate a buffer in the remote process to store the returned value of the function
 
@@ -85,19 +104,15 @@ namespace Bleak.RemoteProcess
 
             // Write the shellcode used to call the function into the remote process
 
-            var shellcode = _assembler.AssembleFunctionCall(functionAddress, returnBuffer, parameters);
+            var shellcode = _assembler.AssembleFunctionCall(callingConvention, functionAddress, returnBuffer, parameters);
 
             var shellcodeBuffer = _memoryManager.AllocateVirtualMemory(shellcode.Length);
 
             _memoryManager.WriteVirtualMemory(shellcodeBuffer, shellcode);
 
             // Create a thread in the remote process to call the shellcode
-
-            SafeThreadHandle threadHandle;
-
-            var ntStatus = _windowsVersion == WindowsVersion.Windows7
-                         ? PInvoke.NtCreateThreadEx(out threadHandle, Enumerations.ThreadAccessMask.AllAccess, IntPtr.Zero, Process.SafeHandle, shellcodeBuffer, IntPtr.Zero, Enumerations.ThreadCreationType.HideFromDebugger, 0, 0, 0, IntPtr.Zero)
-                         : PInvoke.RtlCreateUserThread(Process.SafeHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, shellcodeBuffer, IntPtr.Zero, out threadHandle, out _);
+            
+            var ntStatus = PInvoke.RtlCreateUserThread(Process.SafeHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, shellcodeBuffer, IntPtr.Zero, out var threadHandle, out _);
 
             if (ntStatus != Enumerations.NtStatus.Success)
             {
@@ -123,7 +138,7 @@ namespace Bleak.RemoteProcess
             }
         }
 
-        internal TStructure CallFunction<TStructure>(string moduleName, string functionName, params ulong[] parameters) where TStructure : struct
+        internal TStructure CallFunction<TStructure>(CallingConvention callingConvention, string moduleName, string functionName, params ulong[] parameters) where TStructure : struct
         {
             // Get the address of the function in the remote process
 
@@ -131,7 +146,7 @@ namespace Bleak.RemoteProcess
 
             // Call the function in the remote process
 
-            return CallFunction<TStructure>(functionAddress, parameters);
+            return CallFunction<TStructure>(callingConvention, functionAddress, parameters);
         }
 
         internal IntPtr GetFunctionAddress(string moduleName, string functionName)
@@ -165,40 +180,43 @@ namespace Bleak.RemoteProcess
 
             var exportDirectoryEndAddress = exportDirectoryStartAddress.AddOffset(exportDirectory.Size);
 
-            if ((ulong) functionAddress >= (ulong) exportDirectoryStartAddress && (ulong) functionAddress <= (ulong) exportDirectoryEndAddress)
+            // Determine if the function is forwarded to another function
+            
+            if ((ulong) functionAddress < (ulong) exportDirectoryStartAddress || (ulong) functionAddress > (ulong) exportDirectoryEndAddress)
             {
-                // Read the forwarded function
+                return functionAddress;
+            }
+            
+            // Read the forwarded function
 
-                var forwardedFunctionBytes = new List<byte>();
+            var forwardedFunctionBytes = new List<byte>();
 
-                while (true)
+            while (true)
+            {
+                var currentByte = _memoryManager.ReadVirtualMemory(functionAddress, 1);
+
+                if (currentByte[0] == 0x00)
                 {
-                    var currentByte = _memoryManager.ReadVirtualMemory(functionAddress, 1);
-
-                    if (currentByte[0] == 0x00)
-                    {
-                        break;
-                    }
-
-                    forwardedFunctionBytes.Add(currentByte[0]);
-
-                    functionAddress += 1;
+                    break;
                 }
 
-                var forwardedFunction = Encoding.Default.GetString(forwardedFunctionBytes.ToArray()).Split('.');
+                forwardedFunctionBytes.Add(currentByte[0]);
 
-                // Get the name of the module the forwarded function resides in
-
-                var forwardedFunctionModuleName = string.Concat(forwardedFunction[0], ".dll");
-
-                // Get the name of the forwarded function
-
-                var forwardedFunctionName = forwardedFunction[1];
-
-                return GetFunctionAddress(forwardedFunctionModuleName, forwardedFunctionName);
+                functionAddress += 1;
             }
 
-            return functionAddress;
+            var forwardedFunction = Encoding.Default.GetString(forwardedFunctionBytes.ToArray()).Split('.');
+
+            // Get the name of the module the forwarded function resides in
+
+            var forwardedFunctionModuleName = forwardedFunction[0] + ".dll";
+
+            // Get the name of the forwarded function
+
+            var forwardedFunctionName = forwardedFunction[1];
+
+            return GetFunctionAddress(forwardedFunctionModuleName, forwardedFunctionName);
+
         }
 
         internal IntPtr GetFunctionAddress(string moduleName, ushort functionOrdinal)

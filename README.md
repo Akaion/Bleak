@@ -9,8 +9,8 @@ A Windows native DLL injection library written in C# that supports several metho
 ### Injection Methods
 
 * CreateThread
+* HijackThread
 * ManualMap
-* ThreadHijack
 
 ### Injection Extensions
 

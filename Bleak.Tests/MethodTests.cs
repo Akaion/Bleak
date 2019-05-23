@@ -31,7 +31,7 @@ namespace Bleak.Tests
         }
 
         [Fact]
-        public void TestCreateRemoteThread()
+        public void TestCreateThread()
         {
             using (var injector = new Injector(InjectionMethod.CreateThread, _process.Id, _dllPath))
             {
@@ -44,18 +44,9 @@ namespace Bleak.Tests
         }
 
         [Fact]
-        public void TestManualMap()
+        public void TestHijackThread()
         {
-            using (var injector = new Injector(InjectionMethod.ManualMap, _process.Id, _dllPath))
-            {
-                Assert.True(injector.InjectDll() != IntPtr.Zero);
-            }
-        }
-
-        [Fact]
-        public void TestThreadHijack()
-        {
-            using (var injector = new Injector(InjectionMethod.ThreadHijack, _process.Id, _dllPath))
+            using (var injector = new Injector(InjectionMethod.HijackThread, _process.Id, _dllPath))
             {
                 injector.InjectDll();
             }
@@ -63,6 +54,15 @@ namespace Bleak.Tests
             _process.Refresh();
 
             Assert.Contains(_process.Modules.Cast<ProcessModule>(), module => module.FileName == _dllPath);
+        }
+        
+        [Fact]
+        public void TestManualMap()
+        {
+            using (var injector = new Injector(InjectionMethod.ManualMap, _process.Id, _dllPath))
+            {
+                Assert.True(injector.InjectDll() != IntPtr.Zero);
+            }
         }
     }
 }

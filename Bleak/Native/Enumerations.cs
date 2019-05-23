@@ -89,12 +89,6 @@ namespace Bleak.Native
         }
 
         [Flags]
-        internal enum ThreadCreationType
-        {
-            HideFromDebugger = 0x04
-        }
-
-        [Flags]
         internal enum VirtualKey
         {
             LeftButton = 0x01

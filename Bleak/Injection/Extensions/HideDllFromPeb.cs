@@ -30,26 +30,28 @@ namespace Bleak.Injection.Extensions
 
                     var entryFilePath = filePathRegex.Replace(Encoding.Unicode.GetString(entryFilePathBytes), "SysWOW64");
 
-                    if (entryFilePath == _injectionWrapper.DllPath)
+                    if (entryFilePath != _injectionWrapper.DllPath)
                     {
-                        // Remove the entry from the doubly linked lists
-
-                        RemoveDoublyLinkedListEntry(pebEntry.InLoadOrderLinks);
-
-                        RemoveDoublyLinkedListEntry(pebEntry.InMemoryOrderLinks);
-
-                        RemoveDoublyLinkedListEntry(pebEntry.InInitializationOrderLinks);
-
-                        // Remove the entry from the LdrpHashTable
-
-                        RemoveDoublyLinkedListEntry(pebEntry.HashLinks);
-
-                        // Write over the DLL name and path
-
-                        _injectionWrapper.MemoryManager.WriteVirtualMemory((IntPtr) pebEntry.BaseDllName.Buffer, new byte[pebEntry.BaseDllName.MaximumLength]);
-
-                        _injectionWrapper.MemoryManager.WriteVirtualMemory((IntPtr) pebEntry.FullDllName.Buffer, new byte[pebEntry.FullDllName.MaximumLength]);
+                        continue;
                     }
+                    
+                    // Remove the entry from the doubly linked lists
+
+                    RemoveDoublyLinkedListEntry(pebEntry.InLoadOrderLinks);
+
+                    RemoveDoublyLinkedListEntry(pebEntry.InMemoryOrderLinks);
+
+                    RemoveDoublyLinkedListEntry(pebEntry.InInitializationOrderLinks);
+
+                    // Remove the entry from the LdrpHashTable
+
+                    RemoveDoublyLinkedListEntry(pebEntry.HashLinks);
+
+                    // Write over the DLL name and path
+
+                    _injectionWrapper.MemoryManager.WriteVirtualMemory((IntPtr) pebEntry.BaseDllName.Buffer, new byte[pebEntry.BaseDllName.MaximumLength]);
+
+                    _injectionWrapper.MemoryManager.WriteVirtualMemory((IntPtr) pebEntry.FullDllName.Buffer, new byte[pebEntry.FullDllName.MaximumLength]);
                 }
             }
 
@@ -63,26 +65,28 @@ namespace Bleak.Injection.Extensions
 
                     var entryFilePath = Encoding.Unicode.GetString(entryFilePathBytes);
 
-                    if (entryFilePath == _injectionWrapper.DllPath)
+                    if (entryFilePath != _injectionWrapper.DllPath)
                     {
-                        // Remove the entry from the doubly linked lists
-
-                        RemoveDoublyLinkedListEntry(pebEntry.InLoadOrderLinks);
-
-                        RemoveDoublyLinkedListEntry(pebEntry.InMemoryOrderLinks);
-
-                        RemoveDoublyLinkedListEntry(pebEntry.InInitializationOrderLinks);
-
-                        // Remove the entry from the LdrpHashTable
-
-                        RemoveDoublyLinkedListEntry(pebEntry.HashLinks);
-
-                        // Write over the DLL name and path
-
-                        _injectionWrapper.MemoryManager.WriteVirtualMemory((IntPtr) pebEntry.BaseDllName.Buffer, new byte[pebEntry.BaseDllName.MaximumLength]);
-
-                        _injectionWrapper.MemoryManager.WriteVirtualMemory((IntPtr) pebEntry.FullDllName.Buffer, new byte[pebEntry.FullDllName.MaximumLength]);
+                        continue;
                     }
+                    
+                    // Remove the entry from the doubly linked lists
+
+                    RemoveDoublyLinkedListEntry(pebEntry.InLoadOrderLinks);
+
+                    RemoveDoublyLinkedListEntry(pebEntry.InMemoryOrderLinks);
+
+                    RemoveDoublyLinkedListEntry(pebEntry.InInitializationOrderLinks);
+
+                    // Remove the entry from the LdrpHashTable
+
+                    RemoveDoublyLinkedListEntry(pebEntry.HashLinks);
+
+                    // Write over the DLL name and path
+
+                    _injectionWrapper.MemoryManager.WriteVirtualMemory((IntPtr) pebEntry.BaseDllName.Buffer, new byte[pebEntry.BaseDllName.MaximumLength]);
+
+                    _injectionWrapper.MemoryManager.WriteVirtualMemory((IntPtr) pebEntry.FullDllName.Buffer, new byte[pebEntry.FullDllName.MaximumLength]);
                 }
             }
 

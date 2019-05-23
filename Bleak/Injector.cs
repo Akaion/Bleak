@@ -25,7 +25,7 @@ namespace Bleak
 
             _injectionManager = injectionMethod == InjectionMethod.ManualMap
                               ? new InjectionManager(injectionMethod, processId, dllBytes)
-                              : new InjectionManager(injectionMethod, processId, DllTools.CreateTemporaryDll(DllTools.GenerateRandomDllName(), dllBytes));
+                              : new InjectionManager(injectionMethod, processId, DllTools.CreateTemporaryDll(dllBytes));
         }
 
         public Injector(InjectionMethod injectionMethod, int processId, string dllPath, bool randomiseDllName = false)
@@ -52,7 +52,7 @@ namespace Bleak
             {
                 // Create a temporary DLL on disk
 
-                var temporaryDllPath = DllTools.CreateTemporaryDll(DllTools.GenerateRandomDllName(), File.ReadAllBytes(dllPath));
+                var temporaryDllPath = DllTools.CreateTemporaryDll(File.ReadAllBytes(dllPath));
 
                 _injectionManager = new InjectionManager(injectionMethod, processId, temporaryDllPath);
             }
@@ -78,7 +78,7 @@ namespace Bleak
 
             _injectionManager = injectionMethod == InjectionMethod.ManualMap
                               ? new InjectionManager(injectionMethod, processName, dllBytes)
-                              : new InjectionManager(injectionMethod, processName, DllTools.CreateTemporaryDll(DllTools.GenerateRandomDllName(), dllBytes));
+                              : new InjectionManager(injectionMethod, processName, DllTools.CreateTemporaryDll(dllBytes));
         }
 
         public Injector(InjectionMethod injectionMethod, string processName, string dllPath, bool randomiseDllName = false)
@@ -105,7 +105,7 @@ namespace Bleak
             {
                 // Create a temporary DLL on disk
 
-                var temporaryDllPath = DllTools.CreateTemporaryDll(DllTools.GenerateRandomDllName(), File.ReadAllBytes(dllPath));
+                var temporaryDllPath = DllTools.CreateTemporaryDll(File.ReadAllBytes(dllPath));
 
                 _injectionManager = new InjectionManager(injectionMethod, processName, temporaryDllPath);
             }

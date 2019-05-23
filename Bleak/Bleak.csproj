@@ -8,7 +8,7 @@
         <Authors>Akaion</Authors>
         <RepositoryUrl>https://github.com/Akaion/Bleak</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
-        <PackageVersion>2.5.1</PackageVersion>
+        <PackageVersion>2.6.0</PackageVersion>
     </PropertyGroup>
 
 </Project>

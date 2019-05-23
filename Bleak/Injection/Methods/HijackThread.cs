@@ -10,11 +10,11 @@ using Bleak.Native;
 
 namespace Bleak.Injection.Methods
 {
-    internal class ThreadHijack : IInjectionMethod
+    internal class HijackThread : IInjectionMethod
     {
         private readonly InjectionWrapper _injectionWrapper;
 
-        public ThreadHijack(InjectionWrapper injectionWrapper)
+        public HijackThread(InjectionWrapper injectionWrapper)
         {
             _injectionWrapper = injectionWrapper;
         }
@@ -67,7 +67,7 @@ namespace Bleak.Injection.Methods
 
             // Write the shellcode used to call LdrLoadDll from a thread into the remote process
 
-            var shellcode = _injectionWrapper.Assembler.AssembleThreadFunctionCall(ldrLoadDllAddress, returnBuffer, 0, 0, (ulong) unicodeStringBuffer, (ulong) moduleHandleBuffer);
+            var shellcode = _injectionWrapper.Assembler.AssembleThreadFunctionCall(CallingConvention.StdCall, ldrLoadDllAddress, returnBuffer, 0, 0, (ulong) unicodeStringBuffer, (ulong) moduleHandleBuffer);
 
             var shellcodeBuffer = _injectionWrapper.MemoryManager.AllocateVirtualMemory(shellcode.Length);
 

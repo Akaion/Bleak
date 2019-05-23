@@ -30,7 +30,7 @@ namespace Bleak.Injection
                 { "RandomiseDllHeaders", new RandomiseDllHeaders(_injectionWrapper) }
             };
 
-            var injectionMethodType = Type.GetType(string.Concat("Bleak.Injection.Methods.", injectionMethod.ToString()));
+            var injectionMethodType = Type.GetType("Bleak.Injection.Methods." + injectionMethod);
 
             _injectionMethod = (IInjectionMethod) Activator.CreateInstance(injectionMethodType, _injectionWrapper);
 
@@ -52,7 +52,7 @@ namespace Bleak.Injection
                 { "RandomiseDllHeaders", new RandomiseDllHeaders(_injectionWrapper) }
             };
 
-            var injectionMethodType = Type.GetType(string.Concat("Bleak.Injection.Methods.", injectionMethod.ToString()));
+            var injectionMethodType = Type.GetType("Bleak.Injection.Methods." + injectionMethod);
 
             _injectionMethod = (IInjectionMethod) Activator.CreateInstance(injectionMethodType, _injectionWrapper);
 
@@ -74,7 +74,7 @@ namespace Bleak.Injection
                 { "RandomiseDllHeaders", new RandomiseDllHeaders(_injectionWrapper) }
             };
 
-            var injectionMethodType = Type.GetType(string.Concat("Bleak.Injection.Methods.", injectionMethod.ToString()));
+            var injectionMethodType = Type.GetType("Bleak.Injection.Methods." + injectionMethod);
 
             _injectionMethod = (IInjectionMethod) Activator.CreateInstance(injectionMethodType, _injectionWrapper);
 
@@ -96,7 +96,7 @@ namespace Bleak.Injection
                 { "RandomiseDllHeaders", new RandomiseDllHeaders(_injectionWrapper) }
             };
 
-            var injectionMethodType = Type.GetType(string.Concat("Bleak.Injection.Methods.", injectionMethod.ToString()));
+            var injectionMethodType = Type.GetType("Bleak.Injection.Methods." + injectionMethod);
 
             _injectionMethod = (IInjectionMethod) Activator.CreateInstance(injectionMethodType, _injectionWrapper);
 
@@ -119,6 +119,8 @@ namespace Bleak.Injection
 
             if (_injectionExtensionCache["EjectDll"].Call(_injectionContext))
             {
+                _injectionContext.DllBaseAddress = IntPtr.Zero;
+
                 _injectionContext.Injected = false;
             }
 
@@ -149,17 +151,14 @@ namespace Bleak.Injection
 
             _injectionContext.DllBaseAddress = _injectionMethod.Call();
 
-            try
-            {
-                return _injectionContext.DllBaseAddress;
-            }
-
-            finally
+            if (_injectionContext.DllBaseAddress != IntPtr.Zero)
             {
                 _injectionWrapper.RemoteProcess.Refresh();
-
+                
                 _injectionContext.Injected = true;
             }
+
+            return _injectionContext.DllBaseAddress;
         }
 
         internal bool RandomiseDllHeaders()
