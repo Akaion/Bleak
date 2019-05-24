@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -40,7 +41,7 @@ namespace Bleak.RemoteProcess
 
             EnableDebuggerPrivileges();
 
-            Modules.AddRange(GetProcessModules());
+            GetProcessModules();
         }
 
         internal ProcessWrapper(string processName)
@@ -57,7 +58,7 @@ namespace Bleak.RemoteProcess
 
             EnableDebuggerPrivileges();
 
-            Modules.AddRange(GetProcessModules());
+            GetProcessModules();
         }
 
         public void Dispose()
@@ -70,15 +71,18 @@ namespace Bleak.RemoteProcess
             Process.Dispose();
         }
 
-        internal void CallFunction(CallingConvention callingConvention, IntPtr functionAddress, params ulong[] parameters)
+        internal void CallFunction(IntPtr functionAddress, ulong[] parameters, CallingConvention callingConvention = CallingConvention.StdCall)
         {
             // Write the shellcode used to call the function into the remote process
-
-            var shellcode = _assembler.AssembleFunctionCall(callingConvention, functionAddress, IntPtr.Zero, parameters);
-
+            
+            var shellcode = callingConvention == CallingConvention.FastCall 
+                          ? _assembler.AssembleFastCallFunctionCall(functionAddress, IntPtr.Zero, parameters.ToArray()) 
+                          : _assembler.AssembleStandardFunctionCall(functionAddress, IntPtr.Zero, parameters.ToArray());
+            
             var shellcodeBuffer = _memoryManager.AllocateVirtualMemory(shellcode.Length);
 
             _memoryManager.WriteVirtualMemory(shellcodeBuffer, shellcode);
+
 
             // Create a thread in the remote process to call the shellcode
             
@@ -95,21 +99,23 @@ namespace Bleak.RemoteProcess
 
             _memoryManager.FreeVirtualMemory(shellcodeBuffer);
         }
-        
-        internal TStructure CallFunction<TStructure>(CallingConvention callingConvention, IntPtr functionAddress, params ulong[] parameters) where TStructure : struct
+
+        internal TStructure CallFunction<TStructure>(IntPtr functionAddress, ulong[] parameters, CallingConvention callingConvention = CallingConvention.StdCall) where TStructure : struct
         {
             // Allocate a buffer in the remote process to store the returned value of the function
 
             var returnBuffer = _memoryManager.AllocateVirtualMemory<TStructure>();
-
+            
             // Write the shellcode used to call the function into the remote process
-
-            var shellcode = _assembler.AssembleFunctionCall(callingConvention, functionAddress, returnBuffer, parameters);
-
+            
+            var shellcode = callingConvention == CallingConvention.FastCall 
+                          ? _assembler.AssembleFastCallFunctionCall(functionAddress, returnBuffer, parameters.ToArray()) 
+                          : _assembler.AssembleStandardFunctionCall(functionAddress, returnBuffer, parameters.ToArray());
+            
             var shellcodeBuffer = _memoryManager.AllocateVirtualMemory(shellcode.Length);
 
             _memoryManager.WriteVirtualMemory(shellcodeBuffer, shellcode);
-
+            
             // Create a thread in the remote process to call the shellcode
             
             var ntStatus = PInvoke.RtlCreateUserThread(Process.SafeHandle, IntPtr.Zero, false, 0, IntPtr.Zero, IntPtr.Zero, shellcodeBuffer, IntPtr.Zero, out var threadHandle, out _);
@@ -124,7 +130,7 @@ namespace Bleak.RemoteProcess
             threadHandle.Dispose();
 
             _memoryManager.FreeVirtualMemory(shellcodeBuffer);
-
+            
             try
             {
                 // Read the returned value of the function from the buffer
@@ -137,16 +143,10 @@ namespace Bleak.RemoteProcess
                 _memoryManager.FreeVirtualMemory(returnBuffer);
             }
         }
-
-        internal TStructure CallFunction<TStructure>(CallingConvention callingConvention, string moduleName, string functionName, params ulong[] parameters) where TStructure : struct
+        
+        internal TStructure CallFunction<TStructure>(string moduleName, string functionName, ulong[] parameters, CallingConvention callingConvention = CallingConvention.StdCall) where TStructure : struct
         {
-            // Get the address of the function in the remote process
-
-            var functionAddress = GetFunctionAddress(moduleName, functionName);
-
-            // Call the function in the remote process
-
-            return CallFunction<TStructure>(callingConvention, functionAddress, parameters);
+            return CallFunction<TStructure>(GetFunctionAddress(moduleName, functionName), parameters, callingConvention);
         }
 
         internal IntPtr GetFunctionAddress(string moduleName, string functionName)
@@ -352,7 +352,7 @@ namespace Bleak.RemoteProcess
         {
             Modules.Clear();
 
-            Modules.AddRange(GetProcessModules());
+            GetProcessModules();
 
             Process.Refresh();
         }
@@ -396,7 +396,7 @@ namespace Bleak.RemoteProcess
             }
         }
 
-        private IEnumerable<Module> GetProcessModules()
+        private void GetProcessModules()
         {
             if (IsWow64)
             {
@@ -416,7 +416,7 @@ namespace Bleak.RemoteProcess
 
                     var entryName = Encoding.Unicode.GetString(entryNameBytes);
 
-                    yield return new Module((IntPtr) pebEntry.DllBase, entryFilePath, entryName);
+                    Modules.Add(new Module((IntPtr) pebEntry.DllBase, entryFilePath, entryName));
                 }
             }
 
@@ -436,7 +436,7 @@ namespace Bleak.RemoteProcess
 
                     var entryName = Encoding.Unicode.GetString(entryNameBytes);
 
-                    yield return new Module((IntPtr) pebEntry.DllBase, entryFilePath, entryName);
+                    Modules.Add(new Module((IntPtr) pebEntry.DllBase, entryFilePath, entryName));
                 }
             }
         }

@@ -67,7 +67,7 @@ namespace Bleak.Injection.Methods
 
             // Write the shellcode used to call LdrLoadDll from a thread into the remote process
 
-            var shellcode = _injectionWrapper.Assembler.AssembleThreadFunctionCall(CallingConvention.StdCall, ldrLoadDllAddress, returnBuffer, 0, 0, (ulong) unicodeStringBuffer, (ulong) moduleHandleBuffer);
+            var shellcode = _injectionWrapper.Assembler.AssembleStandardThreadFunctionCall(ldrLoadDllAddress, returnBuffer, new ulong[] { 0, 0, (ulong) unicodeStringBuffer, (ulong) moduleHandleBuffer });
 
             var shellcodeBuffer = _injectionWrapper.MemoryManager.AllocateVirtualMemory(shellcode.Length);
 

@@ -5,39 +5,49 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using Bleak.Native;
-using Bleak.PortableExecutable;
-using Bleak.PortableExecutable.Objects;
 using Bleak.ProgramDatabase.Objects;
+using Bleak.RemoteProcess.Objects;
 using Bleak.Shared;
 
 namespace Bleak.ProgramDatabase
 {
     internal class PdbParser 
     {
-        internal bool PdbDownloaded;
+        private readonly Module _module;
 
-        internal readonly List<Symbol> PdbSymbols;
-
+        private bool _pdbDownloaded;
+        
         private string _pdbPath;
         
-        internal PdbParser(bool isWow64)
-        {
-            var systemFolderPath = isWow64
-                                 ? Environment.GetFolderPath(Environment.SpecialFolder.SystemX86)
-                                 : Environment.GetFolderPath(Environment.SpecialFolder.System);
-
-            var pdbPath = Path.Combine(systemFolderPath, "ntdll.dll");
-            
-            using (var peParser = new PeParser(pdbPath))
-            {
-                PdbSymbols = GetPdbSymbols(peParser.GetDebugData()).Result;
-            }
-        }
+        private readonly List<Symbol> _pdbSymbols;
         
-        private Task DownloadPdb(DebugData pdbDebugData)
+        internal PdbParser(Module module)
         {
+            _module = module;
+            
+            _pdbSymbols = new List<Symbol>();
+            
+            GetPdbSymbols();
+        }
+
+        internal IntPtr GetSymbolAddress(string symbolName)
+        {
+            var pdbSymbol = _pdbSymbols.Find(symbol => symbol.Name == symbolName);
+
+            // Get the section that the symbol resides in
+            
+            var symbolSection = _module.PeParser.Value.GetPeHeaders().SectionHeaders[(int) pdbSymbol.Section - 1];
+
+            // Calculate the address of the symbol
+            
+            return _module.BaseAddress.AddOffset(symbolSection.VirtualAddress + pdbSymbol.Offset);
+        }
+
+        private void DownloadPdb()
+        {
+            var pdbDebugData = _module.PeParser.Value.GetDebugData();
+            
             // Get the URI for the PDB
             
             var pdbUri = "http://msdl.microsoft.com/download/symbols/" + pdbDebugData.Name + "/" + pdbDebugData.Guid + pdbDebugData.Age + "/" + pdbDebugData.Name;
@@ -46,17 +56,17 @@ namespace Bleak.ProgramDatabase
 
             var temporaryDirectoryInfo = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "Bleak", "PDB"));
 
-            var pdbName = $"ntdll-{pdbDebugData.Guid}-{pdbDebugData.Age}.pdb";
-
+            var pdbName = $"{_module.Name}-{pdbDebugData.Guid}-{pdbDebugData.Age}.pdb";
+            
             _pdbPath = Path.Combine(temporaryDirectoryInfo.FullName, pdbName);
-
+            
             // Ensure the PDB hasn't already been downloaded
             
             if (temporaryDirectoryInfo.EnumerateFiles().Any(file => file.Name == pdbName))
             {
-                PdbDownloaded = true;
+                _pdbDownloaded = true;
                 
-                return Task.CompletedTask;
+                return;
             }
 
             // Clear the directory
@@ -83,20 +93,18 @@ namespace Bleak.ProgramDatabase
                 
                 // Download the PDB
 
-                webClient.DownloadFileCompleted += (sender, @event) => { PdbDownloaded = true; };
+                webClient.DownloadFileCompleted += (sender, @event) => { _pdbDownloaded = true; };
                 
-                return webClient.DownloadFileTaskAsync(new Uri(pdbUri), Path.Combine(temporaryDirectoryInfo.FullName, pdbName));
+                webClient.DownloadFileAsync(new Uri(pdbUri), Path.Combine(temporaryDirectoryInfo.FullName, pdbName));
             }
         }
-        
-        private async Task<List<Symbol>> GetPdbSymbols(DebugData pdbDebugData)
+
+        private void GetPdbSymbols()
         {
-            var symbols = new List<Symbol>();
+            DownloadPdb();
             
-            // Ensure the latest version of the PDB is downloaded
-            
-            await DownloadPdb(pdbDebugData);
-            
+            while (!_pdbDownloaded) { }
+
             // Store the bytes of the PDB in a buffer
             
             var pdbBufferHandle = GCHandle.Alloc(File.ReadAllBytes(_pdbPath), GCHandleType.Pinned);
@@ -184,7 +192,7 @@ namespace Bleak.ProgramDatabase
                 
                 var symbolName = Marshal.PtrToStringAnsi(symbolStreamBuffer.AddOffset(Marshal.SizeOf<Structures.SymbolData>()));
                 
-                symbols.Add(new Symbol(symbolName, symbolData.Offset, symbolData.Section));
+                _pdbSymbols.Add(new Symbol(symbolName, symbolData.Offset, symbolData.Section));
                 
                 // Calculate the address of the next symbol
                 
@@ -194,8 +202,6 @@ namespace Bleak.ProgramDatabase
             symbolStreamBufferHandle.Free();
             
             pdbBufferHandle.Free();
-
-            return symbols;
         }
     }
 }

@@ -38,7 +38,7 @@ namespace Bleak.Injection.Objects
 
             MemoryManager = new MemoryManager(RemoteProcess.Process.SafeHandle);
 
-            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.IsWow64));
+            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.Modules.Find(module => module.Name == "ntdll.dll")));
             
             PeParser = new PeParser(dllBytes);
         }
@@ -57,7 +57,7 @@ namespace Bleak.Injection.Objects
 
             MemoryManager = new MemoryManager(RemoteProcess.Process.SafeHandle);
 
-            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.IsWow64));
+            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.Modules.Find(module => module.Name == "ntdll.dll")));
             
             PeParser = new PeParser(dllPath);
         }
@@ -74,7 +74,7 @@ namespace Bleak.Injection.Objects
 
             MemoryManager = new MemoryManager(RemoteProcess.Process.SafeHandle);
 
-            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.IsWow64));
+            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.Modules.Find(module => module.Name == "ntdll.dll")));
             
             PeParser = new PeParser(dllBytes);
         }
@@ -93,7 +93,7 @@ namespace Bleak.Injection.Objects
 
             MemoryManager = new MemoryManager(RemoteProcess.Process.SafeHandle);
 
-            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.IsWow64));
+            PdbParser = new Lazy<PdbParser>(() => new PdbParser(RemoteProcess.Modules.Find(module => module.Name == "ntdll.dll")));
             
             PeParser = new PeParser(dllPath);
         }

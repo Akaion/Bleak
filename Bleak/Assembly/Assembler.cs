@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace Bleak.Assembly
 {
@@ -14,106 +13,31 @@ namespace Bleak.Assembly
             _isWow64 = isWow64;
         }
 
-        internal byte[] AssembleFunctionCall(CallingConvention callingConvention, IntPtr functionAddress, IntPtr returnBuffer, params ulong[] parameters)
+        internal byte[] AssembleStandardFunctionCall(IntPtr functionAddress, IntPtr returnAddress, ulong[] parameters)
         {
             var shellcode = new List<byte>();
 
             if (_isWow64)
             {
-                if (callingConvention == CallingConvention.FastCall)
+                foreach (var parameter in parameters.Select(p => p).Reverse())
                 {
-                    for (var parameterIndex = 0; parameterIndex < parameters.Length; parameterIndex += 1)
+                    if (parameter <= 0x7F)
                     {
-                        switch (parameterIndex)
-                        {
-                            case 0:
-                            {
-                                if (parameters[parameterIndex] == 0)
-                                {
-                                    // xor ecx, ecx
+                        // push parameter
 
-                                    shellcode.AddRange(new byte[] { 0x31, 0xC9 });
-                                }
+                        shellcode.AddRange(new byte[] { 0x6A, (byte) parameter });
+                    }
 
-                                else
-                                {
-                                    // mov ecx, parameter
-                                    
-                                    shellcode.AddRange(new byte[] { 0xB9 });
-                                    
-                                    shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
-                                }
-                                
-                                break;
-                            }
+                    else
+                    {
+                        // push parameter
 
-                            case 1:
-                            {
-                                if (parameters[parameterIndex] == 0)
-                                {
-                                    // xor edx, edx
+                        shellcode.Add(0x68);
 
-                                    shellcode.AddRange(new byte[] { 0x31, 0xD2 });
-                                }
-
-                                else
-                                {
-                                    // mov edx, parameter
-                                    
-                                    shellcode.AddRange(new byte[] { 0xBA });
-                                    
-                                    shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
-                                }
-                                
-                                break;
-                            }
-
-                            default:
-                            {
-                                if (parameters[parameterIndex] <= 0x7F)
-                                {
-                                    // push parameter
-
-                                    shellcode.AddRange(new byte[] { 0x6A, (byte) parameters[parameterIndex] });
-                                }
-
-                                else
-                                {
-                                    // push parameter
-
-                                    shellcode.Add(0x68);
-
-                                    shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
-                                }
-                                
-                                break;
-                            }
-                        }   
+                        shellcode.AddRange(BitConverter.GetBytes((uint) parameter));
                     }
                 }
-
-                else
-                {
-                    foreach (var parameter in parameters.Select(p => (uint) p).Reverse())
-                    {
-                        if (parameter <= 0x7F)
-                        {
-                            // push parameter
-
-                            shellcode.AddRange(new byte[] { 0x6A, (byte) parameter });
-                        }
-
-                        else
-                        {
-                            // push parameter
-
-                            shellcode.Add(0x68);
-
-                            shellcode.AddRange(BitConverter.GetBytes(parameter));
-                        }
-                    }
-                }
-
+                
                 // mov eax, functionAddress
 
                 shellcode.Add(0xB8);
@@ -124,13 +48,134 @@ namespace Bleak.Assembly
 
                 shellcode.AddRange(new byte[] { 0xFF, 0xD0 });
 
-                if (returnBuffer != IntPtr.Zero)
+                if (returnAddress != IntPtr.Zero)
                 {
                     // mov [returnBuffer], eax
 
                     shellcode.Add(0xA3);
 
-                    shellcode.AddRange(BitConverter.GetBytes((uint) returnBuffer));
+                    shellcode.AddRange(BitConverter.GetBytes((uint) returnAddress));
+                }
+
+                // xor eax, eax
+
+                shellcode.AddRange(new byte[] { 0x33, 0xC0 });
+
+                // ret
+
+                shellcode.Add(0xC3);
+            }
+
+            else
+            {
+                return AssembleFastCallFunctionCall(functionAddress, returnAddress, parameters);
+            }
+            
+            return shellcode.ToArray();
+        }
+
+        internal byte[] AssembleFastCallFunctionCall(IntPtr functionAddress, IntPtr returnAddress, ulong[] parameters)
+        {
+            var shellcode = new List<byte>();
+
+            if (_isWow64)
+            {
+                var stackParameters = new List<byte>();
+                
+                for (var parameterIndex = 0; parameterIndex < parameters.Length; parameterIndex += 1)
+                {
+                    switch (parameterIndex)
+                    {
+                        case 0:
+                        {
+                            if (parameters[parameterIndex] == 0)
+                            {
+                                // xor ecx, ecx
+
+                                shellcode.AddRange(new byte[] { 0x31, 0xC9 });
+                            }
+                            
+                            else
+                            {
+                                // mov ecx, parameter
+                                    
+                                shellcode.AddRange(new byte[] { 0xB9 });
+                                    
+                                shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
+                            }
+                            
+                            break;
+                        }
+
+                        case 1:
+                        {
+                            if (parameters[parameterIndex] == 0)
+                            {
+                                // xor edx, edx
+
+                                shellcode.AddRange(new byte[] { 0x31, 0xD2 });
+                            }
+
+                            else
+                            {
+                                // mov edx, parameter
+                                    
+                                shellcode.AddRange(new byte[] { 0xBA });
+                                    
+                                shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
+                            }
+                            
+                            break;
+                        }
+
+                        default:
+                        {
+                            var temporaryOperation = new List<byte>();
+                            
+                            if (parameters[parameterIndex] <= 0x7F)
+                            {
+                                // push parameter
+
+                                stackParameters.InsertRange(0, new byte[] { 0x6A, (byte) parameters[parameterIndex] });
+                            }
+
+                            else
+                            {
+                                // push parameter
+                                
+                                temporaryOperation.Add(0x68);
+                                
+                                temporaryOperation.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
+                                
+                                stackParameters.InsertRange(0, temporaryOperation);
+                            }
+
+                            break;
+                        }
+                    }
+                }
+                
+                // push parameters
+
+                shellcode.AddRange(stackParameters);
+                
+                // mov eax, functionAddress
+
+                shellcode.Add(0xB8);
+
+                shellcode.AddRange(BitConverter.GetBytes((uint) functionAddress));
+
+                // call eax
+
+                shellcode.AddRange(new byte[] { 0xFF, 0xD0 });
+
+                if (returnAddress != IntPtr.Zero)
+                {
+                    // mov [returnBuffer], eax
+
+                    shellcode.Add(0xA3);
+
+                    shellcode.AddRange(BitConverter.GetBytes((uint) returnAddress));
                 }
 
                 // xor eax, eax
@@ -171,7 +216,7 @@ namespace Bleak.Assembly
 
                                 shellcode.AddRange(BitConverter.GetBytes(parameters[parameterIndex]));
                             }
-
+                            
                             break;
                         }
 
@@ -192,7 +237,7 @@ namespace Bleak.Assembly
 
                                 shellcode.AddRange(BitConverter.GetBytes(parameters[parameterIndex]));
                             }
-
+                            
                             break;
                         }
 
@@ -213,7 +258,7 @@ namespace Bleak.Assembly
 
                                 shellcode.AddRange(BitConverter.GetBytes(parameters[parameterIndex]));
                             }
-
+                            
                             break;
                         }
 
@@ -234,35 +279,37 @@ namespace Bleak.Assembly
 
                                 shellcode.AddRange(BitConverter.GetBytes(parameters[parameterIndex]));
                             }
-
+                            
                             break;
                         }
 
                         default:
                         {
+                            var temporaryOperation = new List<byte>();
+                            
                             if (parameters[parameterIndex] < uint.MaxValue)
                             {
                                 if (parameters[parameterIndex] <= 0x7F)
                                 {
                                     // push parameter
 
-                                    shellcode.AddRange(new byte[] { 0x6A, (byte) parameters[parameterIndex] });
+                                    stackParameters.InsertRange(0, new byte[] {0x6A, (byte) parameters[parameterIndex]});
                                 }
 
                                 else
                                 {
                                     // push parameter
 
-                                    shellcode.Add(0x68);
+                                    temporaryOperation.Add(0x68);
+                                    
+                                    temporaryOperation.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
 
-                                    shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
+                                    stackParameters.InsertRange(0, temporaryOperation);
                                 }
                             }
 
                             else
                             {
-                                var temporaryOperation = new List<byte>();
-
                                 // mov rax, parameter
 
                                 temporaryOperation.AddRange(new byte[] { 0x48, 0xB8 });
@@ -280,7 +327,7 @@ namespace Bleak.Assembly
                         }
                     }
                 }
-
+                
                 // push parameters
 
                 shellcode.AddRange(stackParameters);
@@ -295,13 +342,13 @@ namespace Bleak.Assembly
 
                 shellcode.AddRange(new byte[] { 0xFF, 0xD0 });
 
-                if (returnBuffer != IntPtr.Zero)
+                if (returnAddress != IntPtr.Zero)
                 {
                     // mov [returnBuffer], rax
 
                     shellcode.AddRange(new byte[] { 0x48, 0xA3 });
 
-                    shellcode.AddRange(BitConverter.GetBytes((ulong) returnBuffer));
+                    shellcode.AddRange(BitConverter.GetBytes((ulong) returnAddress));
                 }
                 
                 // xor eax, eax
@@ -316,11 +363,11 @@ namespace Bleak.Assembly
 
                 shellcode.Add(0xC3);
             }
-
+            
             return shellcode.ToArray();
         }
 
-        internal byte[] AssembleThreadFunctionCall(CallingConvention callingConvention, IntPtr functionAddress, IntPtr returnBuffer, params ulong[] parameters)
+        internal byte[] AssembleStandardThreadFunctionCall(IntPtr functionAddress, IntPtr returnAddress, ulong[] parameters)
         {
             var shellcode = new List<byte>();
 
@@ -333,98 +380,23 @@ namespace Bleak.Assembly
                 // pusha
 
                 shellcode.Add(0x60);
-
-                if (callingConvention == CallingConvention.FastCall)
+                
+                foreach (var parameter in parameters.Select(p => p).Reverse())
                 {
-                    for (var parameterIndex = 0; parameterIndex < parameters.Length; parameterIndex += 1)
+                    if (parameter <= 0x7F)
                     {
-                        switch (parameterIndex)
-                        {
-                            case 0:
-                            {
-                                if (parameters[parameterIndex] == 0)
-                                {
-                                    // xor ecx, ecx
+                        // push parameter
 
-                                    shellcode.AddRange(new byte[] { 0x31, 0xC9 });
-                                }
-
-                                else
-                                {
-                                    // mov ecx, parameter
-                                    
-                                    shellcode.AddRange(new byte[] { 0xB9 });
-                                    
-                                    shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
-                                }
-                                
-                                break;
-                            }
-
-                            case 1:
-                            {
-                                if (parameters[parameterIndex] == 0)
-                                {
-                                    // xor edx, edx
-
-                                    shellcode.AddRange(new byte[] { 0x31, 0xD2 });
-                                }
-
-                                else
-                                {
-                                    // mov edx, parameter
-                                    
-                                    shellcode.AddRange(new byte[] { 0xBA });
-                                    
-                                    shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
-                                }
-                                
-                                break;
-                            }
-
-                            default:
-                            {
-                                if (parameters[parameterIndex] <= 0x7F)
-                                {
-                                    // push parameter
-
-                                    shellcode.AddRange(new byte[] { 0x6A, (byte) parameters[parameterIndex] });
-                                }
-
-                                else
-                                {
-                                    // push parameter
-
-                                    shellcode.Add(0x68);
-
-                                    shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
-                                }
-                                
-                                break;
-                            }
-                        }   
+                        shellcode.AddRange(new byte[] { 0x6A, (byte) parameter });
                     }
-                }
 
-                else
-                {
-                    foreach (var parameter in parameters.Select(p => (uint) p).Reverse())
+                    else
                     {
-                        if (parameter <= 0x7F)
-                        {
-                            // push parameter
+                        // push parameter
 
-                            shellcode.AddRange(new byte[] { 0x6A, (byte) parameter });
-                        }
+                        shellcode.Add(0x68);
 
-                        else
-                        {
-                            // push parameter
-
-                            shellcode.Add(0x68);
-
-                            shellcode.AddRange(BitConverter.GetBytes(parameter));
-                        }
+                        shellcode.AddRange(BitConverter.GetBytes((uint) parameter));
                     }
                 }
 
@@ -438,13 +410,146 @@ namespace Bleak.Assembly
 
                 shellcode.AddRange(new byte[] { 0xFF, 0xD0 });
 
-                if (returnBuffer != IntPtr.Zero)
+                if (returnAddress != IntPtr.Zero)
                 {
                     // mov [returnBuffer], eax
 
                     shellcode.Add(0xA3);
 
-                    shellcode.AddRange(BitConverter.GetBytes((uint) returnBuffer));
+                    shellcode.AddRange(BitConverter.GetBytes((uint) returnAddress));
+                }
+
+                // popa
+
+                shellcode.Add(0x61);
+
+                // popf
+
+                shellcode.Add(0x9D);
+
+                // ret
+
+                shellcode.Add(0xC3);
+            }
+
+            else
+            {
+                return AssembleFastCallThreadFunctionCall(functionAddress, returnAddress, parameters);
+            }
+            
+            return shellcode.ToArray();
+        }
+
+        internal byte[] AssembleFastCallThreadFunctionCall(IntPtr functionAddress, IntPtr returnAddress, ulong[] parameters)
+        {
+            var shellcode = new List<byte>();
+
+            if (_isWow64)
+            {
+                // pushf
+
+                shellcode.Add(0x9C);
+
+                // pusha
+
+                shellcode.Add(0x60);
+                
+                var stackParameters = new List<byte>();
+                
+                for (var parameterIndex = 0; parameterIndex < parameters.Length; parameterIndex += 1)
+                {
+                    switch (parameterIndex)
+                    {
+                        case 0:
+                        {
+                            if (parameters[parameterIndex] == 0)
+                            {
+                                // xor ecx, ecx
+
+                                shellcode.AddRange(new byte[] { 0x31, 0xC9 });
+                            }
+                            
+                            else
+                            {
+                                // mov ecx, parameter
+                                    
+                                shellcode.AddRange(new byte[] { 0xB9 });
+                                    
+                                shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
+                            }
+                            
+                            break;
+                        }
+
+                        case 1:
+                        {
+                            if (parameters[parameterIndex] == 0)
+                            {
+                                // xor edx, edx
+
+                                shellcode.AddRange(new byte[] { 0x31, 0xD2 });
+                            }
+
+                            else
+                            {
+                                // mov edx, parameter
+                                    
+                                shellcode.AddRange(new byte[] { 0xBA });
+                                    
+                                shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
+                            }
+                            
+                            break;
+                        }
+
+                        default:
+                        {
+                            var temporaryOperation = new List<byte>();
+                            
+                            if (parameters[parameterIndex] <= 0x7F)
+                            {
+                                // push parameter
+
+                                stackParameters.InsertRange(0, new byte[] { 0x6A, (byte) parameters[parameterIndex] });
+                            }
+
+                            else
+                            {
+                                // push parameter
+                                
+                                temporaryOperation.Add(0x68);
+                                
+                                temporaryOperation.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
+                                
+                                stackParameters.InsertRange(0, temporaryOperation);
+                            }
+
+                            break;
+                        }
+                    }
+                }
+                
+                // push parameters
+
+                shellcode.AddRange(stackParameters);
+                
+                // mov eax, functionAddress
+
+                shellcode.Add(0xB8);
+
+                shellcode.AddRange(BitConverter.GetBytes((uint) functionAddress));
+
+                // call eax
+
+                shellcode.AddRange(new byte[] { 0xFF, 0xD0 });
+
+                if (returnAddress != IntPtr.Zero)
+                {
+                    // mov [returnBuffer], eax
+
+                    shellcode.Add(0xA3);
+
+                    shellcode.AddRange(BitConverter.GetBytes((uint) returnAddress));
                 }
 
                 // popa
@@ -525,7 +630,7 @@ namespace Bleak.Assembly
 
                                 shellcode.AddRange(BitConverter.GetBytes(parameters[parameterIndex]));
                             }
-
+                            
                             break;
                         }
 
@@ -546,7 +651,7 @@ namespace Bleak.Assembly
 
                                 shellcode.AddRange(BitConverter.GetBytes(parameters[parameterIndex]));
                             }
-
+                            
                             break;
                         }
 
@@ -567,7 +672,7 @@ namespace Bleak.Assembly
 
                                 shellcode.AddRange(BitConverter.GetBytes(parameters[parameterIndex]));
                             }
-
+                            
                             break;
                         }
 
@@ -588,35 +693,37 @@ namespace Bleak.Assembly
 
                                 shellcode.AddRange(BitConverter.GetBytes(parameters[parameterIndex]));
                             }
-
+                            
                             break;
                         }
-                        
+
                         default:
                         {
+                            var temporaryOperation = new List<byte>();
+                            
                             if (parameters[parameterIndex] < uint.MaxValue)
                             {
                                 if (parameters[parameterIndex] <= 0x7F)
                                 {
                                     // push parameter
 
-                                    shellcode.AddRange(new byte[] { 0x6A, (byte) parameters[parameterIndex] });
+                                    stackParameters.InsertRange(0, new byte[] {0x6A, (byte) parameters[parameterIndex]});
                                 }
 
                                 else
                                 {
                                     // push parameter
 
-                                    shellcode.Add(0x68);
+                                    temporaryOperation.Add(0x68);
+                                    
+                                    temporaryOperation.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
 
-                                    shellcode.AddRange(BitConverter.GetBytes((uint) parameters[parameterIndex]));
+                                    stackParameters.InsertRange(0, temporaryOperation);
                                 }
                             }
 
                             else
                             {
-                                var temporaryOperation = new List<byte>();
-
                                 // mov rax, parameter
 
                                 temporaryOperation.AddRange(new byte[] { 0x48, 0xB8 });
@@ -649,13 +756,13 @@ namespace Bleak.Assembly
 
                 shellcode.AddRange(new byte[] { 0xFF, 0xD0 });
 
-                if (returnBuffer != IntPtr.Zero)
+                if (returnAddress != IntPtr.Zero)
                 {
                     // mov [returnBuffer], rax
 
                     shellcode.AddRange(new byte[] { 0x48, 0xA3 });
 
-                    shellcode.AddRange(BitConverter.GetBytes((ulong) returnBuffer));
+                    shellcode.AddRange(BitConverter.GetBytes((ulong) returnAddress));
                 }
 
                 // add rsp, 0x28
@@ -702,7 +809,7 @@ namespace Bleak.Assembly
 
                 shellcode.Add(0xC3);
             }
-
+            
             return shellcode.ToArray();
         }
     }

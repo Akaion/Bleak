@@ -51,12 +51,12 @@ namespace Bleak.Injection.Methods
 
             try
             {
-                _remoteDllAddress = _injectionWrapper.MemoryManager.AllocateVirtualMemory((IntPtr)preferredBaseAddress, (int)dllSize);
+                _remoteDllAddress = _injectionWrapper.MemoryManager.AllocateVirtualMemory((IntPtr) preferredBaseAddress, (int) dllSize);
             }
 
             catch (Win32Exception)
             {
-                _remoteDllAddress = _injectionWrapper.MemoryManager.AllocateVirtualMemory((int)dllSize);
+                _remoteDllAddress = _injectionWrapper.MemoryManager.AllocateVirtualMemory((int) dllSize);
             }
 
             // Relocate the DLL in the local process
@@ -165,7 +165,7 @@ namespace Bleak.Injection.Methods
 
         private void CallEntryPoint(IntPtr entryPointAddress)
         {
-            if (!_injectionWrapper.RemoteProcess.CallFunction<bool>(CallingConvention.StdCall, entryPointAddress, (ulong) _remoteDllAddress, Constants.DllProcessAttach, 0))
+            if (!_injectionWrapper.RemoteProcess.CallFunction<bool>(entryPointAddress, new ulong[] { (ulong) _remoteDllAddress, Constants.DllProcessAttach, 0 }))
             {
                 throw new Win32Exception("Failed to call DllMain in the remote process");
             }
@@ -183,29 +183,17 @@ namespace Bleak.Injection.Methods
         {
             if (_injectionWrapper.RemoteProcess.IsWow64)
             {
-                var ntdll = _injectionWrapper.RemoteProcess.Modules.Find(module => module.Name == "ntdll.dll");
-
-                var ntdllPeHeaders = ntdll.PeParser.Value.GetPeHeaders();
-                
                 var dllSize = _injectionWrapper.RemoteProcess.IsWow64
                             ? _injectionWrapper.PeParser.GetPeHeaders().NtHeaders32.OptionalHeader.SizeOfImage
                             : _injectionWrapper.PeParser.GetPeHeaders().NtHeaders64.OptionalHeader.SizeOfImage;
-
-                // Ensure the PDB has been downloaded
-                
-                while (!_injectionWrapper.PdbParser.Value.PdbDownloaded) { }
                 
                 // Get the address of the RtlInsertInvertedFunctionTable function
 
-                var rtlInsertInvertedFunctionTableSymbol = _injectionWrapper.PdbParser.Value.PdbSymbols.Find(symbol => symbol.Name == "_RtlInsertInvertedFunctionTable@8");
-
-                var rtlInsertInvertedFunctionTableSection = ntdllPeHeaders.SectionHeaders[(int) rtlInsertInvertedFunctionTableSymbol.Section - 1];
+                var rtlInsertInvertedFunctionTableAddress = _injectionWrapper.PdbParser.Value.GetSymbolAddress("_RtlInsertInvertedFunctionTable@8");
                 
-                var rtlInsertInvertedFunctionTableAddress = ntdll.BaseAddress.AddOffset(rtlInsertInvertedFunctionTableSection.VirtualAddress + rtlInsertInvertedFunctionTableSymbol.Offset);
-
                 // Add an entry for the DLL to the LdrpInvertedFunctionTable
                 
-                _injectionWrapper.RemoteProcess.CallFunction(CallingConvention.FastCall, rtlInsertInvertedFunctionTableAddress, (ulong) _remoteDllAddress, dllSize);
+                _injectionWrapper.RemoteProcess.CallFunction(rtlInsertInvertedFunctionTableAddress, new [] { (ulong) _remoteDllAddress, dllSize }, CallingConvention.FastCall);
             }
 
             else
@@ -222,7 +210,7 @@ namespace Bleak.Injection.Methods
 
                 // Add the exception table to the dynamic function table of the remote process
 
-                if (!_injectionWrapper.RemoteProcess.CallFunction<bool>(CallingConvention.StdCall, "kernel32.dll", "RtlAddFunctionTable", (ulong) exceptionTableAddress, (uint) exceptionTableAmount, (ulong) _remoteDllAddress))
+                if (!_injectionWrapper.RemoteProcess.CallFunction<bool>("kernel32.dll", "RtlAddFunctionTable", new [] { (ulong) exceptionTableAddress, (uint) exceptionTableAmount, (ulong) _remoteDllAddress }))
                 {
                     throw new Win32Exception("Failed to add an exception table to the dynamic function table of the remote process");
                 }
