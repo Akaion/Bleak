@@ -37,7 +37,7 @@ After installing Bleak, you will want to ensure that your project is being compi
 
 ----
 
-### Useage
+### Usage
 
 The example below describes a basic implementation of the library.
 
